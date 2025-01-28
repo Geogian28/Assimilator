@@ -1,0 +1,50 @@
+---
+- name: DotFiles Config
+  hosts: localhost
+  connection: local
+
+  vars:
+    folder:
+      - "ISOs"
+      - "Zeppelin"
+      - "pangolintemp"
+      - "ContainerData"
+      - "Homelab"
+      - "ContainerData/Cider"
+      - "GitRepos"
+
+  tasks:
+    - name: update apt packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install nfs-utils for Redhat-like
+      package:
+        name:
+          - nfs-utils
+        state: present
+      when: ansible_facts["os_family"] == "RedHat"
+
+    - name: Install nfs-common for Debian-like
+      package:
+        name:
+          - nfs-common
+        state: present
+      when: ansible_facts["os_family"] == "Debian"
+
+    - name: Make mount folder in /mnt/nfs
+      ansible.builtin.file:
+        path: "{{ '/mnt/nfs/' + item }}"
+        state: directory
+      with_items: "{{ folder }}"
+
+
+    - name: Add NFS Shares
+      mount:
+        src: "{{ 'raihako.brohome.net:/mnt/Raihako/' + item }}"
+        path: "{{ '/mnt/nfs/' + item }}"
+        opts: rw
+        state: mounted
+        fstype: nfs
+      with_items: "{{ folder }}"
