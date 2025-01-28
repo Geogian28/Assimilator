@@ -3,11 +3,10 @@
 
 # Initialize Variables
 GITHUB_ACCESS_TOKEN=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
-FILE_TO_CURL=""
-MACHINE_SETUP_LOG=$HOME/.machine_setup.log  # replaced from DOTFILES_LOG
-MACHINE_SETUP_DIR="$HOME/.machine_setup"  # replaced from DOTFILES_DIR
+ASSIMILATOR_LOG=$HOME/.assimilator.log  # replaced from DOTFILES_LOG
+ASSIMILATOR_DIR="$HOME/.assimilator"  # replaced from DOTFILES_DIR
 SSH_DIR="$HOME/.ssh"
-IS_FIRST_RUN="$HOME/.machine_setup_run"
+IS_FIRST_RUN="$HOME/.assimilator_run"
 
 # color codes
 RESTORE='\033[0m'
@@ -45,11 +44,11 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 function CURL_COMMAND() {
     curl -H 'Authorization: token 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' \
         -H 'Accept: application/vnd.github.v3.raw' \
-        -L https://api.github.com/repos/geogian28/Homelab/contents$1
+        -L https://api.github.com/repos/geogian28/Assimilate/contents$1
 }
 
-#bash <(curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Homelab/contents/Scripts/NewMachineSetup/new_machine_setup.sh)
-#curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Homelab/contents/Scripts/NewMachineSetup/
+#bash <(curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilate/contents/Scripts/NewMachineSetup/new_machine_setup.sh)
+#curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilate/contents/Scripts/NewMachineSetup/
 
 
 #CURL_COMMAND /helloworld.yml
@@ -87,6 +86,15 @@ function _cmd {
   rm $MACHINE_SETUP_LOG
   # exit installation
   exit 1
+}
+
+function _clear_task {
+  TASK=""
+}
+
+function _task_done {
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  _clear_task
 }
 
 function ubuntu_setup() {
@@ -129,6 +137,9 @@ if [ -f /usr/bin/yum ]; then
     OS_FAMILY="fedora"
     redhat_setup
 fi
+
+_cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR
+
 #ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 #ansible-playbook main.yaml
 #ansible-playbook $(CURL_COMMAND "/Scripts/NewMachineSetup/main.yaml")
