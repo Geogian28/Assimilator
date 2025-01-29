@@ -3,8 +3,8 @@
 
 # Initialize Variables
 GITHUB_ACCESS_TOKEN=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
-ASSIMILATOR_LOG=$HOME/.assimilator.log  # replaced from DOTFILES_LOG
 ASSIMILATOR_DIR="$HOME/.assimilator"  # replaced from DOTFILES_DIR
+ASSIMILATOR_LOG=$HOME/.assimilator.log  # replaced from DOTFILES_LOG
 SSH_DIR="$HOME/.ssh"
 IS_FIRST_RUN="$HOME/.assimilator_run"
 
@@ -43,13 +43,12 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 function CURL_COMMAND() {
     curl -H 'Authorization: token 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' \
-        -H 'Accept: application/vnd.github.v3.raw' \
-        -L https://api.github.com/repos/geogian28/Assimilator/contents$1
+    -H 'Accept: application/vnd.github.v3.raw' \
+    -L https://api.github.com/repos/geogian28/Assimilator/contents$1
 }
 
-#bash <(curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/Scripts/NewMachineSetup/new_machine_setup.sh)
-#curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/Scripts/NewMachineSetup/
-
+# bash <(curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh)
+# curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh
 
 #CURL_COMMAND /helloworld.yml
 #bash -c "$(CURL_COMMAND /Scripts/new_machine_setup.sh)"
@@ -67,23 +66,23 @@ function __task {
 # _cmd performs commands with error checking
 function _cmd {
   #create log if it doesn't exist
-  if ! [[ -f $MACHINE_SETUP_LOG ]]; then
-    touch $MACHINE_SETUP_LOG
+  if ! [[ -f $ASSIMILATOR_LOG ]]; then
+    touch $ASSIMILATOR_LOG
   fi
   # empty conduro.log
-  > $MACHINE_SETUP_LOG
+  > $ASSIMILATOR_LOG
   # hide stdout, on error we print and exit
-  if eval "$1" 1> /dev/null 2> $MACHINE_SETUP_LOG; then
+  if eval "$1" 1> /dev/null 2> $ASSIMILATOR_LOG; then
     return 0 # success
   fi
   # read error from log and add spacing
   printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
   while read line; do
     printf "      ${line}\n"
-  done < $MACHINE_SETUP_LOG
+  done < $ASSIMILATOR_LOG
   printf "\n"
   # remove log file
-  rm $MACHINE_SETUP_LOG
+  rm $ASSIMILATOR_LOG
   # exit installation
   exit 1
 }
@@ -106,6 +105,8 @@ function ubuntu_setup() {
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y ansible"
     _cmd "sudo apt-get install python3-argcomplete"
+    __task "Installing Git"
+    _cmd "sudo apt-get install git -y"
     _cmd "sudo activate-global-python-argcomplete3"
   fi
   if ! yum list installed | grep python3 >/dev/null 2>&1; then
@@ -121,6 +122,8 @@ function redhat_setup() {
     _cmd "sudo yum install -y ansible"
     _cmd "sudo yum install -y python3-argcomplete"
     _cmd "sudo activate-global-python-argcomplete"
+    __task "Installing Git and repository"
+    _cmd "sudo yum install git -y"
   fi
   #if ! dpkg -s python3 >/dev/null 2>&1; then
   #  __task "Installing Python3"
@@ -138,8 +141,10 @@ if [ -f /usr/bin/yum ]; then
     redhat_setup
 fi
 
-_cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR
+# _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
+git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR
 
-#ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
-#ansible-playbook main.yaml
-#ansible-playbook $(CURL_COMMAND "/Scripts/NewMachineSetup/main.yaml")
+__task "Running Ansible Playbook"
+# ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+ansible-playbook $ASSIMILATOR_DIR/main.yaml
+# ansible-playbook $(CURL_COMMAND "/Scripts/NewMachineSetup/main.yaml")
