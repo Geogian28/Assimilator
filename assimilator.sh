@@ -97,7 +97,7 @@ function _task_done {
 }
 
 function ubuntu_setup() {
-  if ! yum list installed | grep ansible >/dev/null 2>&1; then
+  if ! dpkg -s ansible >/dev/null 2>&1; then
     __task "Installing Ansible"
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y software-properties-common"
@@ -109,23 +109,23 @@ function ubuntu_setup() {
     _cmd "sudo apt-get install git -y"
     _cmd "sudo activate-global-python-argcomplete3"
   fi
-  if ! yum list installed | grep python3 >/dev/null 2>&1; then
+  if ! dpkg -s python3 >/dev/null 2>&1; then
     __task "Installing Python3"
     _cmd "sudo apt-get install -y python3"
   fi
 }
 
 function redhat_setup() {
-  if ! dpkg -s ansible >/dev/null 2>&1; then
+  if ! yum list installed | grep ansible >/dev/null 2>&1; then
     __task "Installing Ansible"
     _cmd "sudo yum update -y"
     _cmd "sudo yum install -y ansible"
     _cmd "sudo yum install -y python3-argcomplete"
     _cmd "sudo activate-global-python-argcomplete"
-    __task "Installing Git and repository"
+    __task "Installing Git "
     _cmd "sudo yum install git -y"
   fi
-  #if ! dpkg -s python3 >/dev/null 2>&1; then
+  #if ! yum list installed | grep python3 >/dev/null 2>&1; then
   #  __task "Installing Python3"
   #  _cmd "sudo yum install -y python3"
   #fi
@@ -141,10 +141,16 @@ if [ -f /usr/bin/yum ]; then
     redhat_setup
 fi
 
-# _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
-git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR
 
-__task "Running Ansible Playbook"
+if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
+  __task "Cloning repository"
+  # _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
+  git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR
+else
+  __task "Updating repository"
+  git -C "$ASSIMILATOR_DIR pull --quiet > /dev/null"
+fi
+#__task "Running Ansible Playbook"
 # ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 ansible-playbook $ASSIMILATOR_DIR/main.yaml
 # ansible-playbook $(CURL_COMMAND "/Scripts/NewMachineSetup/main.yaml")
