@@ -148,9 +148,9 @@ if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
   git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR
 else
   __task "Updating repository"
-  git -C "$ASSIMILATOR_DIR pull --quiet > /dev/null"
+  git -C $ASSIMILATOR_DIR pull --quiet > /dev/null
 fi
 #__task "Running Ansible Playbook"
 # ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
-ansible-playbook $ASSIMILATOR_DIR/main.yaml
+sudo ansible-playbook $ASSIMILATOR_DIR/main.yaml
 # ansible-playbook $(CURL_COMMAND "/Scripts/NewMachineSetup/main.yaml")
