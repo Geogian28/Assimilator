@@ -101,7 +101,7 @@ console_title_template = '{{ .UserName }} in {{ .Folder }} at {{ .HostName }}'
     type = 'text'
     style = 'plain'
     powerline_symbol = ''
-    template = '<b>> </b>'
+    template = '<b>></b>'
     foreground = 'p:prompt_foreground'
     background = 'p:prompt_background'
 

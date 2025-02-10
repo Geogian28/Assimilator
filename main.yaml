@@ -3,18 +3,26 @@
   hosts: localhost
   connection: local
   become: true
+  #gather_facts: true
 
   vars:
     folder:
       - "ISOs"
       - "Zeppelin"
-      - "pangolintemp"
       - "ContainerData"
       - "Homelab"
       - "ContainerData/Cider"
       - "GitRepos"
 
   tasks:
+    #- name: Facts
+    #  setup:
+    #- name: Dump
+    #  run_once: true
+    #  copy:
+    #    content: "{{ hostvars[inventory_hostname] | to_nice_json }}"
+    #    dest: /tmp/setup-dump.json
+
     - name: update apt packages
       apt:
         update_cache: yes
@@ -50,3 +58,12 @@
         state: mounted
         fstype: nfs
       with_items: "{{ folder }}"
+
+
+    - name: "Zsh | Copy .zshrc"
+      become: false
+      ansible.builtin.copy:
+        src: ".zshrc"
+        dest: "/{{ ansible_user_dir }}/.zshrc"
+        mode: "0644"
+        force: true

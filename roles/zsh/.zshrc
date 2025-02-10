@@ -44,7 +44,9 @@ if [ -f ~/.aliases ]; then
 fi
 
 eval "$(oh-my-posh init zsh --config /home/sam/.config/ohmyposh/sams.toml)"
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 
+if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 
+fi
 
 bindkey "^[[1;5C" forward-word
 bindkey "^[[1;5D" backward-word
@@ -58,5 +60,6 @@ bindkey  "^[[3~"  delete-char
 source <(kubectl completion zsh)
 
 # Exports
+export PATH="$PATH:$HOME/.local/bin"
 export KUBECONFIG=~/.kube/config
 export FZF_DEFAULT_COMMAND='find .'
