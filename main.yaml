@@ -63,7 +63,7 @@
     - name: "Zsh | Copy .zshrc"
       become: false
       ansible.builtin.copy:
-        src: ".zshrc"
+        src: "~/.assimilator/roles/zsh/.zshrc"
         dest: "/{{ ansible_user_dir }}/.zshrc"
         mode: "0644"
         force: true

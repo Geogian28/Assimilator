@@ -1,5 +1,4 @@
 # Set up the prompt
-
 autoload -Uz promptinit
 promptinit
 prompt adam1
@@ -39,15 +38,11 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 #####
 # Personal
 
-if [ -f ~/.aliases ]; then
-    . ~/.aliases
-fi
+# Check if files exist. If the command executes successfully, it runs the command
+[ -f ~/.aliases ] && . ~/.aliases
+[ -f ~/.exports ] && . ~/.exports
 
-eval "$(oh-my-posh init zsh --config /home/sam/.config/ohmyposh/sams.toml)"
-if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 
-fi
-
+# Bindkeys
 bindkey "^[[1;5C" forward-word
 bindkey "^[[1;5D" backward-word
 bindkey '^H' backward-kill-word
@@ -57,9 +52,9 @@ bindkey  "^[[F"   end-of-line
 bindkey  "^[[3~"  delete-char
 
 
-source <(kubectl completion zsh)
-
-# Exports
-export PATH="$PATH:$HOME/.local/bin"
-export KUBECONFIG=~/.kube/config
-export FZF_DEFAULT_COMMAND='find .'
+# Misc
+eval "$(oh-my-posh init zsh --config /home/sam/.config/ohmyposh/sams.toml)"
+command -v kubectl 2>&1 >/dev/null && source <(kubectl completion zsh)
+if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 
+fi

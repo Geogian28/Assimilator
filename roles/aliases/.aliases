@@ -1,4 +1,4 @@
-alias updatealias='nano ~/.bash_aliases && source ~/.bashrc'
+alias updatealias='nano ~/.aliases && source ~/.aliases'
 cdl() {
 	cd $1 && ls
 }
@@ -35,3 +35,4 @@ _kn() {
 		kubectl config set-context --current --namespace=$1
 	fi
 }
+[ -f /usr/bin/fdfind ] && alias fd='fdfind'

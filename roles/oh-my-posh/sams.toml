@@ -151,7 +151,7 @@ blocks = [ ]
   template = "─╯"
 
 [transient_prompt]
-  template = '<p:purple,transparent></><p:white,p:purple>{{ .UserName}}@{{ .HostName }}</><p:purple,p:folder_background></><p:folder_foreground,p:folder_background> {{ .Folder }} </><p:folder_background,background></>'
+  template = '<p:purple,transparent></><p:white,p:purple>{{ .UserName}}@{{ .HostName }}</><p:purple,p:folder_background></><p:folder_foreground,p:folder_background> {{ .Folder }} </><p:folder_background,background> </>'
   background = 'transparent'
   foreground = 'p:white'
 
