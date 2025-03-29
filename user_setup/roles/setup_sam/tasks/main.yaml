@@ -1,0 +1,23 @@
+---
+- name: "Sam Home | Create /home/sam"
+  ansible.builtin.file:
+    path: "/home/sam"
+    state: directory
+    mode: "0755"
+    owner: sam
+    group: sam
+  register: home_dir_created
+
+- name: "Sam Home | Populate /home/sam"
+  ansible.builtin.command:
+    cmd: "cp -a /etc/skel/. /home/sam/"
+  when: home_dir_created.changed
+
+- name: Set correct permissions on skeleton files
+  ansible.builtin.file:
+    path: "/home/sam"
+    owner: sam
+    group: sam
+    mode: '0755' # Or your desired permissions
+    recurse: yes
+  when: home_dir_created.changed

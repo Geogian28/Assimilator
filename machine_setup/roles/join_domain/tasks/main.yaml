@@ -1,0 +1,29 @@
+---
+- name: Check if FreeIPA client is configured
+  command: ipa user-find --version
+  register: ipa_check
+  ignore_errors: true
+
+- name: Set FreeIPA joined fact
+  set_fact:
+    freeipa_joined: "{{ ipa_check.rc == 0 }}"
+  
+- name: Install FreeIPA client
+  package:
+    name: ipa-client
+    state: present
+
+- name: Join FreeIPA domain
+  #command: ipa-client-install --mkhomedir --no-ntp --domain={{ freeipa_domain }} --server={{ freeipa_server }} -p {{ admin_user }} -w {{ admin_password }}
+  command: ipa-client-install --mkhomedir --no-ntp --domain=brohome.net --server=192.168.0.40 -p admin -w ubec1924SJB!
+  become: true
+  become_user: root
+  register: ipa_join_result
+  changed_when: ipa_join_result.rc != 0
+  failed_when: ipa_join_result.rc != 0
+
+- name: Ensure sssd service is running and enabled
+  systemd:
+    name: sssd
+    state: started
+    enabled: true

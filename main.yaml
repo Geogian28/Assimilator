@@ -49,7 +49,6 @@
         state: directory
       with_items: "{{ folder }}"
 
-
     - name: Add NFS Shares
       mount:
         src: "{{ 'raihako.brohome.net:/mnt/Raihako/' + item }}"
@@ -59,11 +58,39 @@
         fstype: nfs
       with_items: "{{ folder }}"
 
+    - name: Get list of user home directories
+      ansible.builtin.shell:
+        cmd: "ls -d /home/*"
+      register: home_dirs
 
-    - name: "Zsh | Copy .zshrc"
-      become: false
-      ansible.builtin.copy:
-        src: "~/.assimilator/roles/zsh/.zshrc"
-        dest: "/{{ ansible_user_dir }}/.zshrc"
-        mode: "0644"
-        force: true
+    - name: "Get list of dotfiles roles"
+      ansible.builtin.find:
+        paths: "/tmp/.assimilator/dotfiles/roles"
+        file_type: "directory"
+        recurse: false
+      register: role_dirs
+
+    - name: "Set dotfiles role list"
+      set_fact:
+        role_list: "{{ role_dirs.files | map(attribute='path') | map('basename') | list }}"
+
+    - name: "Apply dotfiles roles"
+      include_role:
+        name: "{{ item }}"
+      loop: "{{ role_list }}"
+
+    - name: "Get list of machine_setup roles"
+      ansible.builtin.find:
+        paths: "/tmp/.assimilator/machine_setup/roles"
+        file_type: "directory"
+        recurse: false
+      register: role_dirs
+
+    - name: "Set machine_setup role list"
+      set_fact:
+        role_list: "{{ role_dirs.files | map(attribute='path') | map('basename') | list }}"
+
+    - name: "Apply machine_setup roles"
+      include_role:
+        name: "{{ item }}"
+      loop: "{{ role_list }}"

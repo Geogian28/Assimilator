@@ -1,0 +1,7 @@
+- name: Check and modify service file
+  lineinfile:
+    path: /etc/systemd/system/multi-user.target.wants/chrome-remote-desktop@sam.service
+    regexp: '^After=network.target$'
+    line: 'After=network.target sssd.service'
+    backrefs: yes
+  become: true

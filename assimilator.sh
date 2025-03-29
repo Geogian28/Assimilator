@@ -2,11 +2,32 @@
 ## Borrowed heavily from TechDufus: https://github.com/TechDufus/dotfiles/blob/main/bin/dotfiles
 
 # Initialize Variables
+test_mode=false
 GITHUB_ACCESS_TOKEN=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
-ASSIMILATOR_DIR="$HOME/.assimilator"  # replaced from DOTFILES_DIR
-ASSIMILATOR_LOG=$HOME/.assimilator.log  # replaced from DOTFILES_LOG
-SSH_DIR="$HOME/.ssh"
-IS_FIRST_RUN="$HOME/.assimilator_run"
+ASSIMILATOR_DIR="/tmp/Assimilator"  # replaced from DOTFILES_DIR
+ASSIMILATOR_LOG=$ASSIMILATOR_DIR/Assimilator.log  # replaced from DOTFILES_LOG
+#SSH_DIR="$HOME/.ssh"
+SSH_DIR="$ASSIMILATOR_DIR/.ssh"
+#IS_FIRST_RUN="$HOME/.assimilator_run"
+IS_FIRST_RUN=$ASSIMILATOR_DIR/.assimilator_run
+
+## Initialize arguments
+# Use getopt to parse options
+options=$(getopt -o "" -l "test" -- "$@")
+eval set -- "$options"
+while true; do
+  case "$1" in
+    --test)
+      test_mode=true
+      shift ;;
+    --)
+      shift
+      break ;;
+    *)
+      break ;;
+  esac
+done
+if [ "$1" = "test" ]; then test_mode=true; fi
 
 # color codes
 RESTORE='\033[0m'
@@ -104,6 +125,7 @@ function ubuntu_setup() {
     __task "Installing Ansible"
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y software-properties-common"
+    _cmd "sudo apt-get install -y zsh"
     _cmd "sudo apt-add-repository -y ppa:ansible/ansible"
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y ansible"
@@ -116,6 +138,11 @@ function ubuntu_setup() {
     __task "Installing Python3"
     _cmd "sudo apt-get install -y python3"
   fi
+  if [ -f /usr/local/bin/oh-my-posh ]; then
+    __task "Installing Oh-My-Posh"
+    _cmd "curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin/oh-my-posh"
+  fi
+
 }
 
 function redhat_setup() {
@@ -134,6 +161,8 @@ function redhat_setup() {
   #fi
 }
 
+mkdir -p $ASSIMILATOR_DIR
+
 OS_FAMILY=""
 if [ -f /usr/bin/apt ]; then
    OS_FAMILY="debian"
@@ -144,16 +173,22 @@ if [ -f /usr/bin/yum ]; then
     redhat_setup
 fi
 
+if [[ "$test_mode" == true ]]; then
+  mkdir -p /tmp/.assimilator
+  cp -R /mnt/nfs/GitRepos/Assimilator/* /tmp/.assimilator
+  sudo ansible-playbook /tmp/.assimilator/main.yaml
+  exit 0
+fi
 
 if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
   __task "Cloning repository"
   # _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
-  git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR
+  _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
+  sudo ansible-playbook $ASSIMILATOR_DIR/main.yaml
 else
   __task "Updating repository"
   git -C $ASSIMILATOR_DIR pull --quiet > /dev/null
 fi
-#__task "Running Ansible Playbook"
-# ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+
+__task "Running Ansible Playbook"
 sudo ansible-playbook $ASSIMILATOR_DIR/main.yaml
-# ansible-playbook $(CURL_COMMAND "/Scripts/NewMachineSetup/main.yaml")
