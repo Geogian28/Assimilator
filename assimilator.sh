@@ -1,15 +1,27 @@
 #!/bin/bash
 ## Borrowed heavily from TechDufus: https://github.com/TechDufus/dotfiles/blob/main/bin/dotfiles
 
+# Check if the script is being run with root privileges.
+# If not, exit with an error message.
+if [[ $EUID -ne 0 ]]; then
+  if command -v sudo >/dev/null 2>&1; then
+    echo "Attempting to escalate to root privileges..."
+    sudo "$0" "$@" # Re-execute the script with sudo
+    exit $? # Exit with the sudo exit code
+  else
+    echo "Error: This script requires root privileges, but sudo is not available."
+    exit 1 # Exit with an error code
+  fi
+fi
+
 # Initialize Variables
 test_mode=false
 GITHUB_ACCESS_TOKEN=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
-ASSIMILATOR_DIR="/tmp/Assimilator"  # replaced from DOTFILES_DIR
-ASSIMILATOR_LOG=$ASSIMILATOR_DIR/Assimilator.log  # replaced from DOTFILES_LOG
-#SSH_DIR="$HOME/.ssh"
-SSH_DIR="$ASSIMILATOR_DIR/.ssh"
+ASSIMILATOR_DIR="/etc/assimilator"
+REPO_DIR="$ASSIMILATOR_DIR/Assimilator"
+ASSIMILATOR_LOG=$ASSIMILATOR_DIR/assimilator.log
 #IS_FIRST_RUN="$HOME/.assimilator_run"
-IS_FIRST_RUN=$ASSIMILATOR_DIR/.assimilator_run
+IS_FIRST_RUN=$ASSIMILATOR_DIR/assimilator_run
 
 ## Initialize arguments
 # Use getopt to parse options
@@ -73,9 +85,6 @@ function CURL_COMMAND() {
 
 ## Unsure about this
 # curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh
-
-#CURL_COMMAND /helloworld.yml
-#bash -c "$(CURL_COMMAND /Scripts/new_machine_setup.sh)"
 
 function __task {
   # if _task is called while a task was set, complete the previous
@@ -152,8 +161,10 @@ function redhat_setup() {
     _cmd "sudo yum install -y ansible"
     _cmd "sudo yum install -y python3-argcomplete"
     _cmd "sudo activate-global-python-argcomplete"
+    _task_done
     __task "Installing Git "
     _cmd "sudo yum install git -y"
+    _task_done
   fi
   #if ! yum list installed | grep python3 >/dev/null 2>&1; then
   #  __task "Installing Python3"
@@ -161,7 +172,12 @@ function redhat_setup() {
   #fi
 }
 
-mkdir -p $ASSIMILATOR_DIR
+if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
+  __task "Creating Assimilator directory"
+  sudo mkdir -p "$ASSIMILATOR_DIR"
+  sudo chmod 755 $ASSIMILATOR_DIR
+  _task_done
+fi
 
 OS_FAMILY=""
 if [ -f /usr/bin/apt ]; then
@@ -174,21 +190,27 @@ if [ -f /usr/bin/yum ]; then
 fi
 
 if [[ "$test_mode" == true ]]; then
+__task "Testing Assimilator"
   mkdir -p /tmp/.assimilator
   cp -R /mnt/nfs/GitRepos/Assimilator/* /tmp/.assimilator
   sudo ansible-playbook /tmp/.assimilator/main.yaml
+  _task_done
   exit 0
 fi
 
-if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
+
+if ! [[ -d "$REPO_DIR" ]]; then
   __task "Cloning repository"
-  # _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
-  _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
-  sudo ansible-playbook $ASSIMILATOR_DIR/main.yaml
+  _cmd "git clone https://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@github.com/Geogian28/Assimilator $REPO_DIR"
+  _task_done
+  __task "Running Ansible Playbook"
+  _cmd "ansible-playbook $REPO_DIR/main.yaml"
+  _task_done
 else
   __task "Updating repository"
-  git -C $ASSIMILATOR_DIR pull --quiet > /dev/null
+  _cmd "git -C $REPO_DIR pull --quiet > /dev/null"
+  _task_done
 fi
 
-__task "Running Ansible Playbook"
-sudo ansible-playbook $ASSIMILATOR_DIR/main.yaml
+# __task "Running Ansible Playbook"
+# sudo ansible-playbook $REPO_DIR/main.yaml
