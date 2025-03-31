@@ -37,6 +37,7 @@
   changed_when: ipa_join_result.rc != 0
   failed_when: ipa_join_result.rc != 0
   when: domain_joined.rc == 1
+  verbosity: 2
 
 - name: Ensure sssd service is running and enabled
   systemd:
