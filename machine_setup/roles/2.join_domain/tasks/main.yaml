@@ -17,7 +17,6 @@
   changed_when: false
   check_mode: false
   register: domain_joined
-  failed_when: domain_joined.rc !=0 and domain_joined.rc !=1
   when: default_hostname.rc != 1
 
 - name: Install FreeIPA Client
@@ -38,7 +37,7 @@
   register: ipa_join_result
   changed_when: ipa_join_result.rc != 0
   failed_when: ipa_join_result.rc != 0
-  when: domain_joined.rc == 0
+  when: domain_joined.rc != 0
   timeout: 300
 
 - name: Ensure sssd service is running and enabled

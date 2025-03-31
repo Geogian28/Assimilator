@@ -8,5 +8,9 @@
   loop_control:
     loop_var: app
 
-- name: Install oh-my-posh via curl script
-  command: "! [ -f /usr/local/bin/oh-my-posh ] && curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin/oh-my-posh"
+- block:
+  - name: Check if oh-my-posh is installed
+    command: "which /usr/local/bin/oh-my-posh"
+  rescue:
+    - name: Install oh-my-posh via curl script
+      shell: "curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin/"
