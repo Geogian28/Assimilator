@@ -1,7 +1,7 @@
 ---
 - name: Check if using the default hostname
   shell:
-    cmd: hostnamectl | grep ubuntu || true
+    cmd: hostnamectl | grep -vqz ubuntu
   changed_when: false
   check_mode: false
   register: default_hostname
@@ -9,7 +9,7 @@
 - name: Warn about default hostname
   fail:
     msg: "Default hostname detected. Please change before joining domain."
-  when: default_hostname.rc == 0
+  when: default_hostname.rc == 1
 
 - name: Check if system is already domain joined
   shell:
@@ -18,7 +18,7 @@
   check_mode: false
   register: domain_joined
   failed_when: domain_joined.rc !=0 and domain_joined.rc !=1
-  when: default_hostname.rc != 0
+  when: default_hostname.rc != 1
 
 ## end_role was introduced in Ansible 2.18. Current version is 2.16.
 #- name: End role if already joined
