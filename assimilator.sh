@@ -79,11 +79,12 @@ function CURL_COMMAND() {
     -L https://api.github.com/repos/geogian28/Assimilator/contents$1
 }
 
-## This works
+## This works MAYBE!?!?!?
 # bash <(curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh)
 
+
 ## Unsure about this
-# curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh
+# curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh | bash
 
 function __task {
   # if _task is called while a task was set, complete the previous
@@ -196,8 +197,7 @@ OS_FAMILY=""
 if [ -f /usr/bin/apt ]; then
    OS_FAMILY="debian"
    __task "Setting up Ubuntu"
-   _cmd "echo ubuntu_setup"
-   #ubuntu_setup
+   ubuntu_setup
    _task_done
 fi
 if [ -f /usr/bin/yum ]; then
