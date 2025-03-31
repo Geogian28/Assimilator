@@ -137,17 +137,12 @@ function ubuntu_setup() {
     _cmd "apt-get install python3-argcomplete"
     __task "Installing Git"
     _cmd "apt-get install git -y"
-    _cmd "activate-global-python-argcomplete3"
   fi
   if ! dpkg -s python3 >/dev/null 2>&1; then
     __task "Installing Python3"
     _cmd "apt-get install -y python3"
+    _cmd "activate-global-python-argcomplete3"
   fi
-  if [ -f /usr/local/bin/oh-my-posh ]; then
-    __task "Installing Oh-My-Posh"
-    _cmd "curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin/oh-my-posh"
-  fi
-
 }
 
 function redhat_setup() {
@@ -196,9 +191,7 @@ echo "### Installing Assimilator" 1>> $ASSIMILATOR_LOG
 OS_FAMILY=""
 if [ -f /usr/bin/apt ]; then
    OS_FAMILY="debian"
-   __task "Setting up Ubuntu"
    ubuntu_setup
-   _task_done
 fi
 if [ -f /usr/bin/yum ]; then
     OS_FAMILY="fedora"
