@@ -27,7 +27,8 @@
 
 
 - name: Join FreeIPA domain
-  command: realm join --user={{ admin_user }} {{ freeipa_domain }}
+  expect:
+    command: realm join --user={{ admin_user }} {{ freeipa_domain }}
   responses:
     Password for *: "{{ admin_password }}"
   #command: ipa-client-install --mkhomedir --no-ntp --domain={{ freeipa_domain }} --server={{ freeipa_server }} -p {{ admin_user }} -w {{ admin_password }}
