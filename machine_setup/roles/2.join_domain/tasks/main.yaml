@@ -20,10 +20,12 @@
   failed_when: domain_joined.rc !=0 and domain_joined.rc !=1
   when: default_hostname.rc != 1
 
-## end_role was introduced in Ansible 2.18. Current version is 2.16.
-#- name: End role if already joined
-#  meta: end_role
-#  when: domain_joined.rc == 0 or default_hostname.rc == 0
+- name: Install FreeIPA Client
+  apt:
+    name:
+      - freeipa-client
+    state: present
+  when: domain_joined.rc == 0
 
 
 - name: Join FreeIPA domain
@@ -36,6 +38,8 @@
   register: ipa_join_result
   changed_when: ipa_join_result.rc != 0
   failed_when: ipa_join_result.rc != 0
+  when: domain_joined.rc == 0
+  timeout: 300
 
 - name: Ensure sssd service is running and enabled
   systemd:
