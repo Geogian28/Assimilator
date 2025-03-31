@@ -16,8 +16,8 @@
     cmd: realm list | grep brohome.net
   changed_when: false
   check_mode: false
+  ignore_errors: true
   register: domain_joined
-  when: default_hostname.rc != 1
 
 - name: Install FreeIPA Client
   apt:
