@@ -43,13 +43,13 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 [ -f ~/.exports ] && . ~/.exports
 
 # Bindkeys
-bindkey "^[[1;5C" forward-word
-bindkey "^[[1;5D" backward-word
-bindkey '^H' backward-kill-word
-bindkey '5~' kill-word
-bindkey  "^[[H"   beginning-of-line
-bindkey  "^[[F"   end-of-line
-bindkey  "^[[3~"  delete-char
+bindkey "^[[1;5C"   forward-word        # Ctrl+Right
+bindkey "^[[1;5D"   backward-word       # Ctrl+Left
+bindkey '^H'        backward-kill-word  # Ctrl+Backspace
+bindkey '5~'        kill-word           # Ctrl+Delete
+bindkey  "^[[H"     beginning-of-line   # Home
+bindkey  "^[[F"     end-of-line         # End
+bindkey  "^[[3~"    delete-char         # Delete
 
 
 # Misc
@@ -58,3 +58,7 @@ command -v kubectl 2>&1 >/dev/null && source <(kubectl completion zsh)
 if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 
 fi
+# Remove slash from wordchars. This allows me to ctrl+backspace 
+# to delete only directories rather than the entire path.
+WORDCHARS=${WORDCHARS//\/}
+unsetopt nomatch # Enable globbing

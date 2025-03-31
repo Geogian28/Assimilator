@@ -1,7 +1,14 @@
-- name: Check and modify service file
+---
+- name: Check if service file exists
+  stat:
+    path: /etc/systemd/system/multi-user.target.wants/chrome-remote-desktop@sam.service
+  register: service_file_exists
+
+- name: "Modify service file"
   lineinfile:
     path: /etc/systemd/system/multi-user.target.wants/chrome-remote-desktop@sam.service
     regexp: '^After=network.target$'
     line: 'After=network.target sssd.service'
     backrefs: yes
   become: true
+  when: service_file_exists.stat.exists

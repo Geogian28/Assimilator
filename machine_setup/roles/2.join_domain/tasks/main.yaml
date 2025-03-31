@@ -1,0 +1,41 @@
+---
+- name: Check if using the default hostname
+  shell:
+    cmd: hostnamectl | grep maas
+  changed_when: false
+  check_mode: false
+  register: default_hostname
+
+- name: Fail if the check failed
+  fail:
+    msg: "You havent changed the default hostname!"
+  when: default_hostname.rc != 0
+
+- name: Check if system is already domain joined
+  shell:
+    cmd: realm list | grep brohome.net
+  changed_when: false
+  check_mode: false
+  register: domain_joined
+  failed_when: domain_joined.rc !=0 and domain_joined.rc !=1
+  when: default_hostname.rc == 0
+
+## end_role was introduced in Ansible 2.18. Current version is 2.16.
+#- name: End role if already joined
+#  meta: end_role
+#  when: domain_joined.rc == 0 or default_hostname.rc == 0
+
+
+- name: Join FreeIPA domain
+  #command: ipa-client-install --mkhomedir --no-ntp --domain={{ freeipa_domain }} --server={{ freeipa_server }} -p {{ admin_user }} -w {{ admin_password }}
+  command: ipa-client-install --mkhomedir --no-ntp --domain=brohome.net --server=192.168.0.40 -p admin -w ubec1924SJB!
+  register: ipa_join_result
+  changed_when: ipa_join_result.rc != 0
+  failed_when: ipa_join_result.rc != 0
+  when: domain_joined.rc == 1
+
+- name: Ensure sssd service is running and enabled
+  systemd:
+    name: sssd
+    state: started
+    enabled: true

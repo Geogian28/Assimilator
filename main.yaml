@@ -1,9 +1,9 @@
 ---
-- name: DotFiles Config
+- name: Configure Assimilator
   hosts: localhost
   connection: local
   become: true
-  #gather_facts: true
+
 
   vars:
     folder:
@@ -13,6 +13,13 @@
       - "Homelab"
       - "ContainerData/Cider"
       - "GitRepos"
+    apps:
+      - "nano"
+      - "micro"
+      - "btop"
+      - "fzf"
+      - "qemu-guest-agent"
+      - "zsh"
 
   tasks:
     #- name: Facts
@@ -62,35 +69,35 @@
       ansible.builtin.shell:
         cmd: "ls -d /home/*"
       register: home_dirs
-
-    - name: "Get list of dotfiles roles"
-      ansible.builtin.find:
-        paths: "/tmp/.assimilator/dotfiles/roles"
-        file_type: "directory"
-        recurse: false
-      register: role_dirs
-
-    - name: "Set dotfiles role list"
-      set_fact:
-        role_list: "{{ role_dirs.files | map(attribute='path') | map('basename') | list }}"
-
-    - name: "Apply dotfiles roles"
-      include_role:
-        name: "{{ item }}"
-      loop: "{{ role_list }}"
-
+    
     - name: "Get list of machine_setup roles"
       ansible.builtin.find:
-        paths: "/tmp/.assimilator/machine_setup/roles"
+        paths: "/etc/assimilator/machine_setup/roles"
         file_type: "directory"
         recurse: false
-      register: role_dirs
+      register: machine_role_dirs
 
     - name: "Set machine_setup role list"
       set_fact:
-        role_list: "{{ role_dirs.files | map(attribute='path') | map('basename') | list }}"
+        machine_role_list: "{{ machine_role_dirs.files | map(attribute='path') | list }}"
 
     - name: "Apply machine_setup roles"
       include_role:
         name: "{{ item }}"
-      loop: "{{ role_list }}"
+      loop: "{{ machine_role_list }}"
+
+    - name: "Get list of user_setup roles"
+      ansible.builtin.find:
+        paths: "/etc/assimilator/user_setup/roles"
+        file_type: "directory"
+        recurse: false
+      register: user_role_dirs
+
+    - name: "Set user_setup role list"
+      set_fact:
+        user_role_list: "{{ user_role_dirs.files | map(attribute='path') | list }}"
+
+    - name: "Apply user_setup roles"
+      include_role:
+        name: "{{ item }}"
+      loop: "{{ user_role_list }}"

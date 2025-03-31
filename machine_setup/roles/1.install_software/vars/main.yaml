@@ -1,0 +1,10 @@
+---
+apps:
+  - "nano"
+  - "micro"
+  - "btop"
+  - "fzf"
+  - "qemu-guest-agent"
+  - "zsh"
+  - "freeipa-client"
+  - "openssh-server"

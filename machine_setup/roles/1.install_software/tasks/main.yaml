@@ -1,0 +1,17 @@
+---
+- name: Install apps for all distros
+  package:
+    name:
+      - "{{ app }}"
+    state: present
+  with_items: "{{ apps }}"
+  loop_control:
+    loop_var: app
+
+- block:
+  - name: check if oh-my-posh is installed
+    stat:
+      path: /usr/local/bin/oh-my-posh
+  rescue:
+  - name: install oh-my-posh
+    shell: curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin/oh-my-posh
