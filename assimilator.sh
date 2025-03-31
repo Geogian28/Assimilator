@@ -212,14 +212,11 @@ if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
   __task "Cloning repository"
   _cmd "git clone https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
   _task_done
-fi
-git --git-dir=/etc/assimilator/.git --work-tree=/etc/assimilator/.git fetch
-if ! git --git-dir=/etc/assimilator/.git --work-tree=/etc/assimilator/.git diff --quiet ; then
+elif git --git-dir=/etc/assimilator/.git --work-tree=/etc/assimilator/.git fetch --quiet > /dev/null && ! git --git-dir=/etc/assimilator/.git --work-tree=/etc/assimilator/.git diff --quiet ; then
   echo "Updating Assimilator"
   __task "Updating Assimilator"
   _cmd "git -C $ASSIMILATOR_DIR pull --quiet > /dev/null"
   _task_done
-  exit
 else 
   __task "Assimilator is up to date"
   _task_done
