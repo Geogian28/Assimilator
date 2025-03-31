@@ -1,7 +1,7 @@
 ---
 - name: Check if using the default hostname
   shell:
-    cmd: hostnamectl | grep ubuntu && true
+    cmd: hostnamectl | grep ubuntu || true
   changed_when: false
   check_mode: false
   register: default_hostname
