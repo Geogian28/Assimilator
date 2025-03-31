@@ -8,3 +8,4 @@ apps:
   - "zsh"
   - "freeipa-client"
   - "openssh-server"
+  - "unzip" # for oh-my-posh to be installed
