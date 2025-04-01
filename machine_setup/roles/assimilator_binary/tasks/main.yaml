@@ -13,3 +13,8 @@
     group: "sam"
     mode: "755"
   when: assimilator.stat.exists is false
+
+- name: "Set assimilator.sh permissions"
+  file:
+    path: "{{ playbook_dir }}/assimilator.sh"
+    mode: "755"
