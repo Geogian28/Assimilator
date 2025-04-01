@@ -153,22 +153,10 @@ function redhat_setup() {
     _cmd "yum install git -y"
     _task_done
   fi
-  #if ! yum list installed | grep python3 >/dev/null 2>&1; then
-  #  __task "Installing Python3"
-  #  _cmd "sudo yum install -y python3"
-  #fi
 }
-
-#if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
-#  __task "Creating Assimilator directory"
-#  sudo mkdir -p "$ASSIMILATOR_DIR"
-#  sudo chmod 755 $ASSIMILATOR_DIR
-#  _task_done
-#fi
 
 if ! [[ -f $LOGROTATE_CONF ]]; then
   __task "Creating logrotate config"
-  # touch "$LOGROTATE_CONF"
   echo "/var/log/my_script.log {
     daily
     rotate 7
@@ -198,9 +186,7 @@ if [[ "$test_mode" == true ]]; then
 __task "Testing Assimilator"
   mkdir -p "$ASSIMILATOR_DIR"
   cp -R /mnt/nfs/GitRepos/Assimilator/* "$ASSIMILATOR_DIR"
-  #sudo ansible-playbook "$ASSIMILATOR_DIR/main.yaml"
   _task_done
-  #exit 0
 fi
 
 
@@ -219,4 +205,5 @@ else
 fi
 
 __task "Running Ansible Playbook"
+__task_done
 ansible-playbook "$ASSIMILATOR_DIR/main.yaml" -i "$ASSIMILATOR_DIR/inventory.ini" 2> >(tee -a $ASSIMILATOR_LOG)
