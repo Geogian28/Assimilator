@@ -197,7 +197,8 @@ if ! [[ -d "$ASSIMILATOR_DIR" ]]; then
 elif git --git-dir=/etc/assimilator/.git --work-tree=/etc/assimilator/.git fetch --quiet > /dev/null && ! git --git-dir=/etc/assimilator/.git --work-tree=/etc/assimilator/.git diff --quiet ; then
   echo "Updating Assimilator"
   __task "Updating Assimilator"
-  _cmd "git -C $ASSIMILATOR_DIR pull --quiet > /dev/null"
+  #_cmd "git -C $ASSIMILATOR_DIR pull --quiet > /dev/null"
+  _cmd "git --git-dir=$ASSIMILATOR_DIR/.git --work-tree=$ASSIMILATOR_DIR reset --hard origin/main"
   _task_done
 else 
   __task "Assimilator is up to date"
@@ -205,5 +206,5 @@ else
 fi
 
 __task "Running Ansible Playbook"
-__task_done
+_task_done
 ansible-playbook "$ASSIMILATOR_DIR/main.yaml" -i "$ASSIMILATOR_DIR/inventory.ini" 2> >(tee -a $ASSIMILATOR_LOG)
