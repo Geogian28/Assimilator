@@ -8,7 +8,7 @@
   file:
     src: "{{ playbook_dir }}/assimilator.sh"
     dest: "/usr/local/bin/assimilator"
-    state: link
+    state: hard
     owner: "sam"
     group: "sam"
     mode: "755"

@@ -1,7 +1,7 @@
 ---
 - name: "| Create oh-my-posh configuration directory"
   file:
-    path: "{{ user_home }}/.config/oh-my-posh"
+    path: "{{ user_home }}/.config/ohmyposh"
     state: directory
     owner: "{{ user_home | basename }}" # Set owner to username
     group: "{{ user_home | basename }}" # Set group to username
@@ -14,7 +14,7 @@
 - name: "| Copy oh-my-posh configuration file"
   copy:
     src: "{{ role_path }}/files/sams.toml"
-    dest: "{{ user_home }}/.config/oh-my-posh/sams.toml"
+    dest: "{{ user_home }}/.config/ohmyposh/sams.toml"
     owner: "{{ user_home | basename }}" # Set owner to username
     group: "{{ user_home | basename }}" # Set group to username
     mode: "0755"
