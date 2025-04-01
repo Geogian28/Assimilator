@@ -3,7 +3,7 @@
   hosts: localhost
   connection: local
   become: true
-
+  gather_facts: true
 
   vars:
     folder:
@@ -29,6 +29,10 @@
     #  copy:
     #    content: "{{ hostvars[inventory_hostname] | to_nice_json }}"
     #    dest: /tmp/setup-dump.json
+
+    - name: Show Gathered Facts
+      debug:
+        msg: "{{ ansible_domain }}"
 
     - name: update apt packages
       apt:

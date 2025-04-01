@@ -13,7 +13,7 @@
 
 - name: Check if system is already domain joined
   shell:
-    cmd: realm list | grep -vqz brohome.net
+    cmd: realm list -v | grep "No configured realms"
   changed_when: false
   check_mode: false
   ignore_errors: true
