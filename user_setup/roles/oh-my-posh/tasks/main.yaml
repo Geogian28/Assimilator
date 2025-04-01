@@ -1,0 +1,25 @@
+---
+- name: "| Create oh-my-posh configuration directory"
+  file:
+    path: "{{ user_home }}/.config/oh-my-posh"
+    state: directory
+    owner: "{{ user_home | basename }}" # Set owner to username
+    group: "{{ user_home | basename }}" # Set group to username
+    mode: "0755"
+  loop: "{{ home_dirs.stdout_lines }}"
+  loop_control:
+    loop_var: user_home
+  when: user_home != "/home" # Exclude /home directory itself
+    
+- name: "| Copy oh-my-posh configuration file"
+  copy:
+    src: "{{ role_path }}/files/sams.toml"
+    dest: "{{ user_home }}/.config/oh-my-posh/sams.toml"
+    owner: "{{ user_home | basename }}" # Set owner to username
+    group: "{{ user_home | basename }}" # Set group to username
+    mode: "0755"
+    force: true
+  loop: "{{ home_dirs.stdout_lines }}"
+  loop_control:
+    loop_var: user_home
+  when: user_home != "/home" # Exclude /home directory itself
