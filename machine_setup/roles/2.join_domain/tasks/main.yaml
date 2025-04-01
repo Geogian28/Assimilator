@@ -16,26 +16,13 @@
     cmd: realm list
   changed_when: false
   check_mode: false
-  ignore_errors: true
   register: domain_joined
-
-- name: check domain_joined.rc
-  debug:
-    msg: "domain_joined: {{ domain_joined }}"
-
-- name: exit
-  fail:
-    msg: "System is already domain joined"
-  when: domain_joined.rc != 55
-
 
 - name: Install FreeIPA Client
   apt:
     name:
       - freeipa-client
     state: present
-  when: domain_joined.rc != 0
-
 
 - name: Join FreeIPA domain
   expect:
@@ -47,7 +34,7 @@
   register: ipa_join_result
   changed_when: ipa_join_result.rc != 0
   failed_when: ipa_join_result.rc != 0
-  when: domain_joined.rc == 13
+  when: "'brohome.net' not in domain_joined.stdout"
   timeout: 300
 
 - name: Ensure sssd service is running and enabled
