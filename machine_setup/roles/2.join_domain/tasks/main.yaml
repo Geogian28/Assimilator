@@ -13,7 +13,7 @@
 
 - name: Check if system is already domain joined
   shell:
-    cmd: realm list -v | grep "No configured realms"
+    cmd: realm list
   changed_when: false
   check_mode: false
   ignore_errors: true
@@ -21,7 +21,12 @@
 
 - name: check domain_joined.rc
   debug:
-    msg: "domain_joined.rc: {{ domain_joined.rc }}"
+    msg: "domain_joined: {{ domain_joined }}"
+
+- name: exit
+  exit:
+    changed_when: domain_joined.rc != 55
+
 
 - name: Install FreeIPA Client
   apt:
