@@ -24,8 +24,9 @@
     msg: "domain_joined: {{ domain_joined }}"
 
 - name: exit
-  exit:
-    changed_when: domain_joined.rc != 55
+  fail:
+    msg: "System is already domain joined"
+  when: domain_joined.rc != 55
 
 
 - name: Install FreeIPA Client
