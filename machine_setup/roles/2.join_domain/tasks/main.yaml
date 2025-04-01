@@ -28,7 +28,7 @@
   expect:
     command: /bin/bash -c  "realm join --user={{ admin_user }} {{ freeipa_domain }}""
     responses:
-      "Password for *:": "{{ admin_password }}"
+      "Password for *: ": "{{ admin_password }}"
   #command: ipa-client-install --mkhomedir --no-ntp --domain={{ freeipa_domain }} --server={{ freeipa_server }} -p {{ admin_user }} -w {{ admin_password }}
   #command: ipa-client-install --mkhomedir --no-ntp --domain=brohome.net --server=192.168.0.40 -p admin -w ubec1924SJB!
   register: ipa_join_result
