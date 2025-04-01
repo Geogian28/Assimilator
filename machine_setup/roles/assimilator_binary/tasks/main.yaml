@@ -1,13 +1,15 @@
 ---
-- block:
-  - name: check if Assimilator is installed
-    stat:
-      path: /usr/local/bin/assimilator
-  rescue:
-  - name: "Copy Assimilator to /usr/local/bin"
-    ansible.builtin.copy:
-      src: "{{ playbook_dir }}/assimilator.sh"
-      dest: "/usr/local/bin/assimilator"
-      owner: "sam"
-      group: "sam"
-      mode: "755"
+- name: check if Assimilator is installed
+  stat:
+    path: /usr/local/bin/assimilator
+  register: assimilator
+
+- name: "Create link for Assimilator in /usr/local/bin"
+  file:
+    src: "{{ playbook_dir }}/assimilator.sh"
+    dest: "/usr/local/bin/assimilator"
+    state: link
+    owner: "sam"
+    group: "sam"
+    mode: "755"
+  when: assimilator.stat.exists is false
