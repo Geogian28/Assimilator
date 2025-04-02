@@ -82,6 +82,11 @@ function CURL_COMMAND() {
 ## Install via this command:
 # curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh | bash
 
+/*************  ✨ Codeium Command ⭐  *************/
+  # This function sets the current task title for display and logs completion of the previous task if one was set.
+  # It prints a task in progress indicator and updates the TASK variable with the new task title.
+
+/******  8bfa5725-4360-4959-81a4-f6c17d3d9152  *******/
 function __task {
   # if _task is called while a task was set, complete the previous
   if [[ $TASK != "" ]]; then
@@ -215,7 +220,10 @@ ansible-playbook "$ASSIMILATOR_DIR/machine_setup/main.yaml" \
   -i "$ASSIMILATOR_DIR/inventory.ini" \
   --extra-vars "ASSIMILATOR_DIR=$ASSIMILATOR_DIR" \
   2> >(tee -a $ASSIMILATOR_LOG)
+echo $?
+
 _task_done
+exit 0
 
 __task "Running Users Setup"
 _task_done
