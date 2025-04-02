@@ -82,11 +82,7 @@ function CURL_COMMAND() {
 ## Install via this command:
 # curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh | bash
 
-/*************  ✨ Codeium Command ⭐  *************/
-  # This function sets the current task title for display and logs completion of the previous task if one was set.
-  # It prints a task in progress indicator and updates the TASK variable with the new task title.
-
-/******  8bfa5725-4360-4959-81a4-f6c17d3d9152  *******/
+# __task sets a task title
 function __task {
   # if _task is called while a task was set, complete the previous
   if [[ $TASK != "" ]]; then
@@ -121,7 +117,7 @@ function _clear_task {
   TASK=""
 }
 
-function _task_done {
+function _task_done {item
   printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
   _clear_task
 }
@@ -194,9 +190,12 @@ fi
 
 if [[ "$test_mode" == true ]]; then
 __task "Testing Assimilator"
+  rm -r "$ASSIMILATOR_DIR"
   mkdir -p "$ASSIMILATOR_DIR"
-  cp -R /mnt/nfs/GitRepos/Assimilator/* "$ASSIMILATOR_DIR"
+  cp -R /tmp/assimilator/* "$ASSIMILATOR_DIR"
+  rc="$?"
   _task_done
+  exit $rc
 fi
 
 
