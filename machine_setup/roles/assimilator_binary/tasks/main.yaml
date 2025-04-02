@@ -6,7 +6,7 @@
 
 - name: "Create link for Assimilator in /usr/local/bin"
   file:
-    src: "{{ playbook_dir }}/assimilator.sh"
+    src: "{{ ASSIMILATOR_DIR }}/assimilator.sh"
     dest: "/usr/local/bin/assimilator"
     state: hard
     owner: "sam"
@@ -16,5 +16,5 @@
 
 - name: "Set assimilator.sh permissions"
   file:
-    path: "{{ playbook_dir }}/assimilator.sh"
+    path: "{{ ASSIMILATOR_DIR }}/assimilator.sh"
     mode: "755"
