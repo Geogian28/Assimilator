@@ -19,8 +19,8 @@ test_mode=false
 GITHUB_ACCESS_TOKEN=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
 ASSIMILATOR_DIR="/etc/assimilator"
 ASSIMILATOR_LOG="/var/log/assimilator.log"
-LOGROTATE_CONF="/etc/logrotate.d/assimilator" # Not yet implemented
-IS_FIRST_RUN="$ASSIMILATOR_DIR/assimilator_run"
+LOGROTATE_CONF="/etc/logrotate.d/assimilator" 
+IS_FIRST_RUN="$ASSIMILATOR_DIR/assimilator_run" # Not yet implemented
 
 # Initialize arguments
 # Use getopt to parse options
@@ -122,6 +122,9 @@ function _task_done {
 }
 
 function ubuntu_setup() {
+  __task "Refreshing Apt Packages"
+  _cmd "apt-get update"
+  _task_done
   if ! dpkg -s ansible >/dev/null 2>&1; then
     __task "Installing Ansible"
     _cmd "apt-get update"
@@ -142,9 +145,11 @@ function ubuntu_setup() {
 }
 
 function redhat_setup() {
+  __task "Refreshing Yum Packages"
+  _cmd "yum check-update -y"
+  _task_done
   if ! yum list installed | grep ansible >/dev/null 2>&1; then
     __task "Installing Ansible"
-    _cmd "yum update -y"
     _cmd " install -y ansible"
     _cmd "yum install -y python3-argcomplete"
     _cmd "activate-global-python-argcomplete"
@@ -205,6 +210,11 @@ else
   _task_done
 fi
 
-__task "Running Ansible Playbook"
+
+__task "Running Machine Setup"
+ansible-playbook "$ASSIMILATOR_DIR/machine_setup/main.yaml" -i "$ASSIMILATOR_DIR/inventory.ini" 2> >(tee -a $ASSIMILATOR_LOG)
 _task_done
-ansible-playbook "$ASSIMILATOR_DIR/main.yaml" -i "$ASSIMILATOR_DIR/inventory.ini" 2> >(tee -a $ASSIMILATOR_LOG)
+
+__task "Running Users Setup"
+_task_done
+ansible-playbook "$ASSIMILATOR_DIR/user_setup/main.yaml" -i "$ASSIMILATOR_DIR/inventory.ini" 2> >(tee -a $ASSIMILATOR_LOG)
