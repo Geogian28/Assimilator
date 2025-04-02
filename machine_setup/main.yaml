@@ -2,8 +2,8 @@
 - name: Configure Machine
   hosts: localhost
   connection: local
+  gather_facts: true
   become: true
-  get_facts: true
 
   vars:
     folder:
@@ -35,7 +35,7 @@
 
     - name: "Set machine_setup role list"
       set_fact:
-        machine_role_list: "{{ machine_role_dirs.files | map(attribute='path') | list }}"
+        machine_role_list: "{{ machine_role_dirs.files | map(attribute='path') | map('basename')  | list }}"
 
     - name: "Apply machine_setup roles"
       include_role:

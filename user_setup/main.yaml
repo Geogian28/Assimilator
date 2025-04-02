@@ -2,8 +2,8 @@
 - name: Configure Users
   hosts: localhost
   connection: local
+  gather_facts: true
   become: true
-  get_facts: true
 
   tasks:
     - name: Get list of user home directories
@@ -20,7 +20,7 @@
 
     - name: "Set user_setup role list"
       set_fact:
-        user_role_list: "{{ user_role_dirs.files | map(attribute='path') | list }}"
+        user_role_list: "{{ user_role_dirs.files | map(attribute='path') | map('basename') | list }}"
 
     - name: "Apply user_setup roles"
       include_role:
