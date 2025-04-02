@@ -1,0 +1,29 @@
+---
+- name: Install nfs-common for Debian-like
+  package:
+    name:
+      - nfs-common
+    state: present
+  when: ansible_facts["os_family"] == "Debian"
+
+- name: Install nfs-utils for Redhat-like
+  package:
+    name:
+      - nfs-utils
+    state: present
+  when: ansible_facts["os_family"] == "Fedora"
+
+- name: Make mount folder in /mnt/nfs
+  ansible.builtin.file:
+    path: "{{ '/mnt/nfs/' + item }}"
+    state: directory
+  with_items: "{{ folder }}"
+
+- name: Add NFS Shares
+  mount:
+    src: "{{ 'raihako.brohome.net:/mnt/Raihako/' + item }}"
+    path: "{{ '/mnt/nfs/' + item }}"
+    opts: rw
+    state: mounted
+    fstype: nfs
+  with_items: "{{ folder }}"

@@ -9,3 +9,17 @@ apps:
   - "freeipa-client"
   - "openssh-server"
   - "unzip" # for oh-my-posh to be installed
+
+apt_apps:
+  - "nano"
+
+fedora_apps:
+  - "nano"
+  - "micro"
+  - "btop"
+  - "fzf"
+  - "qemu-guest-agent"
+  - "zsh"
+  - "freeipa-client"
+  - "openssh-server"
+  - "unzip"

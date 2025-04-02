@@ -1,0 +1,43 @@
+---
+- name: Configure Machine
+  hosts: localhost
+  connection: local
+  become: true
+  get_facts: true
+
+  vars:
+    folder:
+      - "ISOs"
+      - "Zeppelin"
+      - "ContainerData"
+      - "Homelab"
+      - "ContainerData/Cider"
+      - "GitRepos"
+    apps:
+      - "nano"
+      - "micro"
+      - "btop"
+      - "fzf"
+      - "qemu-guest-agent"
+      - "zsh"
+  tasks:
+    - name: Get list of user home directories
+      ansible.builtin.shell:
+        cmd: "ls -d /home/*"
+      register: home_dirs
+
+    - name: "Get list of machine_setup roles"
+      ansible.builtin.find:
+        paths: "/etc/assimilator/machine_setup/roles"
+        file_type: "directory"
+        recurse: false
+      register: machine_role_dirs
+
+    - name: "Set machine_setup role list"
+      set_fact:
+        machine_role_list: "{{ machine_role_dirs.files | map(attribute='path') | list }}"
+
+    - name: "Apply machine_setup roles"
+      include_role:
+        name: "{{ item }}"
+      loop: "{{ machine_role_list }}"

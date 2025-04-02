@@ -1,0 +1,28 @@
+---
+- name: Configure Users
+  hosts: localhost
+  connection: local
+  become: true
+  get_facts: true
+
+  tasks:
+    - name: Get list of user home directories
+      ansible.builtin.shell:
+        cmd: "ls -d /home/*"
+      register: home_dirs
+
+    - name: "Get list of user_setup roles"
+      ansible.builtin.find:
+        paths: "/etc/assimilator/user_setup/roles"
+        file_type: "directory"
+        recurse: false
+      register: user_role_dirs
+
+    - name: "Set user_setup role list"
+      set_fact:
+        user_role_list: "{{ user_role_dirs.files | map(attribute='path') | list }}"
+
+    - name: "Apply user_setup roles"
+      include_role:
+        name: "{{ item }}"
+      loop: "{{ user_role_list }}"
