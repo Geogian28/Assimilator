@@ -5,6 +5,7 @@
   changed_when: false
   check_mode: false
   register: default_hostname
+  no_log: true
 
 - name: Warn about default hostname
   fail:
@@ -19,7 +20,7 @@
   register: domain_joined
 
 - name: Install FreeIPA Client
-  apt:
+  package:
     name:
       - freeipa-client
     state: present
@@ -31,8 +32,6 @@
       "Password for .*: ": "{{ admin_password }}"
     echo: true
     timeout: 300
-  #command: ipa-client-install --mkhomedir --no-ntp --domain={{ freeipa_domain }} --server={{ freeipa_server }} -p {{ admin_user }} -w {{ admin_password }}
-  #command: ipa-client-install --mkhomedir --no-ntp --domain=brohome.net --server=192.168.0.40 -p admin -w ubec1924SJB!
   register: ipa_join_result
   changed_when: ipa_join_result.rc != 0
   failed_when: ipa_join_result.rc != 0

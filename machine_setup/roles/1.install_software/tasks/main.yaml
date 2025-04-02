@@ -2,7 +2,7 @@
 - name: Install apps for all distros
   package:
     name:
-      - "{{ app }}"
+      - "{{ apt_app }}"
     state: present
   with_items: "{{ apps }}"
   loop_control:
