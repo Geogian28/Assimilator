@@ -1,31 +1,34 @@
 ---
-- name: Install apps for all distros
-  package:
-    name:
-      - "{{ apt_app }}"
-    state: present
-  with_items: "{{ apps }}"
-  loop_control:
-    loop_var: apt_app
-  when: ansible_facts["os_family"] == "Debian"
+- block:
+  - name: Install apps for all distros
+    package:
+      name:
+        - "{{ apt_app }}"
+      state: present
+    with_items: "{{ apps }}"
+    loop_control:
+      loop_var: apt_app
+    when: ansible_facts["os_family"] == "Debian"
+    no_log: true
 
-- name: Install apps for all distros
-  package:
-    name:
-      - "{{ fedora_app }}"
-    state: present
-  with_items: "{{ fedora_apps }}"
-  loop_control:
-    loop_var: fedora_app
-  when: ansible_facts["os_family"] == "Fedora"
+  - name: Install apps for all distros
+    package:
+      name:
+        - "{{ fedora_app }}"
+      state: present
+    with_items: "{{ fedora_apps }}"
+    loop_control:
+      loop_var: fedora_app
+    when: ansible_facts["os_family"] == "Fedora"
+    no_log: true
 
-- name: Check if oh-my-posh is installed
-  stat:
-    path: "/usr/local/bin/oh-my-posh"
-  register: oh_my_posh
-  no_log: true
+  - name: Check if oh-my-posh is installed
+    stat:
+      path: "/usr/local/bin/oh-my-posh"
+    register: oh_my_posh
+    no_log: true
 
-- name: Install oh-my-posh via curl script
-  shell: "curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin/"
-  when: oh_my_posh.stat.exists is false
-    
+  - name: Install oh-my-posh via curl script
+    shell: "curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin/"
+    when: oh_my_posh.stat.exists is false
+    no_log: true
