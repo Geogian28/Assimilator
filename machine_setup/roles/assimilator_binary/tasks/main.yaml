@@ -9,8 +9,8 @@
     src: "{{ ASSIMILATOR_DIR }}/assimilator.sh"
     dest: "/usr/local/bin/assimilator"
     state: hard
-    owner: "sam"
-    group: "sam"
+    owner: "679600003"
+    group: "679600003"
     mode: "755"
   when: assimilator.stat.exists is false
 
