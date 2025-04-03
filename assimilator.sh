@@ -82,7 +82,7 @@ function CURL_COMMAND() {
 ## Install via this command:
 # curl -H 'Authorization: token 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' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/geogian28/Assimilator/contents/assimilator.sh | bash
 
-# __task sets a task title
+
 function __task {
   # if _task is called while a task was set, complete the previous
   if [[ $TASK != "" ]]; then
@@ -117,7 +117,7 @@ function _clear_task {
   TASK=""
 }
 
-function _task_done
+function _task_done {
   printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
   _clear_task
 }
@@ -190,12 +190,9 @@ fi
 
 if [[ "$test_mode" == true ]]; then
 __task "Testing Assimilator"
-  rm -r "$ASSIMILATOR_DIR"
   mkdir -p "$ASSIMILATOR_DIR"
-  cp -R /tmp/assimilator/* "$ASSIMILATOR_DIR"
-  rc="$?"
+  cp -R /mnt/nfs/GitRepos/Assimilator/* "$ASSIMILATOR_DIR"
   _task_done
-  exit $rc
 fi
 
 
@@ -219,10 +216,7 @@ ansible-playbook "$ASSIMILATOR_DIR/machine_setup/main.yaml" \
   -i "$ASSIMILATOR_DIR/inventory.ini" \
   --extra-vars "ASSIMILATOR_DIR=$ASSIMILATOR_DIR" \
   2> >(tee -a $ASSIMILATOR_LOG)
-echo $?
-
 _task_done
-exit 0
 
 __task "Running Users Setup"
 _task_done
