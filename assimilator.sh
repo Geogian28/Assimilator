@@ -117,7 +117,7 @@ function _clear_task {
   TASK=""
 }
 
-function _task_done {item
+function _task_done
   printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
   _clear_task
 }
