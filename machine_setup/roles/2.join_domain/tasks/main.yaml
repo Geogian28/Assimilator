@@ -27,7 +27,7 @@
 
 - name: Join FreeIPA domain
   expect:
-    command: /bin/bash -c  "realm join --user={{ admin_user }} {{ freeipa_domain }}""
+    command: /bin/bash -c  "realm join --user={{ admin_user }}  {{ freeipa_domain }}""
     responses:
       "Password for .*: ": "{{ admin_password }}"
     echo: true
