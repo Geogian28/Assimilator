@@ -80,11 +80,6 @@ esac
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
 
-## Personal
-
-# Check if files exist. If the command executes successfully, it runs the command
-[ -f ~/.aliases ] && . ~/.aliases
-[ -f ~/.exports ] && . ~/.exports
 
 
 # enable programmable completion features (you don't need to enable
@@ -98,7 +93,12 @@ if ! shopt -oq posix; then
   fi
 fi
 
+
 ## Personal
+
+# Check if files exist. If the command executes successfully, it runs the command
+[ -f ~/.aliases ] && . ~/.aliases
+[ -f ~/.exports ] && . ~/.exports
 command -v zsh 2>&1 >/dev/null && zsh
 if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 
