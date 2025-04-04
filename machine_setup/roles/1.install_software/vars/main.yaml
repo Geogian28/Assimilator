@@ -9,6 +9,7 @@ apps:
   - "freeipa-client"
   - "openssh-server"
   - "unzip" # for oh-my-posh to be installed
+  - "find-fd"
 
 apt_apps:
   - "nano"
