@@ -97,8 +97,9 @@ fi
 ## Personal
 
 # Check if files exist. If the command executes successfully, it runs the command
-[ -f ~/.aliases ] && . ~/.aliases
 [ -f ~/.exports ] && . ~/.exports
+[ -f ~/.aliases ] && . ~/.aliases
+
 command -v zsh 2>&1 >/dev/null && zsh
 if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 

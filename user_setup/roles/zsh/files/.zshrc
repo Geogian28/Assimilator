@@ -39,8 +39,8 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 # Personal
 
 # Check if files exist. If the command executes successfully, it runs the command
-[ -f ~/.aliases ] && . ~/.aliases
 [ -f ~/.exports ] && . ~/.exports
+[ -f ~/.aliases ] && . ~/.aliases
 
 # Bindkeys
 bindkey "^[[1;5C"   forward-word        # Ctrl+Right
