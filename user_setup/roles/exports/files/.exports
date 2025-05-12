@@ -1,7 +1,23 @@
 ## Exports
 
 # System
-export PATH="$PATH:/home/sam/.local/bin"
+export PATH="$PATH:/home/$USER/.local/bin"
+custom_bin_root="/mnt/nfs/Homelab/bin"
+
+# # Function to check if a directory contains executables (very basic check)
+# contains_executables() {
+#   find "$1" -maxdepth 0 -type f -executable -print -quit | grep -q .
+# }
+
+# if [ -d "$custom_bin_root" ]; then
+#   for dir in "$custom_bin_root"/*; do
+#     if [ -d "$dir" ] && contains_executables "$dir"; then
+#       export PATH="$PATH:$dir"
+#     fi
+#   done
+# fi
+# unset custom_bin_root
+# unset contains_executables
 
 # Kubernetes
 export KUBECONFIG=~/.kube/config
