@@ -190,8 +190,8 @@ fi
 
 if [[ "$test_mode" == true ]]; then
 __task "Testing Assimilator"
-  mkdir -p "$ASSIMILATOR_DIR"
-  cp -R /mnt/nfs/GitRepos/Assimilator/* "$ASSIMILATOR_DIR"
+  _cmd "rm -r /etc/testing"
+  _cmd "git clone -b testing https://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@github.com/Geogian28/Assimilator $ASSIMILATOR_DIR"
   _task_done
 fi
 
@@ -218,12 +218,12 @@ ansible-playbook "$ASSIMILATOR_DIR/machine_setup/main.yaml" \
   2> >(tee -a $ASSIMILATOR_LOG)
 _task_done
 
-__task "Running Users Setup"
-_task_done
-ansible-playbook "$ASSIMILATOR_DIR/user_setup/main.yaml" \
-  -i "$ASSIMILATOR_DIR/inventory.ini" \
-  --extra-vars "ASSIMILATOR_DIR=$ASSIMILATOR_DIR" \
-  2> >(tee -a $ASSIMILATOR_LOG)
+# __task "Running Users Setup"
+# _task_done
+# ansible-playbook "$ASSIMILATOR_DIR/user_setup/main.yaml" \
+#   -i "$ASSIMILATOR_DIR/inventory.ini" \
+#   --extra-vars "ASSIMILATOR_DIR=$ASSIMILATOR_DIR" \
+#  2> >(tee -a $ASSIMILATOR_LOG)
 
 ## Consider Deploying Ansible Ara
 # https://ara.recordsansible.org/
