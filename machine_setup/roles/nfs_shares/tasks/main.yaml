@@ -34,7 +34,7 @@
   file:
     path: "/mnt/nfs/{{ link }}"
     state: link
-    target: /nfs/Raihako/mnt/Raihako/{{ link }}
+    src: /nfs/Raihako/mnt/Raihako/{{ link }}
   loop_control:
     loop_var: link
   with_items:
