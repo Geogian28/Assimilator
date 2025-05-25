@@ -12,6 +12,12 @@
     msg: "Default hostname detected. Please change before joining domain."
   when: default_hostname.rc == 1
 
+- name: Make sure "realm" command is installed
+  package:
+    name:
+      - realm
+    state: present
+
 - name: Check if system is already domain joined
   shell:
     cmd: realm list
