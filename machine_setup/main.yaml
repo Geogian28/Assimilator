@@ -11,7 +11,7 @@
       - "Zeppelin"
       - "ContainerData"
       - "Homelab"
-      - "ContainerData/Cider"
+      #- "ContainerData/Cider"
       - "GitRepos"
     apps:
       - "nano"
