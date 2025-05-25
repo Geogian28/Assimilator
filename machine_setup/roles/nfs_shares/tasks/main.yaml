@@ -32,9 +32,11 @@
 
 - name: add NFS Symlinks
   file:
-    path: "/mnt/nfs/{{ item }}"
-    state: symlink
-    target: /nfs/Raihako/mnt/Raihako/{{ item }}
+    path: "/mnt/nfs/{{ link }}"
+    state: link
+    target: /nfs/Raihako/mnt/Raihako/{{ link }}
+  loop_control:
+    loop_var: link
   with_items:
     - /nfs
 # - name: Make mount folder in /mnt/nfs
