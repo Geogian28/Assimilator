@@ -10,6 +10,8 @@ apps:
   - "openssh-server"
   - "unzip" # for oh-my-posh to be installed
   - "fd-find"
+  - "ripgrep"
+  - "gcc"
 
 apt_apps:
   - "nano"
