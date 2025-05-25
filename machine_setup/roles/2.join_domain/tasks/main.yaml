@@ -1,4 +1,10 @@
 ---
+- name: Set domain to brohome.net
+  replace:
+    path: /etc/hosts
+    regexp: "^127.0.0.1.*"
+    replace: "127.0.0.1 {{ ansible_hostname }}.brohome.net {{ ansible_hostname }}"
+
 - name: Set DNS to 192.168.0.40
   replace:
     path: /etc/systemd/resolved.conf
