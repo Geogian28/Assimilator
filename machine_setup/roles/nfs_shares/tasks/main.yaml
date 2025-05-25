@@ -25,6 +25,11 @@
     line: /nfs    -hosts
     create: yes
 
+- name: Restart autofs
+  service:
+    name: autofs
+    state: restarted
+
 - name: Create /mnt/nfs folder
   file:
     path: /mnt/nfs
