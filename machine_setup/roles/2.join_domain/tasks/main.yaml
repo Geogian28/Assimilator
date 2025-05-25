@@ -7,7 +7,7 @@
 
 - name: Set Search Domain to brohome.net
   replace:
-    path: /etc/systemd/resolve.conf
+    path: /etc/systemd/resolved.conf
     regexp: "^#Domains=.*"
     replace: "Domains=brohome.net"
 
