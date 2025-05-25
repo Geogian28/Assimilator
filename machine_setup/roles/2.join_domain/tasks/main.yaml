@@ -1,12 +1,12 @@
 ---
 - name: Set DNS to 192.168.0.40
-  lineinfile:
+  replace:
     path: /etc/systemd/resolve.conf
     regexp: "^#DNS=.*"
     replace: "DNS=192.168.0.40"
 
 - name: Set Search Domain to brohome.net
-  lineinfile:
+  replace:
     path: /etc/systemd/resolve.conf
     regexp: "^#Domains=.*"
     replace: "Domains=brohome.net"
