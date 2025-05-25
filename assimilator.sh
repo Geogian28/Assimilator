@@ -216,14 +216,15 @@ ansible-playbook "$ASSIMILATOR_DIR/machine_setup/main.yaml" \
   -i "$ASSIMILATOR_DIR/inventory.ini" \
   --extra-vars "ASSIMILATOR_DIR=$ASSIMILATOR_DIR" \
   2> >(tee -a $ASSIMILATOR_LOG)
+  if $? != 0; then exit 1; fi
 _task_done
 
-# __task "Running Users Setup"
-# _task_done
-# ansible-playbook "$ASSIMILATOR_DIR/user_setup/main.yaml" \
-#   -i "$ASSIMILATOR_DIR/inventory.ini" \
-#   --extra-vars "ASSIMILATOR_DIR=$ASSIMILATOR_DIR" \
-#  2> >(tee -a $ASSIMILATOR_LOG)
+__task "Running Users Setup"
+_task_done
+ansible-playbook "$ASSIMILATOR_DIR/user_setup/main.yaml" \
+  -i "$ASSIMILATOR_DIR/inventory.ini" \
+  --extra-vars "ASSIMILATOR_DIR=$ASSIMILATOR_DIR" \
+ 2> >(tee -a $ASSIMILATOR_LOG)
 
 ## Consider Deploying Ansible Ara
 # https://ara.recordsansible.org/
