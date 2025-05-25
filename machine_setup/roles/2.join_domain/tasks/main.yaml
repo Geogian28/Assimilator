@@ -28,7 +28,6 @@
   changed_when: false
   check_mode: false
   register: default_hostname
-  no_log: true
 
 - name: Warn about default hostname
   fail:
