@@ -40,10 +40,9 @@
     path: "/mnt/nfs/{{ link }}"
     state: link
     src: /nfs/Raihako/mnt/Raihako/{{ link }}
+  with_items: "{{ folder }}"
   loop_control:
     loop_var: link
-  with_items:
-    - /nfs
 # - name: Make mount folder in /mnt/nfs
 #   ansible.builtin.file:
 #     path: "{{ '/mnt/nfs/' + mount_folder }}"
