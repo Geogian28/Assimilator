@@ -15,7 +15,7 @@
 - name: Make sure "realm" command is installed
   package:
     name:
-      - realm
+      - realmd
     state: present
 
 - name: Check if system is already domain joined
