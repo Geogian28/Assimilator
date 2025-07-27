@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package assctl;
+
+option go_package = "./assctl";
+
+message GetAllConfigsRequest {}
+
+message GetAllConfigsResponse {
+    DesiredState Config = 1;
+}
+
+message GetMachineConfigRequest {
+    string MachineName = 1;
+}
+
+message GetMachineConfigResponse {
+    MachineConfig Config = 1;
+}
+
+message GetSpecificConfigRequest {
+    string MachineName  = 1;
+}
+
+message GetSpecificConfigResponse {
+    MachineConfig Machine = 1;
+}
+
+service Assimilator {
+    // This defines a "GetAllConfigs" function that clients can call to get all of the configs.
+    rpc GetAllConfigs(GetAllConfigsRequest) returns (GetAllConfigsResponse){}
+
+    // This defines a "GetSpecificConfig" function that clients can call to get a config specific to the named machine.
+    rpc GetSpecificConfig(GetSpecificConfigRequest) returns (GetSpecificConfigResponse){}
+}
+
+message DesiredState
+{
+    AppConfig     global    =1;
+    map<string, ConfigProfile> profiles  =2;
+    map<string, MachineConfig> machines   =3;
+    map<string, UserConfig>    users      =4;
+}
+
+message AppConfig
+{
+    bool isServer = 1;
+    bool isAgent = 2;
+    bool mAAS = 3;
+    string githubUsername = 4;
+    string githubToken = 5;
+    string githubRepo = 6;
+    bool testMode = 7;
+    int32 verbosityLevel = 8;
+    map<string, PackageMap> packageMap = 9;
+}
+
+message ConfigProfile
+{
+    map<string, MachineConfig> machines = 1;
+    map<string, UserConfig>    users = 2;
+    map<string, PackageConfig> packages = 3;
+    map<string, ServiceConfig> services = 4;
+    map<string, Dotfiles>      dotfiles = 5;
+}
+
+message MachineConfig
+{
+    repeated string appliedProfiles = 1;
+    map<string, PackageConfig> packages = 2;
+    map<string, ServiceConfig> services = 3;
+}
+
+message UserConfig
+{
+    repeated string appliedProfiles = 1;
+    map<string, Dotfiles> dotfiles = 2;
+}
+
+message Dotfiles
+{
+    string dotfileLocation = 1;
+    Dependencies requires = 2;
+}
+
+message Dependencies
+{
+    map<string, PackageConfig> packages = 1;
+    map<string, ServiceConfig> files = 2;
+}
+
+message PackageConfig
+{
+    string state = 1;
+    string version = 2 [json_name = "version,omitempty"];
+    string branch = 3  [json_name = "branch,omitempty"];
+    map<string, Dependencies> requires = 4 [json_name = "requires,omitempty"];
+}
+
+message PackageMap
+{
+    map<string, PackageConfig> packages = 1;
+}
+
+message ServiceConfig
+{
+    bool state = 1;
+    map<string, string> config = 2;
+}
