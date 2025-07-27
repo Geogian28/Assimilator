@@ -1,6 +1,0 @@
----
-- name: "Schedule assimilator every 15 minutes"
-  ansible.builtin.cron:
-    name: "assimilator"
-    minute: "*/15"
-    job: "/usr/local/bin/assimilator"

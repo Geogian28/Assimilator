@@ -1,5 +1,0 @@
----
-freeipa_domain: "brohome.net"
-freeipa_server: "192.168.0.40"
-admin_user: "admin"
-admin_password: "ubec1924SJB!" # Store this securely!
