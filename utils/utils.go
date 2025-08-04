@@ -25,16 +25,6 @@ var (
 	Unhandled = asslog.Unhandled
 )
 
-// initialize Variables
-const (
-	//  test_mode bool = false
-	AssimilatorDir string = "/etc/assimilator"
-	AssimilatorLog string = "/var/log/assimilator.log"
-	//  GITHUB_ACCESS_TOKEN string = "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"
-	//  LOGROTATE_CONF string = "/etc/logrotate.d/assimilator"
-	//  IS_FIRST_RUN string = "$ASSIMILATOR_DIR/assimilator_run" // Not yet implemented
-)
-
 func PrettyPrint(resp any) {
 	prettyYAML, err := yaml.Marshal(resp)
 	if err != nil {

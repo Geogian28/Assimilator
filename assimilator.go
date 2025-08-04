@@ -14,7 +14,9 @@ import (
 )
 
 var (
-	VERSION = "development"
+	version   = "development"
+	commit    = "none"
+	buildDate = "unknown"
 )
 
 var (
@@ -95,10 +97,9 @@ func checkForUpdates() {
 }
 
 func main() {
-	fmt.Println("===  Starting!  ===")
 	asslog.StartLogger()
 	defer asslog.Close()
-	appConfig := config.ParseFlagsAndArgs()
+	appConfig := config.SetupAppConfig()
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(appConfig.LogTypes)
 	if appConfig.TestMode {
@@ -107,6 +108,10 @@ func main() {
 		elevatePrivileges()
 		os.Exit(0)
 	}
+
+	Trace("Version: ", version)
+	Trace("Commit: ", commit)
+	Trace("Build Date: ", buildDate)
 
 	// Checking for updates
 	checkForUpdates()

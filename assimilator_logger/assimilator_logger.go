@@ -47,6 +47,8 @@ var LogType = map[string]func(LogEntry){
 	"slack":     slackLog,
 }
 
+var logFile *os.File
+
 type LogEntry struct {
 	level       LogLevel
 	message     string
@@ -117,9 +119,9 @@ func NewAssLogger() *AssLogger {
 
 func (l *AssLogger) startWorker() {
 	l.wg.Add(1)
+
 	go func() {
 		defer l.wg.Done()
-		//var ExitCode int
 
 		for {
 			select {
@@ -190,6 +192,7 @@ func getCallerInfo(skip int) string {
 func (l *AssLogger) Close() {
 	Info("Closing down now!")
 	ProgramIsClosing = true
+
 	l.closeSync.Do(func() {
 		close(l.msgBuffer)
 	})
@@ -212,7 +215,19 @@ func consoleLog(entry LogEntry) {
 }
 
 func fileLog(entry LogEntry) {
-	fmt.Println("fileLog")
+	if logFile == nil {
+		var err error
+		logFile, err = os.OpenFile("/var/log/assimilator.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Println("Failed to open log file:", err)
+		}
+	} else {
+		_, err := fmt.Fprintf(logFile, "%s %s\n", entry.flatPrefix, entry.message)
+
+		if err != nil {
+			fmt.Println("Failed to write log file:", err)
+		}
+	}
 }
 
 func maasLog(entry LogEntry) {

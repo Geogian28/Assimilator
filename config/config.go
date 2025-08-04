@@ -1,12 +1,14 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"maps"
 	"os"
 	"strings"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3" // Import the YAML library
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
@@ -35,20 +37,21 @@ type DesiredState struct {
 }
 
 type AppConfig struct {
-	IsServer       bool `yaml:"is_server"`
-	IsAgent        bool `yaml:"is_agent"`
-	MAAS           bool `yaml:"maas"`
-	GithubUsername string
-	GithubToken    string
-	GithubRepo     string
-	TestMode       bool `yaml:"test_mode"`
-	VerbosityLevel int
-	LogTypes       map[string]bool
-	PackageMap     map[string]PackageMap `yaml:"package_map"`
-	RepoDir        string
-	ServerIP       string
-	ServerPort     int
-	Hostname       string
+	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_SERVER"`
+	IsAgent         bool                  `toml:"is_agent" env:"ASSIMILATOR_AGENT"`
+	MAAS            bool                  `toml:"maas" env:"ASSIMILATOR_MAAS"`
+	GithubUsername  string                `toml:"github_username" env:"ASSIMILATOR_GITHUB_USERNAME"`
+	GithubToken     string                `toml:"github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
+	GithubRepo      string                `toml:"github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
+	TestMode        bool                  `toml:"test_mode" env:"ASSIMILATOR_TEST_MODE"`
+	VerbosityLevel  int                   `toml:"verbosity_level" env:"ASSIMILATOR_VERBOSITY_LEVEL"`
+	LogTypes        map[string]bool       `toml:"log_types" env:"ASSIMILATOR_LOG_TYPES"`
+	LogFileLocation string                `toml:"log_file_location" env:"ASSIMILATOR_LOG_FILE_LOCATION"`
+	RepoDir         string                `toml:"repo_dir" env:"ASSIMILATOR_REPO_DIR"`
+	ServerIP        string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
+	ServerPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
+	Hostname        string                `toml:"hostname" env:"ASSIMILATOR_HOSTNAME"`
+	PackageMap      map[string]PackageMap `yaml:"package_map"`
 }
 
 // Top-level config structure for the entire desired state
@@ -104,10 +107,15 @@ const (
 	StateAbsent  State = "absent"
 )
 
+// This new struct will create the [config] table
+type TomlConfigWrapper struct {
+	Config AppConfig `toml:"config"`
+}
+
 func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
 	var tempStr string
 	// Unmarshall the YAML value into a temporary string variable.
-	if err := unmarshal(&s); err != nil {
+	if err := unmarshal(&tempStr); err != nil {
 		return err
 	}
 
@@ -127,84 +135,197 @@ func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 }
 
-// processFlagsAndArgs processes the command line flags and returns the
-// corresponding FlagsAndArgs structure.
-func ParseFlagsAndArgs() AppConfig {
-	serverPtr := flag.Bool("server", false, "Run as server")
+func ConfigFromFile(appConfig *AppConfig) {
+	appConfig = &AppConfig{}
+	// Load configs from /etc/assimilator
+	configFile, err := os.ReadFile("/etc/assimilator/config.toml")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			Info("Config file does not exist. Making one.")
+			defaultConfig, err := toml.Marshal(TomlConfigWrapper{
+				Config: AppConfig{
+					IsAgent:         false,
+					IsServer:        false,
+					GithubUsername:  "",
+					GithubToken:     "",
+					GithubRepo:      "",
+					VerbosityLevel:  2,
+					MAAS:            false,
+					LogTypes:        logTypes("file"),
+					LogFileLocation: "/var/log/assimilator/assimilator.log",
+					RepoDir:         "/etc/assimilator",
+					ServerIP:        "",
+					ServerPort:      2390,
+					Hostname:        "",
+				}})
+			if err != nil {
+				asslog.Unhandled("Error marshalling default config: ", err)
+			}
+			os.WriteFile("/etc/assimilator/config.toml", []byte(defaultConfig), 0644)
+			if err != nil {
+				asslog.Unhandled("Error creating config file: ", err)
+			}
+			err = toml.Unmarshal(defaultConfig, &appConfig)
+			if err != nil {
+				Error("Failed to open newly created config file: ", err)
+			}
+		} else {
+			Error("Failed to open config file: ", err)
+		}
+	}
+
+	err = toml.Unmarshal(configFile, &appConfig)
+	if err != nil {
+		Error("Failed to unmarshal config file: ", err)
+	} else {
+		Info("Loaded config file: ", configFile)
+	}
+
+}
+
+func ConfigFromEnv(appConfig *AppConfig) {
+
+}
+
+func ConfigFromFlags(appConfig *AppConfig) {
 	agentPtr := flag.Bool("agent", false, "Run as agent")
+	serverPtr := flag.Bool("server", false, "Run as server")
 	githubUsernamePtr := flag.String("github_username", "", "GitHub username")
 	githubTokenPtr := flag.String("github_token", "", "GitHub access token")
 	githubRepoPtr := flag.String("github_repo", "", "GitHub repository")
 	maasPtr := flag.Bool("maas", false, "Only MAAS should use this flag")
 	testModePtr := flag.Bool("test_mode", false, "Used when testing, do not use in production")
-	verbosityPtr := flag.Int("verbosity", 1, "Set verbosity level (0=Silent, 1=Info, 2=Debug, 3=Trace)")
+	verbosityPtr := flag.Int("verbosity", 2, "Set verbosity level (0=Silent, 1=Info, 2=Debug, 3=Trace)")
 	logTypesPtr := flag.String("log_types", "", "Set log output locations (console, file)")
+	logFileLocation := flag.String("log_file_location", "/var/lib/assimilator/assimilator.log", "Set log file location")
 	repoDirPtr := flag.String("repo_dir", "", "Set repository directory")
 	serverIPPtr := flag.String("server_ip", "0.0.0.0", "Set server IP")
 	serverPortPtr := flag.Int("server_port", 2390, "Set server port")
-	hostnamePTR := flag.String("hostname", "", "Set hostname")
+	hostnamePTR := flag.String("hostname", "", "Set hostname of the agent. This is used to override the hostname of the machine if you wish to grab a specific configuration.")
 
 	flag.Parse() // Parse them once all are defined
 
-	Trace("serverPtr: ", *serverPtr)
-	Trace("agentPtr: ", *agentPtr)
-	Trace("githubUsernamePtr: ", *githubUsernamePtr)
-	Trace("githubTokenPtr: ", *githubTokenPtr)
-	Trace("githubRepoPtr: ", *githubRepoPtr)
-	Trace("maasPtr: ", *maasPtr)
-	Trace("testModePtr: ", *testModePtr)
-	Trace("verbosityPtr: ", *verbosityPtr)
-	Trace("logTypesPtr: ", *logTypesPtr)
-	Trace("repoDirPtr: ", *repoDirPtr)
-	Trace("serverIPPtr: ", *serverIPPtr)
-	Trace("serverPortPtr: ", *serverPortPtr)
-	Trace("hostnamePTR: ", *hostnamePTR)
+	// Create a map to know which flags were set by the user.
+	userSetFlags := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		userSetFlags[f.Name] = true
+	})
 
-	if *verbosityPtr < 0 {
-		*verbosityPtr = 0
+	// Now, conditionally update the config
+	if userSetFlags["server"] {
+		appConfig.IsServer = *serverPtr
 	}
-	if !*serverPtr && !*agentPtr {
-		Fatal(1, "No flags provided.")
+	if userSetFlags["agent"] {
+		appConfig.IsAgent = *agentPtr
 	}
-	if *serverPtr && *agentPtr {
-		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
+	if userSetFlags["github_username"] {
+		appConfig.GithubUsername = *githubUsernamePtr
 	}
-	if *serverPtr && *githubUsernamePtr == "" {
-		Fatal(1, "GitHub username not provided.")
+	if userSetFlags["github_token"] {
+		appConfig.GithubToken = *githubTokenPtr
 	}
-	if *serverPtr && *githubRepoPtr == "" {
-		Fatal(1, "GitHub repo not provided.")
+	if userSetFlags["github_repo"] {
+		appConfig.GithubRepo = *githubRepoPtr
 	}
-	if *serverPtr && *githubTokenPtr == "" {
-		Fatal(1, "GitHub token not provided.")
+	if userSetFlags["maas"] {
+		appConfig.MAAS = *maasPtr
 	}
-	if *testModePtr && *repoDirPtr == "" {
-		Trace("Test mode enabled, but repo directory not provided")
-		Trace(`Setting repodir to "/tmp/assimilator-repo"`)
-		*repoDirPtr = "/tmp/assimilator-repo"
-	} else if *repoDirPtr == "" {
-		Fatal(1, "Repository directory not provided.")
+	if userSetFlags["test_mode"] {
+		appConfig.TestMode = *testModePtr
 	}
-
-	return AppConfig{
-		IsServer:       *serverPtr,
-		IsAgent:        *agentPtr,
-		GithubUsername: *githubUsernamePtr,
-		GithubToken:    *githubTokenPtr,
-		GithubRepo:     *githubRepoPtr,
-		MAAS:           *maasPtr,
-		TestMode:       *testModePtr,
-		VerbosityLevel: *verbosityPtr,
-		LogTypes:       logTypes(logTypesPtr),
-		RepoDir:        *repoDirPtr,
-		ServerIP:       *serverIPPtr,
-		ServerPort:     *serverPortPtr,
+	if userSetFlags["verbosity"] {
+		appConfig.VerbosityLevel = *verbosityPtr
+	}
+	if userSetFlags["log_types"] {
+		appConfig.LogTypes = logTypes(*logTypesPtr)
+	}
+	if userSetFlags["log_file_location"] {
+		appConfig.LogFileLocation = *logFileLocation
+	}
+	if userSetFlags["repo_dir"] {
+		appConfig.RepoDir = *repoDirPtr
+	}
+	if userSetFlags["server_ip"] {
+		appConfig.ServerIP = *serverIPPtr
+	}
+	if userSetFlags["server_port"] {
+		appConfig.ServerPort = *serverPortPtr
+	}
+	if userSetFlags["hostname"] {
+		appConfig.Hostname = *hostnamePTR
 	}
 }
 
-func logTypes(logTypesPtr *string) map[string]bool {
-	logTypes := strings.Split(*logTypesPtr, " ")
-	if *logTypesPtr == "" {
+// processFlagsAndArgs processes the command line flags and returns the
+// corresponding FlagsAndArgs structure.
+func SetupAppConfig() AppConfig {
+	appConfig := AppConfig{
+		IsAgent:         false,
+		IsServer:        false,
+		GithubUsername:  "",
+		GithubToken:     "",
+		GithubRepo:      "",
+		MAAS:            false,
+		TestMode:        false,
+		VerbosityLevel:  2,
+		LogTypes:        logTypes("console"),
+		LogFileLocation: "/etc/assimilator/assimilator.log",
+		RepoDir:         "",
+		ServerIP:        "0.0.0.0",
+		ServerPort:      2390,
+		Hostname:        "",
+	}
+	ConfigFromFile(&appConfig)
+	ConfigFromEnv(&appConfig)
+	ConfigFromFlags(&appConfig)
+
+	Trace("agent: ", appConfig.IsAgent)
+	Trace("server: ", appConfig.IsServer)
+	Trace("githubUsername: ", appConfig.GithubUsername)
+	Trace("githubToken: ", appConfig.GithubToken)
+	Trace("githubRepo: ", appConfig.GithubRepo)
+	Trace("maas: ", appConfig.MAAS)
+	Trace("testMode: ", appConfig.TestMode)
+	Trace("verbosity: ", appConfig.VerbosityLevel)
+	Trace("logTypes: ", appConfig.LogTypes)
+	Trace("logFileLocation: ", appConfig.LogFileLocation)
+	Trace("repoDir: ", appConfig.RepoDir)
+	Trace("serverIP: ", appConfig.ServerIP)
+	Trace("serverPort: ", appConfig.ServerPort)
+	Trace("hostname: ", appConfig.Hostname)
+
+	if appConfig.VerbosityLevel < 0 {
+		appConfig.VerbosityLevel = 0
+	}
+	if !appConfig.IsServer && !appConfig.IsAgent {
+		Fatal(1, "No flags provided.")
+	}
+	if appConfig.IsServer && appConfig.IsAgent {
+		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
+	}
+	if appConfig.IsServer && appConfig.GithubUsername == "" {
+		Fatal(1, "GitHub username not provided.")
+	}
+	if appConfig.IsServer && appConfig.GithubRepo == "" {
+		Fatal(1, "GitHub repo not provided.")
+	}
+	if appConfig.IsServer && appConfig.GithubToken == "" {
+		Fatal(1, "GitHub token not provided.")
+	}
+	if appConfig.TestMode && appConfig.RepoDir == "" {
+		Trace("Test mode enabled, but repo directory not provided")
+		Trace(`Setting repodir to "/tmp/assimilator-repo"`)
+		appConfig.RepoDir = "/tmp/assimilator-repo"
+	} else if appConfig.RepoDir == "" {
+		Fatal(1, "Repository directory not provided.")
+	}
+
+	return appConfig
+}
+
+func logTypes(logTypesPtr string) map[string]bool {
+	logTypes := strings.Split(logTypesPtr, " ")
+	if logTypesPtr == "" {
 		return map[string]bool{
 			"console": true,
 		}
@@ -216,7 +337,7 @@ func logTypes(logTypesPtr *string) map[string]bool {
 			for logType := range asslog.LogType {
 				allMap[logType] = true
 			}
-			fmt.Println(allMap)
+			// fmt.Println(allMap)
 			return allMap
 		}
 		logType = strings.ToLower(logType)
@@ -243,11 +364,11 @@ func LoadDesiredState(filePath string) (*DesiredState, error) {
 	}
 
 	// Apply profiles to machines and users
-	desiredState = applyProfiles(&desiredState)
+	applyProfiles(&desiredState)
 	return &desiredState, nil
 }
 
-func applyProfiles(desiredState *DesiredState) DesiredState {
+func applyProfiles(desiredState *DesiredState) {
 	var ProfileNames []string
 	for profileName := range desiredState.Profiles {
 		ProfileNames = append(ProfileNames, profileName)
@@ -306,5 +427,4 @@ func applyProfiles(desiredState *DesiredState) DesiredState {
 		}
 		desiredState.Users[userName] = modifiedUser
 	}
-	return *desiredState
 }

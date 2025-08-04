@@ -79,7 +79,7 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 			case <-done:
 				return
 			case <-ticker.C:
-				Trace("tick!")
+				Trace("tick! ", time.Now())
 				ticker.Stop()
 				err := pingServer(appConfig, commandRunner)
 				if err != nil {
