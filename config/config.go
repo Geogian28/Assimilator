@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/caarlos0/env/v11"
 	toml "github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3" // Import the YAML library
 
@@ -15,7 +16,7 @@ import (
 )
 
 const (
-	VERSION = "0.1.0"
+	VERSION = "0.3.0"
 )
 
 var (
@@ -37,8 +38,8 @@ type DesiredState struct {
 }
 
 type AppConfig struct {
-	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_SERVER"`
-	IsAgent         bool                  `toml:"is_agent" env:"ASSIMILATOR_AGENT"`
+	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
+	IsAgent         bool                  `toml:"is_agent" env:"ASSIMILATOR_IS_AGENT"`
 	MAAS            bool                  `toml:"maas" env:"ASSIMILATOR_MAAS"`
 	GithubUsername  string                `toml:"github_username" env:"ASSIMILATOR_GITHUB_USERNAME"`
 	GithubToken     string                `toml:"github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
@@ -184,7 +185,9 @@ func ConfigFromFile(appConfig *AppConfig) {
 }
 
 func ConfigFromEnv(appConfig *AppConfig) {
-
+	if err := env.Parse(&appConfig); err != nil {
+		Error("Failed to parse environment variables: ", err)
+	}
 }
 
 func ConfigFromFlags(appConfig *AppConfig) {
