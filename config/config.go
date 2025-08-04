@@ -23,7 +23,7 @@ var (
 	Info      = asslog.Info
 	Debug     = asslog.Debug
 	Trace     = asslog.Trace
-	Sucess    = asslog.Success
+	Success   = asslog.Success
 	Warning   = asslog.Warning
 	Error     = asslog.Error
 	Fatal     = asslog.Fatal
@@ -215,46 +215,34 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	})
 
 	// Now, conditionally update the config
-	if userSetFlags["server"] {
+	switch {
+	case userSetFlags["server"]:
 		appConfig.IsServer = *serverPtr
-	}
-	if userSetFlags["agent"] {
+	case userSetFlags["agent"]:
 		appConfig.IsAgent = *agentPtr
-	}
-	if userSetFlags["github_username"] {
+	case userSetFlags["github_username"]:
 		appConfig.GithubUsername = *githubUsernamePtr
-	}
-	if userSetFlags["github_token"] {
+	case userSetFlags["github_token"]:
 		appConfig.GithubToken = *githubTokenPtr
-	}
-	if userSetFlags["github_repo"] {
+	case userSetFlags["github_repo"]:
 		appConfig.GithubRepo = *githubRepoPtr
-	}
-	if userSetFlags["maas"] {
+	case userSetFlags["maas"]:
 		appConfig.MAAS = *maasPtr
-	}
-	if userSetFlags["test_mode"] {
+	case userSetFlags["test_mode"]:
 		appConfig.TestMode = *testModePtr
-	}
-	if userSetFlags["verbosity"] {
+	case userSetFlags["verbosity"]:
 		appConfig.VerbosityLevel = *verbosityPtr
-	}
-	if userSetFlags["log_types"] {
+	case userSetFlags["log_types"]:
 		appConfig.LogTypes = logTypes(*logTypesPtr)
-	}
-	if userSetFlags["log_file_location"] {
+	case userSetFlags["log_file_location"]:
 		appConfig.LogFileLocation = *logFileLocation
-	}
-	if userSetFlags["repo_dir"] {
+	case userSetFlags["repo_dir"]:
 		appConfig.RepoDir = *repoDirPtr
-	}
-	if userSetFlags["server_ip"] {
+	case userSetFlags["server_ip"]:
 		appConfig.ServerIP = *serverIPPtr
-	}
-	if userSetFlags["server_port"] {
+	case userSetFlags["server_port"]:
 		appConfig.ServerPort = *serverPortPtr
-	}
-	if userSetFlags["hostname"] {
+	case userSetFlags["hostname"]:
 		appConfig.Hostname = *hostnamePTR
 	}
 }
@@ -297,32 +285,44 @@ func SetupAppConfig() AppConfig {
 	Trace("serverPort: ", appConfig.ServerPort)
 	Trace("hostname: ", appConfig.Hostname)
 
-	if appConfig.VerbosityLevel < 0 {
-		appConfig.VerbosityLevel = 0
-	}
-	if !appConfig.IsServer && !appConfig.IsAgent {
+	switch {
+	case !appConfig.IsServer && !appConfig.IsAgent:
 		Fatal(1, "No flags provided.")
-	}
-	if appConfig.IsServer && appConfig.IsAgent {
+	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
-	}
-	if appConfig.IsServer && appConfig.GithubUsername == "" {
-		Fatal(1, "GitHub username not provided.")
-	}
-	if appConfig.IsServer && appConfig.GithubRepo == "" {
-		Fatal(1, "GitHub repo not provided.")
-	}
-	if appConfig.IsServer && appConfig.GithubToken == "" {
-		Fatal(1, "GitHub token not provided.")
-	}
-	if appConfig.TestMode && appConfig.RepoDir == "" {
+	// Evaluate server flags
+	case appConfig.IsServer:
+		switch {
+		case appConfig.GithubUsername == "":
+			Fatal(1, "GitHub username not provided.")
+		case appConfig.GithubRepo == "":
+			Fatal(1, "GitHub repo not provided.")
+		case appConfig.GithubToken == "":
+			Fatal(1, "GitHub token not provided.")
+		}
+	// Evaluate agent flags
+	case appConfig.IsAgent:
+		switch {
+		case appConfig.ServerIP == "":
+			Fatal(1, "Server IP not provided.")
+		case appConfig.ServerIP == "0.0.0.0":
+			Fatal(1, "0.0.0.0 is not a valid server IP.")
+		case appConfig.ServerPort <= 0 ||
+			appConfig.ServerPort > 65535:
+			Fatal(1, "Server port must be between 1 and 65535.")
+		}
+	// Evaluate misc flags
+	case appConfig.TestMode && appConfig.RepoDir == "":
 		Trace("Test mode enabled, but repo directory not provided")
 		Trace(`Setting repodir to "/tmp/assimilator-repo"`)
 		appConfig.RepoDir = "/tmp/assimilator-repo"
-	} else if appConfig.RepoDir == "" {
+	case !appConfig.TestMode && appConfig.RepoDir == "":
 		Fatal(1, "Repository directory not provided.")
+	case appConfig.VerbosityLevel < 0:
+		appConfig.VerbosityLevel = 0
+	default:
+		Success("Configuration loaded successfully.")
 	}
-
 	return appConfig
 }
 
