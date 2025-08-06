@@ -1,0 +1,12 @@
+[Unit]
+Description=Allows assimilating a machine into the collective.
+After=network.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/assimilator
+Restart=Always
+RestartSec=120
+
+[Install]
+WantedBy=multi-user.target

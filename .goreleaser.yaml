@@ -1,0 +1,91 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go generate ./...
+
+builds:
+  - id: assimilator
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      #- riscv64 # For future expansion
+    ldflags:
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+nfpms:
+  - formats:
+      - deb
+      - rpm
+      - archlinux
+    bindir: /usr/bin
+    description: "Allows assimilating a machine into the collective."
+    license: GNU General Public License v3.0
+    maintainer: "geogian28 <geo.sbrohaugh@gmail.com>"
+    contents:
+      - src: ./assimilator/service/assimilator.service
+        dst: /lib/systemd/system/assimilator.service
+      - src: ./LICENSE
+        dst: /usr/share/doc/assimilator/LICENSE
+      - src: ./README.md
+        dst: /usr/share/doc/assimilator/README.MD
+
+dockers:
+  - id: assimilator
+    image_templates:
+      - "ghcr.io/geogian28/assimilator-agent:latest"
+      - "ghcr.io/geogian28/assimilator-agent:{{ .Version }}"
+      - "ghcr.io/geogian28/assimilator-agent:{{ .Major }}"
+    dockerfile: |
+      FROM gcr.io/distroless/static-debian12
+      COPY assimilator /
+      # Set the command to run the binary in agent mode
+      CMD ["/assimilator", "--agent"]
+
+archives:
+  - formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  footer: >-
+
+    ---
+
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
