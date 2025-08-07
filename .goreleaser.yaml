@@ -17,6 +17,7 @@ before:
 
 builds:
   - id: assimilator
+    binary: assimilator
     env:
       - CGO_ENABLED=0
     goos:
@@ -42,7 +43,7 @@ nfpms:
     license: GNU General Public License v3.0
     maintainer: "geogian28 <geo.sbrohaugh@gmail.com>"
     contents:
-      - src: ./assimilator/service/assimilator.service
+      - src: ./service/assimilator.service
         dst: /lib/systemd/system/assimilator.service
       - src: ./LICENSE
         dst: /usr/share/doc/assimilator/LICENSE
@@ -51,15 +52,12 @@ nfpms:
 
 dockers:
   - id: assimilator
+
     image_templates:
       - "ghcr.io/geogian28/assimilator-agent:latest"
       - "ghcr.io/geogian28/assimilator-agent:{{ .Version }}"
       - "ghcr.io/geogian28/assimilator-agent:{{ .Major }}"
-    dockerfile: |
-      FROM gcr.io/distroless/static-debian12
-      COPY assimilator /
-      # Set the command to run the binary in agent mode
-      CMD ["/assimilator", "--agent"]
+    dockerfile: DOCKERFILE
 
 archives:
   - formats: [tar.gz]
