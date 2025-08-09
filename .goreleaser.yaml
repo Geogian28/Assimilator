@@ -52,11 +52,10 @@ nfpms:
 
 dockers:
   - id: assimilator
-
     image_templates:
-      - "ghcr.io/geogian28/assimilator-agent:latest"
-      - "ghcr.io/geogian28/assimilator-agent:{{ .Version }}"
-      - "ghcr.io/geogian28/assimilator-agent:{{ .Major }}"
+      - "geogian/assimilator:latest"
+      - "geogian/assimilator:{{ .Version }}"
+      - "geogian/assimilator:{{ .Major }}"
     dockerfile: DOCKERFILE
 
 archives:
