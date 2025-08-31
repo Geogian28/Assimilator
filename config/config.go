@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	VERSION = "0.3.0"
+	VERSION = "0.0.1"
 )
 
 var (
@@ -46,7 +46,7 @@ type AppConfig struct {
 	GithubRepo      string                `toml:"github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
 	TestMode        bool                  `toml:"test_mode" env:"ASSIMILATOR_TEST_MODE"`
 	VerbosityLevel  int                   `toml:"verbosity_level" env:"ASSIMILATOR_VERBOSITY_LEVEL"`
-	LogTypes        map[string]bool       `toml:"log_types" env:"ASSIMILATOR_LOG_TYPES"`
+	LogTypes        string                `toml:"log_types" env:"ASSIMILATOR_LOG_TYPES"`
 	LogFileLocation string                `toml:"log_file_location" env:"ASSIMILATOR_LOG_FILE_LOCATION"`
 	RepoDir         string                `toml:"repo_dir" env:"ASSIMILATOR_REPO_DIR"`
 	ServerIP        string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
@@ -137,28 +137,14 @@ func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
 }
 
 func ConfigFromFile(appConfig *AppConfig) {
-	appConfig = &AppConfig{}
 	// Load configs from /etc/assimilator
 	configFile, err := os.ReadFile("/etc/assimilator/config.toml")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			Info("Config file does not exist. Making one.")
 			defaultConfig, err := toml.Marshal(TomlConfigWrapper{
-				Config: AppConfig{
-					IsAgent:         false,
-					IsServer:        false,
-					GithubUsername:  "",
-					GithubToken:     "",
-					GithubRepo:      "",
-					VerbosityLevel:  2,
-					MAAS:            false,
-					LogTypes:        logTypes("file"),
-					LogFileLocation: "/var/log/assimilator/assimilator.log",
-					RepoDir:         "/etc/assimilator",
-					ServerIP:        "",
-					ServerPort:      2390,
-					Hostname:        "",
-				}})
+				Config: *appConfig,
+			})
 			if err != nil {
 				asslog.Unhandled("Error marshalling default config: ", err)
 			}
@@ -173,6 +159,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 		} else {
 			Error("Failed to open config file: ", err)
 		}
+		return
 	}
 
 	err = toml.Unmarshal(configFile, &appConfig)
@@ -185,9 +172,10 @@ func ConfigFromFile(appConfig *AppConfig) {
 }
 
 func ConfigFromEnv(appConfig *AppConfig) {
-	if err := env.Parse(&appConfig); err != nil {
+	if err := env.Parse(appConfig); err != nil {
 		Error("Failed to parse environment variables: ", err)
 	}
+	fmt.Println("Loaded environment variables: ", appConfig)
 }
 
 func ConfigFromFlags(appConfig *AppConfig) {
@@ -233,7 +221,7 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	case userSetFlags["verbosity"]:
 		appConfig.VerbosityLevel = *verbosityPtr
 	case userSetFlags["log_types"]:
-		appConfig.LogTypes = logTypes(*logTypesPtr)
+		appConfig.LogTypes = *logTypesPtr
 	case userSetFlags["log_file_location"]:
 		appConfig.LogFileLocation = *logFileLocation
 	case userSetFlags["repo_dir"]:
@@ -247,29 +235,7 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	}
 }
 
-// processFlagsAndArgs processes the command line flags and returns the
-// corresponding FlagsAndArgs structure.
-func SetupAppConfig() AppConfig {
-	appConfig := AppConfig{
-		IsAgent:         false,
-		IsServer:        false,
-		GithubUsername:  "",
-		GithubToken:     "",
-		GithubRepo:      "",
-		MAAS:            false,
-		TestMode:        false,
-		VerbosityLevel:  2,
-		LogTypes:        logTypes("console"),
-		LogFileLocation: "/etc/assimilator/assimilator.log",
-		RepoDir:         "",
-		ServerIP:        "0.0.0.0",
-		ServerPort:      2390,
-		Hostname:        "",
-	}
-	ConfigFromFile(&appConfig)
-	ConfigFromEnv(&appConfig)
-	ConfigFromFlags(&appConfig)
-
+func traceAppConfig(appConfig *AppConfig) {
 	Trace("agent: ", appConfig.IsAgent)
 	Trace("server: ", appConfig.IsServer)
 	Trace("githubUsername: ", appConfig.GithubUsername)
@@ -284,10 +250,43 @@ func SetupAppConfig() AppConfig {
 	Trace("serverIP: ", appConfig.ServerIP)
 	Trace("serverPort: ", appConfig.ServerPort)
 	Trace("hostname: ", appConfig.Hostname)
+}
+
+// processFlagsAndArgs processes the command line flags and returns the
+// corresponding FlagsAndArgs structure.
+func SetupAppConfig() AppConfig {
+	appConfig := AppConfig{
+		IsAgent:         false,
+		IsServer:        false,
+		GithubUsername:  "",
+		GithubToken:     "",
+		GithubRepo:      "",
+		MAAS:            false,
+		TestMode:        false,
+		VerbosityLevel:  2,
+		LogTypes:        "console",
+		LogFileLocation: "/etc/assimilator/assimilator.log",
+		RepoDir:         "",
+		ServerIP:        "0.0.0.0",
+		ServerPort:      2390,
+		Hostname:        "",
+	}
+
+	Trace("Loading config from file.")
+	ConfigFromFile(&appConfig)
+	traceAppConfig(&appConfig)
+
+	Trace("Loading config from environment.")
+	ConfigFromEnv(&appConfig)
+	traceAppConfig(&appConfig)
+
+	Trace("Loading config from flags.")
+	ConfigFromFlags(&appConfig)
+	traceAppConfig(&appConfig)
 
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
-		Fatal(1, "No flags provided.")
+		Fatal(1, "Neither server nor agent flags provided.")
 	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
 	// Evaluate server flags
@@ -323,6 +322,8 @@ func SetupAppConfig() AppConfig {
 	default:
 		Success("Configuration loaded successfully.")
 	}
+	asslog.SetVerbosity(appConfig.VerbosityLevel)
+	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 	return appConfig
 }
 

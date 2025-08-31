@@ -5,6 +5,7 @@ go 1.24.2
 require (
 	github.com/caarlos0/env/v11 v11.3.1 // direct
 	github.com/go-git/go-git/v5 v5.16.1
+	github.com/hashicorp/go-version v1.7.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6

@@ -45,7 +45,7 @@ func cloneRepo(appConfig *config.AppConfig, repoDir string, auth *http.BasicAuth
 		Auth:     auth,
 		Progress: asslog.NewLogWriter(),
 	}
-
+	Debug(cloneOptions)
 	_, err := git.PlainClone(repoDir, false, cloneOptions)
 	return err
 }
@@ -116,15 +116,18 @@ func cloneOrPullRepo(appConfig *config.AppConfig) (string, error) {
 		Username: appConfig.GithubUsername,
 		Password: appConfig.GithubToken,
 	}
+	Trace("appConfig.GithubUsername: ", appConfig.GithubUsername)
+	Trace("appConfig.GithubToken: ", appConfig.GithubToken)
 
 	// Create the repo temp directory
 	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
 		Debug(`Directory "` + repoDir + `") does not exist. Creating it.`)
 		repoDirErr := os.Mkdir(repoDir, 0755)
 		if repoDirErr != nil {
-			if errors.Is(repoDirErr, os.ErrExist) {
+			switch repoDirErr {
+			case os.ErrExist:
 				Debug(fmt.Sprintf("Repository directory '%s' already exists. Proceeding.", repoDir))
-			} else {
+			default:
 				asslog.Unhandled("Error making the /tmp/assimilator-repo temp directory: ", repoDirErr)
 			}
 		}
@@ -141,17 +144,20 @@ func cloneOrPullRepo(appConfig *config.AppConfig) (string, error) {
 	// Clone or pull the repository
 	Info("Cloning or pulling repository to ", repoDir)
 	err := cloneRepo(appConfig, repoDir, auth)
-	if err == nil {
-		return repoDir, nil
+	if err != nil {
+		switch {
+		case errors.Is(err, git.ErrRepositoryAlreadyExists):
+			Debug("Repository already exists. Pulling...")
+			pullRepo(repoDir, auth)
+			return repoDir, nil
+		case errors.Is(err, transport.ErrAuthenticationRequired):
+			Fatal(1, "Unable to clone or pull repository. Authentication required. Please check your repository name, username and PAT.")
+		default:
+			asslog.Unhandled("Error cloning or pulling repository: ", err)
+			return "", err
+		}
 	}
-
-	// If the repository already exists, pull the changes
-	if err == git.ErrRepositoryAlreadyExists {
-		Debug("Repository already exists. Pulling...")
-		pullRepo(repoDir, auth)
-		return repoDir, nil
-	}
-	return "", err
+	return repoDir, nil
 }
 
 // Start the server
@@ -160,6 +166,7 @@ func Server(appConfig *config.AppConfig) {
 	Info("Cloning or pulling repository...")
 	repoDir, err := cloneOrPullRepo(appConfig)
 	if err != nil {
+		Trace("asdfasdfError cloning or pulling repository: ", err)
 		Unhandled("Error cloning or pulling repository: ", err)
 	}
 

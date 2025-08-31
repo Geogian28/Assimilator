@@ -24,6 +24,7 @@ message GetSpecificConfigRequest {
 
 message GetSpecificConfigResponse {
     MachineConfig Machine = 1;
+    ServerVersion Version = 2;
 }
 
 service Assimilator {

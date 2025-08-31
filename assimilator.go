@@ -92,16 +92,10 @@ func elevatePrivileges() int {
 	return 0
 }
 
-func checkForUpdates() {
-	asslog.Info("Not yet implemented")
-}
-
 func main() {
 	asslog.StartLogger()
 	defer asslog.Close()
 	appConfig := config.SetupAppConfig()
-	asslog.SetVerbosity(appConfig.VerbosityLevel)
-	asslog.SetLogTypes(appConfig.LogTypes)
 	if appConfig.TestMode {
 		asslog.Info("Running in test mode. Not running as root.")
 	} else if !isRoot() {
@@ -112,9 +106,6 @@ func main() {
 	Trace("Version: ", version)
 	Trace("Commit: ", commit)
 	Trace("Build Date: ", buildDate)
-
-	// Checking for updates
-	checkForUpdates()
 
 	if appConfig.IsServer {
 		asslog.Info("Running as server")

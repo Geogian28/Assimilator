@@ -22,7 +22,11 @@ func installPrograms(packages map[string]*pb.PackageConfig, commandRunner Comman
 	defer cancel()
 
 	// update apt cache
-	updateAptCache(commandRunner)
+	err := updateAptCache(commandRunner)
+	if err != nil {
+		Error("Error updating apt cache. Will continue but packages will be out of date.")
+		Debug(err)
+	}
 
 	// collect installed programs from "apt list" command
 
@@ -69,7 +73,6 @@ func updateAptCache(commandRunner CommandRunner) error {
 		if strings.Contains(strings.ToLower(line), "debian") {
 			_, err := commandRunner.Run("apt", "update")
 			if err != nil {
-				Unhandled("Error updating apt cache:", err)
 				return err
 			}
 			Trace("Apt cache updated.")
