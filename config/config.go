@@ -53,6 +53,9 @@ type AppConfig struct {
 	ServerPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
 	Hostname        string                `toml:"hostname" env:"ASSIMILATOR_HOSTNAME"`
 	PackageMap      map[string]PackageMap `yaml:"package_map"`
+	Version         string
+	Commit          string
+	BuildDate       string
 }
 
 // Top-level config structure for the entire desired state
@@ -254,7 +257,7 @@ func traceAppConfig(appConfig *AppConfig) {
 
 // processFlagsAndArgs processes the command line flags and returns the
 // corresponding FlagsAndArgs structure.
-func SetupAppConfig() AppConfig {
+func SetupAppConfig(version, commit, buildDate string) AppConfig {
 	appConfig := AppConfig{
 		IsAgent:         false,
 		IsServer:        false,
@@ -270,6 +273,9 @@ func SetupAppConfig() AppConfig {
 		ServerIP:        "0.0.0.0",
 		ServerPort:      2390,
 		Hostname:        "",
+		Version:         version,
+		Commit:          commit,
+		BuildDate:       buildDate,
 	}
 
 	Trace("Loading config from file.")

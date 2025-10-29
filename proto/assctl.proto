@@ -35,6 +35,13 @@ service Assimilator {
     rpc GetSpecificConfig(GetSpecificConfigRequest) returns (GetSpecificConfigResponse){}
 }
 
+message ServerVersion {
+  string version = 1;
+  string commit = 2;
+  string build_date = 3;
+}
+
+
 message DesiredState
 {
     AppConfig     global    =1;

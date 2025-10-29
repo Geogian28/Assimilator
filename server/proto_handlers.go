@@ -36,8 +36,10 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 	Trace("Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
 	if machine, okay := DesiredState.Machines[req.MachineName]; okay {
 		Trace("Found a machine with name: ", req.MachineName)
+		Info("Returning response to ", req.MachineName, "'s agent.")
 		return &pb.GetSpecificConfigResponse{
 			Machine: toProtoMachineConfig(&machine),
+			Version: toProtoServerVersion(ServerVersionInfo),
 			// TODO: Add more fields to the response
 		}, nil
 	}

@@ -47,14 +47,23 @@ func pingServer(appConfig *config.AppConfig, commandRunner CommandRunner) error 
 	// Get the machine's config
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	specificConfigsReq := &pb.GetSpecificConfigRequest{MachineName: appConfig.Hostname}
-	specificConfigsResp, err := client.GetSpecificConfig(ctx, specificConfigsReq)
+	req := &pb.GetSpecificConfigRequest{MachineName: appConfig.Hostname}
+	resp, err := client.GetSpecificConfig(ctx, req)
 	if err != nil {
 		return err
 	}
 
-	Info("Successfully got config for machine: ", specificConfigsReq.MachineName)
-	packages := specificConfigsResp.GetMachine().GetPackages()
+	respVersion, err := version.NewVersion(resp.Version.Version)
+	configVersion, _ := version.NewVersion(config.VERSION)
+
+	if err == nil && respVersion.LessThan(configVersion) {
+		Info("Version mismatch. Server version: ", resp.Version, " Local version: ", config.VERSION)
+		updateAssimilator(commandRunner)
+	}
+	Info("Agent matches server version.")
+
+	Info("Successfully got config for machine: ", req.MachineName)
+	packages := resp.GetMachine().GetPackages()
 	installPrograms(packages, commandRunner)
 	os.Exit(0)
 	return nil
@@ -109,7 +118,7 @@ func checkForUpdates(commandRunner CommandRunner) {
 	Info("Local version: ", localVersion)
 	if localVersion.LessThan(cacheVersion) {
 		Info("Updating Assimilator...")
-		updateAssimilator(commandRunner)
+		// updateAssimilator(commandRunner)
 	}
 	Info("Assimilator is up-to-date.")
 }
@@ -125,7 +134,7 @@ func updateAssimilator(commandRunner CommandRunner) {
 
 func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 	// First, check for updates
-	checkForUpdates(commandRunner)
+	// checkForUpdates(commandRunner)
 
 	Info("Agent starting up...")
 	// TODO: Get hostname

@@ -95,7 +95,7 @@ func elevatePrivileges() int {
 func main() {
 	asslog.StartLogger()
 	defer asslog.Close()
-	appConfig := config.SetupAppConfig()
+	appConfig := config.SetupAppConfig(version, commit, buildDate)
 	if appConfig.TestMode {
 		asslog.Info("Running in test mode. Not running as root.")
 	} else if !isRoot() {

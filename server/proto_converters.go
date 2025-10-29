@@ -12,6 +12,14 @@ import (
 	pb "github.com/geogian28/Assimilator/proto"
 )
 
+func toProtoServerVersion(ServerVersion *ServerVersion) *pb.ServerVersion {
+	return &pb.ServerVersion{
+		Version:   ServerVersion.Version,
+		Commit:    ServerVersion.Commit,
+		BuildDate: ServerVersion.BuildDate,
+	}
+}
+
 func toProtoDesiredState(DesiredState *config.DesiredState) *pb.DesiredState {
 	return &pb.DesiredState{ // The 'Config' field of the response
 		Global:   toProtoAppConfig(DesiredState.Global),

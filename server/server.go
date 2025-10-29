@@ -38,6 +38,22 @@ type AssimilatorServer struct {
 	pb.UnimplementedAssimilatorServer
 }
 
+type ServerVersion struct {
+	Version   string
+	Commit    string
+	BuildDate string
+}
+
+var ServerVersionInfo *ServerVersion
+
+func newServerVersion(version, commit, buildDate string) *ServerVersion {
+	return &ServerVersion{
+		Version:   version,
+		Commit:    commit,
+		BuildDate: buildDate,
+	}
+}
+
 // Clone the dotfiles repository
 func cloneRepo(appConfig *config.AppConfig, repoDir string, auth *http.BasicAuth) error {
 	cloneOptions := &git.CloneOptions{
@@ -188,6 +204,7 @@ func Server(appConfig *config.AppConfig) {
 	if err != nil {
 		asslog.Unhandled("Failed to listen on address", address, ": ", err)
 	}
+	ServerVersionInfo = newServerVersion(appConfig.Version, appConfig.Commit, appConfig.BuildDate)
 	s := grpc.NewServer()
 	pb.RegisterAssimilatorServer(s, &AssimilatorServer{})
 	Info("Server listening on at ", lis.Addr())
