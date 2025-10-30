@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -35,7 +36,7 @@ var (
 	Unhandled = asslog.Unhandled
 )
 
-func pingServer(appConfig *config.AppConfig, commandRunner CommandRunner) error {
+func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner CommandRunner) error {
 	address := appConfig.ServerIP + ":" + fmt.Sprint(appConfig.ServerPort)
 	Debug("Attempting to connect to server at ", address)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -45,11 +46,15 @@ func pingServer(appConfig *config.AppConfig, commandRunner CommandRunner) error 
 	defer conn.Close()
 	client := pb.NewAssimilatorClient(conn)
 	// Get the machine's config
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	req := &pb.GetSpecificConfigRequest{MachineName: appConfig.Hostname}
 	resp, err := client.GetSpecificConfig(ctx, req)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			asslog.Trace("pingServer was canceled by shutdown signal.")
+			return nil
+		}
 		return err
 	}
 
@@ -72,25 +77,22 @@ func pingServer(appConfig *config.AppConfig, commandRunner CommandRunner) error 
 func checkForUpdates(commandRunner CommandRunner) {
 	asslog.Info("Checking for updates")
 	updateAptCache(commandRunner)
-	stdout, err := commandRunner.Run("apt-cache", "policy", "assimilator")
-	Trace("")
+
+	stdout, _, err := commandRunner.Run("apt-cache", "policy", "assimilator")
+	Trace("stdout: ", string(stdout))
+	Trace("err: ", err)
 	if err != nil {
-		Trace("")
 		asslog.Unhandled("Error checking for updates: ", err)
 	}
-	Trace("")
-	if string(stdout) == "N: Unable to locate package assimilator" {
-		Trace("")
-		asslog.Info("Assimilator is not in local repo. Unable to update.")
+	if string(stdout) == "" {
+		Error("Assimilator is not in local repo. Unable to update.")
 		return
 	}
-	Trace("")
 	lines := strings.Split((string(stdout)), "\n")
 	Trace("Number of lines: ", len(lines))
 	if len(lines) == 0 {
 		asslog.Unhandled("Error parsing version: no lines returned")
 	}
-	Trace("")
 	var cacheVersion *version.Version
 	for _, line := range lines {
 		if strings.Contains(line, "Candidate:") {
@@ -101,48 +103,64 @@ func checkForUpdates(commandRunner CommandRunner) {
 			break
 		}
 	}
-	Trace("")
 	if err != nil || cacheVersion == nil {
 		asslog.Unhandled("Error parsing version: ", err)
 	}
 	Trace("")
 	Info("Cache version: ", cacheVersion)
-	Trace("")
 	localVersion, err := version.NewVersion(config.VERSION)
-	Trace("")
 	if err != nil {
 		Trace("")
 		asslog.Unhandled("Error parsing version: ", err)
 	}
-	Trace("")
 	Info("Local version: ", localVersion)
 	if localVersion.LessThan(cacheVersion) {
 		Info("Updating Assimilator...")
-		// updateAssimilator(commandRunner)
+		updateAssimilator(commandRunner)
 	}
 	Info("Assimilator is up-to-date.")
 }
 
 func updateAssimilator(commandRunner CommandRunner) {
-	_, err := commandRunner.Run("apt", "install", "--only-upgrade", "-y", "assimilator")
+	_, _, err := commandRunner.Run("sh", "-c", `echo "apt update && apt install -y assimilator-agent" | at now + 1 minute`)
 	if err != nil {
-		asslog.Unhandled("Error updating assimilator: ", err)
+		Error("Failed to schedule update task: ", err)
+		// Don't exit, just log the error and continue
+		return
 	}
-	Info("Assimilator updated. Restarting...")
+
+	// Gracefully shut down the agent.
+	Info("Scheduled update task. Shutting down...")
 	asslog.Close(0)
+}
+
+func listenForShutdown(ticker *time.Ticker, done chan bool, cancel context.CancelFunc) {
+	shutdownSignal := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
+
+	// This line blocks the goroutine until a signal arrives
+	<-shutdownSignal
+
+	// Signal received, now clean up.
+	asslog.Debug("Shutdown signal received, telling agent loop to stop...")
+	ticker.Stop()
+	cancel()
+	done <- true
 }
 
 func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 	// First, check for updates
-	// checkForUpdates(commandRunner)
+	checkForUpdates(commandRunner)
 
 	Info("Agent starting up...")
 	// TODO: Get hostname
 	if appConfig.Hostname == "" {
-
 		appConfig.Hostname = "ubuntu-tester"
 		Trace(appConfig.Hostname)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Start the ticker which activates the agent subroutines
 	ticker := time.NewTicker(10 * time.Second)
@@ -151,7 +169,8 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 	done := make(chan bool)
 
 	// Start a goutine to run the pinger
-	go func() {
+	go func(ctx context.Context) {
+		Debug("Agent loop started.")
 		for {
 			select {
 			case <-done:
@@ -159,7 +178,7 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 			case <-ticker.C:
 				Trace("tick! ", time.Now())
 				ticker.Stop()
-				err := pingServer(appConfig, commandRunner)
+				err := pingServer(ctx, appConfig, commandRunner)
 				if err != nil {
 					errorStatus, ok := status.FromError(err)
 					if ok {
@@ -182,14 +201,9 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 				ticker = time.NewTicker(10 * time.Second)
 			}
 		}
-	}()
+	}(ctx)
 
-	shutdownSignal := make(chan os.Signal, 1)
-	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
-
-	<-shutdownSignal
-	ticker.Stop()
-	done <- true
+	listenForShutdown(ticker, done, cancel)
 	Debug("Agent shutting down...")
 	// return nil
 }

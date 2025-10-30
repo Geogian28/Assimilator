@@ -52,7 +52,8 @@ func TestIsValid(t *testing.T) {
 		// Test case 1: Valid package
 		validPackage := "nano"
 		mock := (&MockCommandRunner{
-			MockOutput: []byte("Package: nano\n"),
+			MockStdout: []byte("Package: nano\n"),
+			MockStderr: []byte(""),
 			MockError:  nil,
 		})
 
@@ -69,7 +70,8 @@ func TestIsValid(t *testing.T) {
 		// Test case 2: Invalid package
 		invalidPackage := "invalid-package"
 		mock := (&MockCommandRunner{
-			MockOutput: []byte(""),
+			MockStdout: []byte(""),
+			MockStderr: []byte(""),
 			MockError:  fmt.Errorf("package not found"),
 		})
 
@@ -90,7 +92,8 @@ func TestUpdateAptCache(t *testing.T) {
 		// Test case 1: Valid package
 		validPackage := "nano"
 		mock := (&MockCommandRunner{
-			MockOutput: []byte("Package: nano\n"),
+			MockStdout: []byte("Package: nano\n"),
+			MockStderr: []byte(""),
 			MockError:  nil,
 		})
 
@@ -107,7 +110,8 @@ func TestUpdateAptCache(t *testing.T) {
 		// Test case 2: Invalid package
 		invalidPackage := "invalid-package"
 		mock := (&MockCommandRunner{
-			MockOutput: []byte(""),
+			MockStdout: []byte(""),
+			MockStderr: []byte("This is a STDERR!"),
 			MockError:  fmt.Errorf("This is an error!"),
 		})
 

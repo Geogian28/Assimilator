@@ -1,13 +1,16 @@
 package agent
 
-import "os/exec"
+import (
+	"bytes"
+	"os/exec"
+)
 
 // --- 1. Define an Interface ---
 // This interface describes what we need to do: run a command.
 // By depending on this interface instead of the 'os/exec' package directly,
 // we can swap out the implementation for a fake one in our tests.
 type CommandRunner interface {
-	Run(name string, args ...string) ([]byte, error)
+	Run(name string, args ...string) ([]byte, []byte, error)
 }
 
 // --- 2. Create the REAL Implementation ---
@@ -16,9 +19,16 @@ type CommandRunner interface {
 type LiveCommandRunner struct{}
 
 // Run executes a real command on the operating system.
-func (r *LiveCommandRunner) Run(name string, args ...string) ([]byte, error) {
+func (r *LiveCommandRunner) Run(name string, args ...string) ([]byte, []byte, error) {
 	// This calls the real os/exec.Command
-	return exec.Command(name, args...).Output()
+	cmd := exec.Command(name, args...)
+
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+
+	err := cmd.Run()
+	return outBuf.Bytes(), errBuf.Bytes(), err
 }
 
 // --- 3. Create the MOCK Implementation for Tests ---
@@ -26,12 +36,13 @@ func (r *LiveCommandRunner) Run(name string, args ...string) ([]byte, error) {
 // It holds fake data that we can control.
 type MockCommandRunner struct {
 	// We can tell the mock what output and error it should return.
-	MockOutput []byte
+	MockStdout []byte
+	MockStderr []byte
 	MockError  error
 }
 
 // Run for the mock doesn't execute any real commands. It just returns
 // the fake data we configured it with.
-func (r *MockCommandRunner) Run(name string, args ...string) ([]byte, error) {
-	return r.MockOutput, r.MockError
+func (r *MockCommandRunner) Run(name string, args ...string) ([]byte, []byte, error) {
+	return r.MockStdout, r.MockStderr, r.MockError
 }

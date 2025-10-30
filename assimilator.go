@@ -99,8 +99,7 @@ func main() {
 	if appConfig.TestMode {
 		asslog.Info("Running in test mode. Not running as root.")
 	} else if !isRoot() {
-		elevatePrivileges()
-		os.Exit(0)
+		Fatal(1, "This program requires root privileges.")
 	}
 
 	Trace("Version: ", version)

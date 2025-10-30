@@ -206,34 +206,46 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	})
 
 	// Now, conditionally update the config
-	switch {
-	case userSetFlags["server"]:
+	if userSetFlags["server"] {
 		appConfig.IsServer = *serverPtr
-	case userSetFlags["agent"]:
+	}
+	if userSetFlags["agent"] {
 		appConfig.IsAgent = *agentPtr
-	case userSetFlags["github_username"]:
+	}
+	if userSetFlags["github_username"] {
 		appConfig.GithubUsername = *githubUsernamePtr
-	case userSetFlags["github_token"]:
+	}
+	if userSetFlags["github_token"] {
 		appConfig.GithubToken = *githubTokenPtr
-	case userSetFlags["github_repo"]:
+	}
+	if userSetFlags["github_repo"] {
 		appConfig.GithubRepo = *githubRepoPtr
-	case userSetFlags["maas"]:
+	}
+	if userSetFlags["maas"] {
 		appConfig.MAAS = *maasPtr
-	case userSetFlags["test_mode"]:
+	}
+	if userSetFlags["test_mode"] {
 		appConfig.TestMode = *testModePtr
-	case userSetFlags["verbosity"]:
+	}
+	if userSetFlags["verbosity"] {
 		appConfig.VerbosityLevel = *verbosityPtr
-	case userSetFlags["log_types"]:
+	}
+	if userSetFlags["log_types"] {
 		appConfig.LogTypes = *logTypesPtr
-	case userSetFlags["log_file_location"]:
+	}
+	if userSetFlags["log_file_location"] {
 		appConfig.LogFileLocation = *logFileLocation
-	case userSetFlags["repo_dir"]:
+	}
+	if userSetFlags["repo_dir"] {
 		appConfig.RepoDir = *repoDirPtr
-	case userSetFlags["server_ip"]:
+	}
+	if userSetFlags["server_ip"] {
 		appConfig.ServerIP = *serverIPPtr
-	case userSetFlags["server_port"]:
+	}
+	if userSetFlags["server_port"] {
 		appConfig.ServerPort = *serverPortPtr
-	case userSetFlags["hostname"]:
+	}
+	if userSetFlags["hostname"] {
 		appConfig.Hostname = *hostnamePTR
 	}
 }

@@ -62,7 +62,7 @@ func installPrograms(packages map[string]*pb.PackageConfig, commandRunner Comman
 func updateAptCache(commandRunner CommandRunner) error {
 	Trace("Updating apt cache...")
 
-	lsbCommand, err := commandRunner.Run("cat", "/etc/os-release")
+	lsbCommand, _, err := commandRunner.Run("cat", "/etc/os-release")
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func updateAptCache(commandRunner CommandRunner) error {
 	}
 	for line := range strings.SplitSeq(string(lsbCommand), "\n") {
 		if strings.Contains(strings.ToLower(line), "debian") {
-			_, err := commandRunner.Run("apt", "update")
+			_, _, err := commandRunner.Run("apt", "update")
 			if err != nil {
 				return err
 			}
@@ -86,7 +86,7 @@ func updateAptCache(commandRunner CommandRunner) error {
 func collectInstalledPrograms(commandRunner CommandRunner) (map[string]bool, error) {
 	m := make(map[string]bool)
 	Trace("Collecting installed programs...")
-	stdout, err := commandRunner.Run("apt", "list", "--installed")
+	stdout, _, err := commandRunner.Run("apt", "list", "--installed")
 	if err != nil {
 		return m, err
 	}
@@ -135,7 +135,7 @@ func installAptPackage(wg *sync.WaitGroup, mu *sync.Mutex, commandRunner Command
 		mu.Lock()
 		Debug("Installing package: ", packageName)
 		defer mu.Unlock()
-		_, err := commandRunner.Run("apt", "install", "-y", packageName)
+		_, _, err := commandRunner.Run("apt", "install", "-y", packageName)
 		if err != nil {
 			return err
 		}
@@ -161,6 +161,6 @@ func ConfigureProgram(PackageName string) error {
 
 // Check if package is valid
 func isValid(commandRunner CommandRunner, packageName string) bool {
-	_, err := commandRunner.Run("apt-cache", "show", packageName)
+	_, _, err := commandRunner.Run("apt-cache", "show", packageName)
 	return err == nil
 }

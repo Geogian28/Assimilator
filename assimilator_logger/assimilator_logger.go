@@ -343,8 +343,8 @@ func (l *AssLogger) Unhandled(message string) {
 		level:       LevelUnhandled,
 		message:     message,
 		color:       Lred,
-		flatPrefix:  "[unhandled error] ",
-		emojiPrefix: "[💥 unhandled error] ",
+		flatPrefix:  "[Unhandled error] ",
+		emojiPrefix: "[💥 Unhandled error] ",
 		IsFatal:     true,
 		ExitCode:    28,
 	}

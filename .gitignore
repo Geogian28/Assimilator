@@ -3,3 +3,4 @@ __debug_bin*
 # Added by goreleaser init:
 dist/
 .vscode/
+Assimilator
