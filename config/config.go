@@ -52,6 +52,7 @@ type AppConfig struct {
 	ServerIP        string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
 	ServerPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
 	Hostname        string                `toml:"hostname" env:"ASSIMILATOR_HOSTNAME"`
+	AptSources      string                `toml:"apt_sources" env:"ASSIMILATOR_APT_SOURCES"`
 	PackageMap      map[string]PackageMap `yaml:"package_map"`
 	Version         string
 	Commit          string
@@ -196,6 +197,7 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	serverIPPtr := flag.String("server_ip", "0.0.0.0", "Set server IP")
 	serverPortPtr := flag.Int("server_port", 2390, "Set server port")
 	hostnamePTR := flag.String("hostname", "", "Set hostname of the agent. This is used to override the hostname of the machine if you wish to grab a specific configuration.")
+	aptSourcesPtr := flag.String("apt_sources", "", "Set custom apt sources for the agent to use. This should be a comma separated list of sources.")
 
 	flag.Parse() // Parse them once all are defined
 
@@ -248,6 +250,9 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	if userSetFlags["hostname"] {
 		appConfig.Hostname = *hostnamePTR
 	}
+	if userSetFlags["apt_sources"] {
+		appConfig.AptSources = *aptSourcesPtr
+	}
 }
 
 func traceAppConfig(appConfig *AppConfig) {
@@ -265,6 +270,7 @@ func traceAppConfig(appConfig *AppConfig) {
 	Trace("serverIP: ", appConfig.ServerIP)
 	Trace("serverPort: ", appConfig.ServerPort)
 	Trace("hostname: ", appConfig.Hostname)
+	Trace("aptSources: ", appConfig.AptSources)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
@@ -285,6 +291,7 @@ func SetupAppConfig(version, commit, buildDate string) AppConfig {
 		ServerIP:        "0.0.0.0",
 		ServerPort:      2390,
 		Hostname:        "",
+		AptSources:      "",
 		Version:         version,
 		Commit:          commit,
 		BuildDate:       buildDate,

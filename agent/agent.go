@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -74,60 +75,116 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 	return nil
 }
 
-func checkForUpdates(commandRunner CommandRunner) {
-	asslog.Info("Checking for updates")
-	updateAptCache(commandRunner)
+func addAssimilatortoRepo(appConfig *config.AppConfig) {
+	filePath := "/etc/apt/sources.list.d/assimilator_repo.list"
 
-	stdout, _, err := commandRunner.Run("apt-cache", "policy", "assimilator")
-	Trace("stdout: ", string(stdout))
-	Trace("err: ", err)
+	// Add a newline, just to be a good citizen
+	content := []byte(appConfig.AptSources + "\n")
+
+	// Write the file (0644 is standard read-write for owner, read-only for others)
+	err := os.WriteFile(filePath, content, 0644)
 	if err != nil {
-		asslog.Unhandled("Error checking for updates: ", err)
-	}
-	if string(stdout) == "" {
-		Error("Assimilator is not in local repo. Unable to update.")
 		return
 	}
-	lines := strings.Split((string(stdout)), "\n")
-	Trace("Number of lines: ", len(lines))
-	if len(lines) == 0 {
-		asslog.Unhandled("Error parsing version: no lines returned")
-	}
-	var cacheVersion *version.Version
-	for _, line := range lines {
-		if strings.Contains(line, "Candidate:") {
-			// Get version
-			versionString := strings.TrimSpace(strings.Split(line, ":")[1])
-			Debug(`strings.TrimSpace(strings.Split(line, ":")[1]): `, versionString)
-			cacheVersion, err = version.NewVersion(versionString)
-			break
+}
+
+func checkForUpdates(appConfig *config.AppConfig, commandRunner CommandRunner) {
+	asslog.Info("Checking for updates")
+	var repoJustAdded = false
+
+	for {
+		updateAptCache(commandRunner)
+
+		stdout, _, err := commandRunner.Run("apt-cache", "policy", "assimilator")
+		Trace("stdout: ", string(stdout))
+		Trace("err: ", err)
+		if err != nil {
+			asslog.Unhandled("Error checking for updates: ", err)
 		}
-	}
-	if err != nil || cacheVersion == nil {
-		asslog.Unhandled("Error parsing version: ", err)
-	}
-	Trace("")
-	Info("Cache version: ", cacheVersion)
-	localVersion, err := version.NewVersion(config.VERSION)
-	if err != nil {
+		if string(stdout) == "" {
+			if repoJustAdded {
+				Error("Package 'assimilator' not found even after adding repository. Please check AptSources config.")
+				return
+			}
+
+			if appConfig.AptSources != "" {
+				Info("Assimilator package not found. Adding provided repository to sources.")
+				addAssimilatortoRepo(appConfig)
+				repoJustAdded = true
+				continue
+			}
+			Error("Package 'assimilator' not found in apt cache. No repository was provided. Please add the repository to your sources and try again.")
+			return
+		}
+		lines := strings.Split((string(stdout)), "\n")
+		Trace("Number of lines: ", len(lines))
+		if len(lines) == 0 {
+			asslog.Unhandled("Error parsing version: no lines returned")
+		}
+		var cacheVersion *version.Version
+		for _, line := range lines {
+			if strings.Contains(line, "Candidate:") {
+				// Get version
+				versionString := strings.TrimSpace(strings.Split(line, ":")[1])
+				Debug(`strings.TrimSpace(strings.Split(line, ":")[1]): `, versionString)
+				cacheVersion, err = version.NewVersion(versionString)
+				break
+			}
+		}
+		if err != nil || cacheVersion == nil {
+			asslog.Unhandled("Error parsing version: ", err)
+		}
 		Trace("")
-		asslog.Unhandled("Error parsing version: ", err)
+		Info("Cache version: ", cacheVersion)
+		localVersion, err := version.NewVersion(config.VERSION)
+		if err != nil {
+			Trace("")
+			asslog.Unhandled("Error parsing version: ", err)
+		}
+		Info("Local version: ", localVersion)
+		if localVersion.LessThan(cacheVersion) {
+			Info("Updating Assimilator...")
+			updateAssimilator(commandRunner)
+		}
+		Info("Assimilator is up-to-date.")
+		break
 	}
-	Info("Local version: ", localVersion)
-	if localVersion.LessThan(cacheVersion) {
-		Info("Updating Assimilator...")
-		updateAssimilator(commandRunner)
-	}
-	Info("Assimilator is up-to-date.")
 }
 
 func updateAssimilator(commandRunner CommandRunner) {
-	_, _, err := commandRunner.Run("sh", "-c", `echo "apt update && apt install -y assimilator-agent" | at now + 1 minute`)
+	Info("Starting detached update...")
+
+	// The script:
+	// 1. sleep 5: Give the main agent 5 seconds to shut down gracefully.
+	// 2. apt update: Refresh package lists.
+	// 3. apt install -y assimilator: Install the new version.
+	updateScript := "sleep 5 && apt update && apt install -y assimilator"
+
+	// We use os/exec directly to get the low-level control we need.
+	// Your commandRunner probably waits, which we don't want.
+	cmd := exec.Command("sh", "-c", updateScript)
+
+	// --- This is the critical part ---
+	// This detaches the new process from the agent's
+	// standard input, output, and error. If we don't do this,
+	// the OS might not see it as fully "disowned."
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	// --- End critical part ---
+
+	// Start the command... and that's it. We DO NOT wait for it.
+	err := cmd.Start()
 	if err != nil {
-		Error("Failed to schedule update task: ", err)
-		// Don't exit, just log the error and continue
+		Error("Failed to start detached update process: ", err)
+		// If we can't even START the command, don't shut down.
 		return
 	}
+
+	// We've successfully launched the background process (e.g., PID 102).
+	// Now, the agent (e.g., PID 100) can shut down safely.
+	Info("Detached update process launched. Agent shutting down...")
+	asslog.Close(0) // This is your graceful shutdown
 
 	// Gracefully shut down the agent.
 	Info("Scheduled update task. Shutting down...")
@@ -150,7 +207,7 @@ func listenForShutdown(ticker *time.Ticker, done chan bool, cancel context.Cance
 
 func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 	// First, check for updates
-	checkForUpdates(commandRunner)
+	checkForUpdates(appConfig, commandRunner)
 
 	Info("Agent starting up...")
 	// TODO: Get hostname
