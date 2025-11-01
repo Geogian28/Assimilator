@@ -111,7 +111,7 @@ func NewAssLogger() *AssLogger {
 	return &AssLogger{
 		msgBuffer:        make(chan LogEntry, 1000),
 		verbosityUpdates: make(chan int, 1),
-		verbosityLevel:   LevelTrace,
+		verbosityLevel:   LevelInfo,
 		logTypesUpdates:  make(chan map[string]bool, 1),
 		logTypes:         map[string]bool{"console": true},
 	}
@@ -247,7 +247,7 @@ func (l *AssLogger) Debug(message string) {
 		return
 	}
 	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelInfo,
+		level:       LevelDebug,
 		message:     message,
 		color:       Lblue,
 		flatPrefix:  "[Debug  ] ",
@@ -260,7 +260,7 @@ func (l *AssLogger) Trace(message string) {
 		return
 	}
 	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelInfo,
+		level:       LevelTrace,
 		message:     message,
 		color:       Lblack,
 		flatPrefix:  "[Trace  ] ",

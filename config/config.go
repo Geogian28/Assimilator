@@ -152,7 +152,11 @@ func ConfigFromFile(appConfig *AppConfig) {
 			if err != nil {
 				asslog.Unhandled("Error marshalling default config: ", err)
 			}
-			os.WriteFile("/etc/assimilator/config.toml", []byte(defaultConfig), 0644)
+			err = os.Mkdir("/etc/assimilator", 0755)
+			if err != nil {
+				asslog.Unhandled("Error creating assimilator directory: ", err)
+			}
+			err = os.WriteFile("/etc/assimilator/config.toml", []byte(defaultConfig), 0644)
 			if err != nil {
 				asslog.Unhandled("Error creating config file: ", err)
 			}
@@ -170,7 +174,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 	if err != nil {
 		Error("Failed to unmarshal config file: ", err)
 	} else {
-		Info("Loaded config file: ", configFile)
+		Debug("Loaded config from file.")
 	}
 
 }
@@ -179,7 +183,6 @@ func ConfigFromEnv(appConfig *AppConfig) {
 	if err := env.Parse(appConfig); err != nil {
 		Error("Failed to parse environment variables: ", err)
 	}
-	fmt.Println("Loaded environment variables: ", appConfig)
 }
 
 func ConfigFromFlags(appConfig *AppConfig) {
@@ -190,7 +193,7 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	githubRepoPtr := flag.String("github_repo", "", "GitHub repository")
 	maasPtr := flag.Bool("maas", false, "Only MAAS should use this flag")
 	testModePtr := flag.Bool("test_mode", false, "Used when testing, do not use in production")
-	verbosityPtr := flag.Int("verbosity", 2, "Set verbosity level (0=Silent, 1=Info, 2=Debug, 3=Trace)")
+	verbosityPtr := flag.Int("verbosity", 1, "Set verbosity level (0=Silent, 1=Info, 2=Debug, 3=Trace)")
 	logTypesPtr := flag.String("log_types", "", "Set log output locations (console, file)")
 	logFileLocation := flag.String("log_file_location", "/var/lib/assimilator/assimilator.log", "Set log file location")
 	repoDirPtr := flag.String("repo_dir", "", "Set repository directory")
@@ -198,6 +201,7 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	serverPortPtr := flag.Int("server_port", 2390, "Set server port")
 	hostnamePTR := flag.String("hostname", "", "Set hostname of the agent. This is used to override the hostname of the machine if you wish to grab a specific configuration.")
 	aptSourcesPtr := flag.String("apt_sources", "", "Set custom apt sources for the agent to use. This should be a comma separated list of sources.")
+	showVersionPtr := flag.Bool("version", false, "Show version information.")
 
 	flag.Parse() // Parse them once all are defined
 
@@ -206,6 +210,12 @@ func ConfigFromFlags(appConfig *AppConfig) {
 	flag.Visit(func(f *flag.Flag) {
 		userSetFlags[f.Name] = true
 	})
+	if *showVersionPtr {
+		fmt.Println("Version: ", appConfig.Version)
+		fmt.Println("Commit: ", appConfig.Commit)
+		fmt.Println("Build Date: ", appConfig.BuildDate)
+		os.Exit(0)
+	}
 
 	// Now, conditionally update the config
 	if userSetFlags["server"] {
@@ -284,7 +294,7 @@ func SetupAppConfig(version, commit, buildDate string) AppConfig {
 		GithubRepo:      "",
 		MAAS:            false,
 		TestMode:        false,
-		VerbosityLevel:  2,
+		VerbosityLevel:  1,
 		LogTypes:        "console",
 		LogFileLocation: "/etc/assimilator/assimilator.log",
 		RepoDir:         "",
