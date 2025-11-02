@@ -145,7 +145,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 	configFile, err := os.ReadFile("/etc/assimilator/config.toml")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			Info("Config file does not exist. Making one.")
+			Debug("Config file does not exist. Making one.")
 			defaultConfig, err := toml.Marshal(TomlConfigWrapper{
 				Config: *appConfig,
 			})
@@ -154,15 +154,34 @@ func ConfigFromFile(appConfig *AppConfig) {
 			}
 			err = os.Mkdir("/etc/assimilator", 0755)
 			if err != nil {
-				asslog.Unhandled("Error creating assimilator directory: ", err)
+				switch {
+				case errors.Is(err, os.ErrExist):
+					Trace("Cannot make /etc/assimilator directory. It already exists.")
+				case errors.Is(err, os.ErrPermission):
+					Error("Cannot make /etc/assimilator directory. Try running as root.")
+				default:
+					asslog.Unhandled("Error creating assimilator directory: ", err)
+				}
 			}
 			err = os.WriteFile("/etc/assimilator/config.toml", []byte(defaultConfig), 0644)
 			if err != nil {
-				asslog.Unhandled("Error creating config file: ", err)
+				switch {
+				case errors.Is(err, os.ErrExist):
+					Trace("Cannot make /etc/assimilator directory. It already exists.")
+				case errors.Is(err, os.ErrPermission):
+					Error("Received permission denied while creating config file. Try running as root.")
+				default:
+					asslog.Unhandled("Error creating config file: ", err)
+				}
 			}
 			err = toml.Unmarshal(defaultConfig, &appConfig)
 			if err != nil {
-				Error("Failed to open newly created config file: ", err)
+				switch err {
+				case os.ErrPermission:
+					Error("Cannot make config file /etc/assimilator/config.toml. Try running as root.")
+				default:
+					Error("Failed to open newly created config file: ", err)
+				}
 			}
 		} else {
 			Error("Failed to open config file: ", err)
@@ -185,83 +204,59 @@ func ConfigFromEnv(appConfig *AppConfig) {
 	}
 }
 
-func ConfigFromFlags(appConfig *AppConfig) {
-	agentPtr := flag.Bool("agent", false, "Run as agent")
-	serverPtr := flag.Bool("server", false, "Run as server")
-	githubUsernamePtr := flag.String("github_username", "", "GitHub username")
-	githubTokenPtr := flag.String("github_token", "", "GitHub access token")
-	githubRepoPtr := flag.String("github_repo", "", "GitHub repository")
-	maasPtr := flag.Bool("maas", false, "Only MAAS should use this flag")
-	testModePtr := flag.Bool("test_mode", false, "Used when testing, do not use in production")
-	verbosityPtr := flag.Int("verbosity", 1, "Set verbosity level (0=Silent, 1=Info, 2=Debug, 3=Trace)")
-	logTypesPtr := flag.String("log_types", "", "Set log output locations (console, file)")
-	logFileLocation := flag.String("log_file_location", "/var/lib/assimilator/assimilator.log", "Set log file location")
-	repoDirPtr := flag.String("repo_dir", "", "Set repository directory")
-	serverIPPtr := flag.String("server_ip", "0.0.0.0", "Set server IP")
-	serverPortPtr := flag.Int("server_port", 2390, "Set server port")
-	hostnamePTR := flag.String("hostname", "", "Set hostname of the agent. This is used to override the hostname of the machine if you wish to grab a specific configuration.")
-	aptSourcesPtr := flag.String("apt_sources", "", "Set custom apt sources for the agent to use. This should be a comma separated list of sources.")
-	showVersionPtr := flag.Bool("version", false, "Show version information.")
-
-	flag.Parse() // Parse them once all are defined
+func ConfigFromFlags(appConfig *AppConfig, flags *CliFlags) {
 
 	// Create a map to know which flags were set by the user.
 	userSetFlags := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) {
 		userSetFlags[f.Name] = true
 	})
-	if *showVersionPtr {
-		fmt.Println("Version: ", appConfig.Version)
-		fmt.Println("Commit: ", appConfig.Commit)
-		fmt.Println("Build Date: ", appConfig.BuildDate)
-		os.Exit(0)
-	}
 
 	// Now, conditionally update the config
 	if userSetFlags["server"] {
-		appConfig.IsServer = *serverPtr
+		appConfig.IsServer = flags.Server
 	}
 	if userSetFlags["agent"] {
-		appConfig.IsAgent = *agentPtr
+		appConfig.IsAgent = flags.Agent
 	}
 	if userSetFlags["github_username"] {
-		appConfig.GithubUsername = *githubUsernamePtr
+		appConfig.GithubUsername = flags.GithubUsername
 	}
 	if userSetFlags["github_token"] {
-		appConfig.GithubToken = *githubTokenPtr
+		appConfig.GithubToken = flags.GithubToken
 	}
 	if userSetFlags["github_repo"] {
-		appConfig.GithubRepo = *githubRepoPtr
+		appConfig.GithubRepo = flags.GithubRepo
 	}
 	if userSetFlags["maas"] {
-		appConfig.MAAS = *maasPtr
+		appConfig.MAAS = flags.Maas
 	}
 	if userSetFlags["test_mode"] {
-		appConfig.TestMode = *testModePtr
+		appConfig.TestMode = flags.TestMode
 	}
 	if userSetFlags["verbosity"] {
-		appConfig.VerbosityLevel = *verbosityPtr
+		appConfig.VerbosityLevel = flags.Verbosity
 	}
 	if userSetFlags["log_types"] {
-		appConfig.LogTypes = *logTypesPtr
+		appConfig.LogTypes = flags.LogTypes
 	}
 	if userSetFlags["log_file_location"] {
-		appConfig.LogFileLocation = *logFileLocation
+		appConfig.LogFileLocation = flags.LogFileLocation
 	}
 	if userSetFlags["repo_dir"] {
-		appConfig.RepoDir = *repoDirPtr
+		appConfig.RepoDir = flags.RepoDir
 	}
 	if userSetFlags["server_ip"] {
-		appConfig.ServerIP = *serverIPPtr
+		appConfig.ServerIP = flags.ServerIP
 	}
 	if userSetFlags["server_port"] {
-		appConfig.ServerPort = *serverPortPtr
+		appConfig.ServerPort = flags.ServerPort
 	}
 	if userSetFlags["hostname"] {
-		appConfig.Hostname = *hostnamePTR
+		appConfig.Hostname = flags.Hostname
 	}
 	if userSetFlags["apt_sources"] {
-		appConfig.AptSources = *aptSourcesPtr
+		appConfig.AptSources = flags.AptSources
 	}
 }
 
@@ -285,7 +280,7 @@ func traceAppConfig(appConfig *AppConfig) {
 
 // processFlagsAndArgs processes the command line flags and returns the
 // corresponding FlagsAndArgs structure.
-func SetupAppConfig(version, commit, buildDate string) AppConfig {
+func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfig {
 	appConfig := AppConfig{
 		IsAgent:         false,
 		IsServer:        false,
@@ -316,7 +311,7 @@ func SetupAppConfig(version, commit, buildDate string) AppConfig {
 	traceAppConfig(&appConfig)
 
 	Trace("Loading config from flags.")
-	ConfigFromFlags(&appConfig)
+	ConfigFromFlags(&appConfig, flags)
 	traceAppConfig(&appConfig)
 
 	switch {
@@ -360,6 +355,49 @@ func SetupAppConfig(version, commit, buildDate string) AppConfig {
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 	return appConfig
+}
+
+type CliFlags struct {
+	Agent           bool
+	Server          bool
+	GithubUsername  string
+	GithubToken     string
+	GithubRepo      string
+	Maas            bool
+	TestMode        bool
+	Verbosity       int
+	LogTypes        string
+	LogFileLocation string
+	RepoDir         string
+	ServerIP        string
+	ServerPort      int
+	Hostname        string
+	AptSources      string
+	ShowVersion     bool
+}
+
+func ParseFlags() *CliFlags {
+	flags := &CliFlags{}
+
+	flag.BoolVar(&flags.Agent, "agent", false, "Run as agent")
+	flag.BoolVar(&flags.Server, "server", false, "Run as server")
+	flag.StringVar(&flags.GithubUsername, "github_username", "", "GitHub username")
+	flag.StringVar(&flags.GithubToken, "github_token", "", "GitHub access token")
+	flag.StringVar(&flags.GithubRepo, "github_repo", "", "GitHub repository")
+	flag.BoolVar(&flags.Maas, "maas", false, "Only MAAS should use this flag")
+	flag.BoolVar(&flags.TestMode, "test_mode", false, "Used when testing, do not use in production")
+	flag.IntVar(&flags.Verbosity, "verbosity", 1, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
+	flag.StringVar(&flags.LogTypes, "log_types", "", "Set log output locations (console, file)")
+	flag.StringVar(&flags.LogFileLocation, "log_file_location", "/var/lib/assimilator/assimilator.log", "Set log file location")
+	flag.StringVar(&flags.RepoDir, "repo_dir", "", "Set repository directory")
+	flag.StringVar(&flags.ServerIP, "server_ip", "0.0.0.0", "Set server IP")
+	flag.IntVar(&flags.ServerPort, "server_port", 2390, "Set server port")
+	flag.StringVar(&flags.Hostname, "hostname", "", "Set hostname of the agent...")
+	flag.StringVar(&flags.AptSources, "apt_sources", "", "Set custom apt sources...")
+	flag.BoolVar(&flags.ShowVersion, "version", false, "Show version information.")
+
+	flag.Parse() // Parse them once all are defined
+	return flags
 }
 
 func logTypes(logTypesPtr string) map[string]bool {

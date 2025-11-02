@@ -145,7 +145,7 @@ func (l *AssLogger) startWorker() {
 					l.outputLog(entry)
 				}
 				if entry.IsFatal {
-					time.Sleep(1000 * time.Millisecond)
+					time.Sleep(200 * time.Millisecond)
 					os.Exit(entry.ExitCode)
 				}
 			}

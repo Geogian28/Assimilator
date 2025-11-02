@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"os/user"
 
 	agent "github.com/geogian28/Assimilator/agent"
@@ -91,7 +93,14 @@ func isRoot() bool {
 func main() {
 	asslog.StartLogger()
 	defer asslog.Close()
-	appConfig := config.SetupAppConfig(version, commit, buildDate)
+	flags := config.ParseFlags()
+	if flags.ShowVersion {
+		fmt.Println("Version: ", version)
+		fmt.Println("Commit: ", commit)
+		fmt.Println("Build Date: ", buildDate)
+		os.Exit(0)
+	}
+	appConfig := config.SetupAppConfig(version, commit, buildDate, flags)
 	// appConfig := config.SetupAppConfig(version, commit, buildDate)
 	// } else if !isRoot() {
 	if !isRoot() {
