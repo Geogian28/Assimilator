@@ -22,8 +22,6 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
-      - darwin
     goarch:
       - amd64
       - arm64
@@ -39,7 +37,7 @@ nfpms:
       - rpm
       - archlinux
     bindir: /usr/bin
-    description: "Allows assimilating a machine into the collective."
+    description: "Facilitates assimilating a machine into the collective."
     license: GNU General Public License v3.0
     maintainer: "geogian28 <geo.sbrohaugh@gmail.com>"
     contents:
@@ -66,6 +64,7 @@ archives:
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
+      {{ .Version }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
