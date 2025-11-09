@@ -513,14 +513,6 @@ func applyProfiles(desiredState *DesiredState) {
 }
 
 func gatherMachineInfo(appConfig *AppConfig) {
-	// Get the hostname
-	hostname, err := os.Hostname()
-	if err != nil {
-		Error("Failed to get hostname: ", err)
-	}
-	appConfig.Hostname = hostname
-
-	// Get Distro
 	var si sysinfo.SysInfo
 	si.GetSysInfo()
 	appConfig.MachineInfo = si
