@@ -101,12 +101,9 @@ func main() {
 		os.Exit(0)
 	}
 	appConfig := config.SetupAppConfig(version, commit, buildDate, flags)
-	// appConfig := config.SetupAppConfig(version, commit, buildDate)
-	// } else if !isRoot() {
 	if !isRoot() {
 		Fatal(1, "This program requires root privileges.")
 	}
-
 	Trace("Version: ", version)
 	Trace("Commit: ", commit)
 	Trace("Build Date: ", buildDate)

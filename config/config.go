@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3" // Import the YAML library
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
+	"github.com/zcalusic/sysinfo"
 )
 
 const (
@@ -57,6 +58,7 @@ type AppConfig struct {
 	Version         string
 	Commit          string
 	BuildDate       string
+	MachineInfo     sysinfo.SysInfo
 }
 
 // Top-level config structure for the entire desired state
@@ -354,6 +356,10 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 	}
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
+
+	// Gather machine info
+	gatherMachineInfo(&appConfig)
+
 	return appConfig
 }
 
@@ -504,4 +510,18 @@ func applyProfiles(desiredState *DesiredState) {
 		}
 		desiredState.Users[userName] = modifiedUser
 	}
+}
+
+func gatherMachineInfo(appConfig *AppConfig) {
+	// Get the hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		Error("Failed to get hostname: ", err)
+	}
+	appConfig.Hostname = hostname
+
+	// Get Distro
+	var si sysinfo.SysInfo
+	si.GetSysInfo()
+	appConfig.MachineInfo = si
 }

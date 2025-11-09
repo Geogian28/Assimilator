@@ -21,11 +21,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// const (
-// 	// address = "127.0.0.1:2390"
-// 	address = "10.42.1.66:2390"
-// )
-
 var (
 	Info      = asslog.Info
 	Debug     = asslog.Debug
@@ -37,59 +32,8 @@ var (
 	Unhandled = asslog.Unhandled
 )
 
-func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner CommandRunner) error {
-	address := appConfig.ServerIP + ":" + fmt.Sprint(appConfig.ServerPort)
-	Debug("Attempting to connect to server at ", address)
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		Unhandled("Failed to start NewClient: ", err)
-	}
-	defer conn.Close()
-	client := pb.NewAssimilatorClient(conn)
-	// Get the machine's config
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	req := &pb.GetSpecificConfigRequest{MachineName: appConfig.Hostname}
-	resp, err := client.GetSpecificConfig(ctx, req)
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			asslog.Trace("pingServer was canceled by shutdown signal.")
-			return nil
-		}
-		return err
-	}
-
-	respVersion, err := version.NewVersion(resp.Version.Version)
-	configVersion, _ := version.NewVersion(config.VERSION)
-
-	if err == nil && respVersion.LessThan(configVersion) {
-		Info("Version mismatch. Server version: ", resp.Version, " Local version: ", config.VERSION)
-		updateAssimilator(commandRunner)
-	}
-	Info("Agent matches server version.")
-
-	Info("Successfully got config for machine: ", req.MachineName)
-	packages := resp.GetMachine().GetPackages()
-	installPrograms(packages, commandRunner)
-	os.Exit(0)
-	return nil
-}
-
-func addAssimilatortoRepo(appConfig *config.AppConfig) {
-	filePath := "/etc/apt/sources.list.d/assimilator_repo.list"
-
-	// Add a newline, just to be a good citizen
-	content := []byte(appConfig.AptSources + "\n")
-
-	// Write the file (0644 is standard read-write for owner, read-only for others)
-	err := os.WriteFile(filePath, content, 0644)
-	if err != nil {
-		return
-	}
-}
-
-func checkForUpdates(appConfig *config.AppConfig, commandRunner CommandRunner) {
-	asslog.Info("Checking for updates")
+func checkForUpdates(appConfig *config.AppConfig, commandRunner CommandRunner) error {
+	Info("Checking for updates")
 	var repoJustAdded = false
 
 	for {
@@ -99,12 +43,12 @@ func checkForUpdates(appConfig *config.AppConfig, commandRunner CommandRunner) {
 		Trace("stdout: ", string(stdout))
 		Trace("err: ", err)
 		if err != nil {
-			asslog.Unhandled("Error checking for updates: ", err)
+			Unhandled("Error checking for updates: ", err)
 		}
 		if string(stdout) == "" {
 			if repoJustAdded {
 				Error("Package 'assimilator' not found even after adding repository. Please check AptSources config.")
-				return
+				return nil
 			}
 
 			if appConfig.AptSources != "" {
@@ -114,12 +58,12 @@ func checkForUpdates(appConfig *config.AppConfig, commandRunner CommandRunner) {
 				continue
 			}
 			Error("Package 'assimilator' not found in apt cache. No repository was provided. Please add the repository to your sources and try again.")
-			return
+			return nil
 		}
 		lines := strings.Split((string(stdout)), "\n")
 		Trace("Number of lines: ", len(lines))
 		if len(lines) == 0 {
-			asslog.Unhandled("Error parsing version: no lines returned")
+			Unhandled("Error parsing version: no lines returned")
 		}
 		var cacheVersion *version.Version
 		for _, line := range lines {
@@ -132,14 +76,14 @@ func checkForUpdates(appConfig *config.AppConfig, commandRunner CommandRunner) {
 			}
 		}
 		if err != nil || cacheVersion == nil {
-			asslog.Unhandled("Error parsing version: ", err)
+			Unhandled("Error parsing version: ", err)
 		}
 		Trace("")
 		Info("Cache version: ", cacheVersion)
 		localVersion, err := version.NewVersion(config.VERSION)
 		if err != nil {
 			Trace("")
-			asslog.Unhandled("Error parsing version: ", err)
+			Unhandled("Error parsing version: ", err)
 		}
 		Info("Local version: ", localVersion)
 		if localVersion.LessThan(cacheVersion) {
@@ -149,6 +93,7 @@ func checkForUpdates(appConfig *config.AppConfig, commandRunner CommandRunner) {
 		Info("Assimilator is up-to-date.")
 		break
 	}
+	return nil
 }
 
 func updateAssimilator(commandRunner CommandRunner) {
@@ -185,10 +130,59 @@ func updateAssimilator(commandRunner CommandRunner) {
 	// Now, the agent (e.g., PID 100) can shut down safely.
 	Info("Detached update process launched. Agent shutting down...")
 	asslog.Close(0) // This is your graceful shutdown
+}
 
-	// Gracefully shut down the agent.
-	Info("Scheduled update task. Shutting down...")
-	asslog.Close(0)
+func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner CommandRunner) error {
+	address := appConfig.ServerIP + ":" + fmt.Sprint(appConfig.ServerPort)
+	Debug("Attempting to connect to server at ", address)
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		Unhandled("Failed to start NewClient: ", err)
+	}
+	defer conn.Close()
+	client := pb.NewAssimilatorClient(conn)
+	// Get the machine's config
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	req := &pb.GetSpecificConfigRequest{MachineName: appConfig.Hostname}
+	resp, err := client.GetSpecificConfig(ctx, req)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			asslog.Trace("pingServer was canceled by shutdown signal.")
+			return nil
+		}
+		return err
+	}
+
+	respVersion, err := version.NewVersion(resp.Version.Version)
+	configVersion, _ := version.NewVersion(config.VERSION)
+	if err == nil && respVersion.LessThan(configVersion) {
+		Info("Version mismatch. Server version: ", resp.Version, " Local version: ", config.VERSION)
+		err = checkForUpdates(appConfig, commandRunner)
+		if err != nil {
+			return err
+		}
+	}
+	Info("Agent matches server version.")
+
+	Info("Successfully got config for machine: ", req.MachineName)
+	packages := resp.GetMachine().GetPackages()
+	installPrograms(packages, commandRunner)
+	os.Exit(0)
+	return nil
+}
+
+func addAssimilatortoRepo(appConfig *config.AppConfig) {
+	filePath := "/etc/apt/sources.list.d/assimilator_repo.list"
+
+	// Add a newline, just to be a good citizen
+	content := []byte(appConfig.AptSources + "\n")
+
+	// Write the file (0644 is standard read-write for owner, read-only for others)
+	err := os.WriteFile(filePath, content, 0644)
+	if err != nil {
+		return
+	}
 }
 
 func listenForShutdown(ticker *time.Ticker, done chan bool, cancel context.CancelFunc) {

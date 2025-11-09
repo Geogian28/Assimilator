@@ -14,6 +14,23 @@ type work struct {
 	installedPrograms map[string]bool
 }
 
+type DistroManager interface {
+	// UpdateCache refreshes the local package list
+	UpdateCache() error
+
+	// InstallPackages installs a list of packages
+	InstallPackages(pkgs []string) error
+
+	// RemovePackages uninstalls a list of packages
+	RemovePackages(pkgs []string) error
+
+	// EnableService enables a systemd service
+	EnableService(service string) error
+
+	// StartService starts a systemd service
+	StartService(service string) error
+}
+
 // Install programs
 func installPrograms(packages map[string]*pb.PackageConfig, commandRunner CommandRunner) error {
 	var wg sync.WaitGroup
@@ -24,8 +41,7 @@ func installPrograms(packages map[string]*pb.PackageConfig, commandRunner Comman
 	// update apt cache
 	err := updateAptCache(commandRunner)
 	if err != nil {
-		Error("Error updating apt cache. Will continue but packages will be out of date.")
-		Debug(err)
+		Error("Error updating apt cache: ", err)
 	}
 
 	// collect installed programs from "apt list" command
