@@ -101,21 +101,19 @@ func main() {
 		os.Exit(0)
 	}
 	appConfig := config.SetupAppConfig(version, commit, buildDate, flags)
-	if !isRoot() {
-		Fatal(1, "This program requires root privileges.")
-	}
 	Trace("Version: ", version)
 	Trace("Commit: ", commit)
 	Trace("Build Date: ", buildDate)
 
-	if appConfig.IsServer {
-		asslog.Info("Running as server")
-		server.Server(&appConfig)
-	}
-
-	if appConfig.IsAgent {
+	switch {
+	case !isRoot():
+		Fatal(1, "This program requires root privileges.")
+	case appConfig.IsAgent:
 		asslog.Info("Running as agent")
 		commandRunner := agent.LiveCommandRunner{}
 		agent.Agent(&appConfig, &commandRunner)
+	case appConfig.IsServer:
+		asslog.Info("Running as server")
+		server.Server(&appConfig)
 	}
 }
