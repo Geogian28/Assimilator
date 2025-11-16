@@ -1,7 +1,8 @@
 LICENSE
-__debug_bin*
-# Added by goreleaser init:
-dist/
 .vscode/
 Assimilator
-launcher
+launcher/launcher
+__debug_bin*
+
+# Added by goreleaser init:
+dist/
