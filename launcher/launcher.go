@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -11,7 +12,7 @@ import (
 )
 
 // func parseFlags() {
-// 	flag.Parse()
+// 	return flag.Parse()
 // }
 
 func detectDistro(runner CommandRunner) (DistroManager, error) {
@@ -21,7 +22,11 @@ func detectDistro(runner CommandRunner) (DistroManager, error) {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
+	return parseDistro(runner, file)
+}
+
+func parseDistro(runner CommandRunner, reader io.Reader) (DistroManager, error) {
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "ID=") || strings.HasPrefix(line, "ID_LIKE=") {
@@ -77,6 +82,7 @@ func runAssimilator() {
 	}
 	log.Printf("Found 'assimilator' at %s. Executing...", binaryPath)
 	newArgv := append([]string{binaryPath}, os.Args[1:]...)
+	fmt.Println(newArgv)
 	err = syscall.Exec(binaryPath, newArgv, os.Environ())
 	if err != nil {
 		log.Fatalf("Fatal: Failed to execute 'assimilator': %v", err)
@@ -85,7 +91,7 @@ func runAssimilator() {
 
 func main() {
 	// Parse command-line flags
-	// parseFlags()
+	// flags := parseFlags()
 
 	// Create the command runner
 	commandRunner := &LiveCommandRunner{}

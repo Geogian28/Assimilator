@@ -22,7 +22,7 @@ func (d *DebianManager) AddRepo() error {
 }
 
 func (d *DebianManager) UpdateCache() error {
-	_, err := d.runner.Run("apt", "update")
+	_, _, err := d.runner.Run("apt", "update")
 	return err
 }
 
@@ -32,7 +32,7 @@ func (d *DebianManager) CheckForUpdates() (bool, error) {
 		return false, fmt.Errorf("assimilator binary not found. Assuming Assimilator needs an update")
 	}
 
-	binaryVersionString, err := d.runner.Run("/usr/bin/assimilator", "--version")
+	binaryVersionString, _, err := d.runner.Run("/usr/bin/assimilator", "--version")
 	if err != nil {
 		return false, fmt.Errorf("error running assimilator --version: %s", err)
 	}
@@ -44,7 +44,7 @@ func (d *DebianManager) CheckForUpdates() (bool, error) {
 	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, "\n")[0])
 	fmt.Println("Assimilator version: ", assimilatorVersion)
 	log.Println("Assimilator version: ", string(assimilatorVersion))
-	stdout, err := d.runner.Run("apt-cache", "policy", "assimilator")
+	stdout, _, err := d.runner.Run("apt-cache", "policy", "assimilator")
 	if err != nil {
 		return false, fmt.Errorf("error checking for updates: %s", err)
 	}
@@ -83,6 +83,6 @@ func (d *DebianManager) CheckForUpdates() (bool, error) {
 }
 
 func (d *DebianManager) InstallUpdate() error {
-	_, err := d.runner.Run("apt", "install", "-y", "assimilator")
+	_, _, err := d.runner.Run("apt", "install", "-y", "assimilator")
 	return err
 }
