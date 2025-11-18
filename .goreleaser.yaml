@@ -30,9 +30,23 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
+  - id: launcher
+    binary: assimilator-launcher
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      #- riscv64 # For future expansion
 
 nfpms:
-  - formats:
+  - id: packages
+    builds:
+      - assimilator
+      - launcher
+    formats:
       - deb
       - rpm
       - archlinux
@@ -58,6 +72,9 @@ dockers:
 
 archives:
   - formats: [tar.gz]
+    builds:
+      - assimilator
+      - launcher
     files:
       - LICENSE
       - README.md
@@ -70,7 +87,6 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
 
 changelog:
   sort: asc
