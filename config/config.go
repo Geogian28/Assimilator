@@ -161,6 +161,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 					Trace("Cannot make /etc/assimilator directory. It already exists.")
 				case errors.Is(err, os.ErrPermission):
 					Error("Cannot make /etc/assimilator directory. Try running as root.")
+					return
 				default:
 					asslog.Unhandled("Error creating assimilator directory: ", err)
 				}
@@ -184,10 +185,13 @@ func ConfigFromFile(appConfig *AppConfig) {
 				default:
 					Error("Failed to open newly created config file: ", err)
 				}
+			} else {
 			}
 		} else {
+			fmt.Println("Failed to open config file: ", err)
 			Error("Failed to open config file: ", err)
 		}
+		fmt.Println("Appconfig right now: ", appConfig)
 		return
 	}
 
@@ -307,6 +311,7 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 	Trace("Loading config from file.")
 	ConfigFromFile(&appConfig)
 	traceAppConfig(&appConfig)
+	fmt.Println("Appconfig right now: ", &appConfig)
 
 	Trace("Loading config from environment.")
 	ConfigFromEnv(&appConfig)
@@ -315,7 +320,7 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 	Trace("Loading config from flags.")
 	ConfigFromFlags(&appConfig, flags)
 	traceAppConfig(&appConfig)
-
+	fmt.Println("Appconfig right now: ", appConfig)
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
 		Fatal(1, "Neither server nor agent flags provided.")
