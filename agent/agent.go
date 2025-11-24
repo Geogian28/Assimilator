@@ -66,7 +66,6 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 	Info("Successfully got config for machine: ", req.MachineName)
 	packages := resp.GetMachine().GetPackages()
 	installPrograms(packages, commandRunner)
-	os.Exit(0)
 	return nil
 }
 
