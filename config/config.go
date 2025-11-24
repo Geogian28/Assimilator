@@ -193,15 +193,20 @@ func ConfigFromFile(appConfig *AppConfig) {
 		}
 		fmt.Println("Appconfig right now: ", appConfig)
 		return
+	} else {
+		fmt.Println("Appconfig right now: ", appConfig)
 	}
 
-	err = toml.Unmarshal(configFile, &appConfig)
+	var wrapper TomlConfigWrapper
+	err = toml.Unmarshal(configFile, &wrapper)
 	if err != nil {
 		Error("Failed to unmarshal config file: ", err)
 	} else {
 		Debug("Loaded config from file.")
-	}
+		// Copy the loaded config back into your main appConfig
+		*appConfig = wrapper.Config
 
+	}
 }
 
 func ConfigFromEnv(appConfig *AppConfig) {
@@ -307,11 +312,9 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 		Commit:          commit,
 		BuildDate:       buildDate,
 	}
-
 	Trace("Loading config from file.")
 	ConfigFromFile(&appConfig)
 	traceAppConfig(&appConfig)
-	fmt.Println("Appconfig right now: ", &appConfig)
 
 	Trace("Loading config from environment.")
 	ConfigFromEnv(&appConfig)
@@ -320,7 +323,7 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 	Trace("Loading config from flags.")
 	ConfigFromFlags(&appConfig, flags)
 	traceAppConfig(&appConfig)
-	fmt.Println("Appconfig right now: ", appConfig)
+
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
 		Fatal(1, "Neither server nor agent flags provided.")
@@ -363,7 +366,7 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 
 	// Gather machine info
-	gatherMachineInfo(&appConfig)
+	// gatherMachineInfo(&appConfig)
 
 	return appConfig
 }
