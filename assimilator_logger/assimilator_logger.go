@@ -220,8 +220,6 @@ func fileLog(entry LogEntry) {
 		logFile, err = os.OpenFile("/var/log/assimilator.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Println("Failed to open log file:", err)
-		} else {
-			defer logFile.Close()
 		}
 
 	} else {
