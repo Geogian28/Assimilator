@@ -11,10 +11,6 @@ import (
 	"syscall"
 )
 
-// func parseFlags() {
-// 	return flag.Parse()
-// }
-
 func detectDistro(runner CommandRunner) (DistroManager, error) {
 	file, err := os.Open("/etc/os-release")
 	if err != nil {
@@ -91,7 +87,7 @@ func runAssimilator() {
 
 func main() {
 	// Parse command-line flags
-	// flags := parseFlags()
+	// flag.Parse()
 
 	// Create the command runner
 	commandRunner := &LiveCommandRunner{}
