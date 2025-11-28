@@ -191,10 +191,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 			fmt.Println("Failed to open config file: ", err)
 			Error("Failed to open config file: ", err)
 		}
-		fmt.Println("Appconfig right now: ", appConfig)
 		return
-	} else {
-		fmt.Println("Appconfig right now: ", appConfig)
 	}
 
 	var wrapper TomlConfigWrapper
