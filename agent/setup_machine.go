@@ -14,6 +14,8 @@ type work struct {
 	installedPrograms map[string]bool
 }
 
+var installedAPackge bool = false
+
 type DistroManager interface {
 	// UpdateCache refreshes the local package list
 	UpdateCache() error
@@ -37,6 +39,7 @@ func installPrograms(packages map[string]*pb.PackageConfig, commandRunner Comman
 	var mu sync.Mutex
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	installedAPackge = false
 
 	// update apt cache
 	err := updateAptCache(commandRunner)
@@ -70,7 +73,11 @@ func installPrograms(packages map[string]*pb.PackageConfig, commandRunner Comman
 
 	wg.Wait()
 	close(aptWorkers)
-	Info("installPrograms complete.")
+	if installedAPackge {
+		Info("installPrograms installed.")
+	} else {
+		Debug("installPrograms complete.")
+	}
 
 	return nil
 }
@@ -125,13 +132,13 @@ func aptWorker(ctx context.Context, wg *sync.WaitGroup, mu *sync.Mutex, commandR
 				// wg.Done()
 				return nil
 			} else {
-				installAptPackage(wg, mu, commandRunner, task.packageName, task.installedPrograms)
+				installAptPackage(wg, mu, commandRunner, task.packageName, task.installedPrograms, &installedAPackge)
 			}
 		}
 	}
 }
 
-func installAptPackage(wg *sync.WaitGroup, mu *sync.Mutex, commandRunner CommandRunner, packageName string, installedPrograms map[string]bool) {
+func installAptPackage(wg *sync.WaitGroup, mu *sync.Mutex, commandRunner CommandRunner, packageName string, installedPrograms map[string]bool, installedAPackge *bool) {
 	defer wg.Done()
 
 	// check if package is valid
@@ -142,7 +149,7 @@ func installAptPackage(wg *sync.WaitGroup, mu *sync.Mutex, commandRunner Command
 
 	// Check if package is already installed
 	if installedPrograms[packageName] {
-		Info(packageName, " is already installed.")
+		Debug(packageName, " is already installed.")
 		return
 	}
 
@@ -162,6 +169,7 @@ func installAptPackage(wg *sync.WaitGroup, mu *sync.Mutex, commandRunner Command
 		return
 	}
 	Info("Installation of ", packageName, " successful.")
+	*installedAPackge = true
 
 	// configure package that was just installed
 	err := ConfigureProgram(packageName)
