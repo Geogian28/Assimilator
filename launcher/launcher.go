@@ -86,12 +86,16 @@ func runAssimilator() {
 }
 
 func main() {
-	// Parse command-line flags
-	// flag.Parse()
+	// Parse command-line flags for debugging
+	for _, arg := range os.Args[1:] {
+		if arg == "--test_mode" {
+			runAssimilator()
+		}
+
+	}
 
 	// Create the command runner
 	commandRunner := &LiveCommandRunner{}
-
 	// Add the assimilator repo
 	updateAssimilator(commandRunner)
 
