@@ -33,7 +33,7 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 		Warning("Configs loaded, but there are no machines.")
 		return nil, fmt.Errorf("configs loaded, but there are no machines")
 	}
-	Trace("Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
+	// Trace("Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
 	if machine, okay := DesiredState.Machines[req.MachineName]; okay {
 		Trace("Found a machine with name: ", req.MachineName)
 		Info("Returning response to ", req.MachineName, "'s agent.")
