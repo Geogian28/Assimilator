@@ -182,18 +182,20 @@ func Server(appConfig *config.AppConfig) {
 	Info("Cloning or pulling repository...")
 	repoDir, err := cloneOrPullRepo(appConfig)
 	if err != nil {
-		Trace("asdfasdfError cloning or pulling repository: ", err)
-		Unhandled("Error cloning or pulling repository: ", err)
+		Trace("error cloning or pulling repository: ", err)
+		Unhandled("error cloning or pulling repository: ", err)
+	} else {
+		Info("Repository cloned or pulled successfully")
 	}
 
 	// Load the desired state
 	if appConfig.TestMode {
-		repoDir = "/GitRepos/dotfiles"
+		Debug("test-mode not implemented")
 	}
-	var desiredStateErr error
-	DesiredState, desiredStateErr = config.LoadDesiredState(repoDir + "/config.yaml")
-	if desiredStateErr != nil {
-		asslog.Unhandled(desiredStateErr)
+
+	DesiredState, err = config.LoadDesiredState(repoDir + "/config.yaml")
+	if err != nil {
+		asslog.Unhandled("unable to load desired state: ", err)
 	}
 	Trace("DesiredState.Machine:")
 	Trace(DesiredState.Machines)
