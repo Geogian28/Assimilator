@@ -88,11 +88,14 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 	// selfupdate.CheckForUpdates(appConfig, commandRunner)
 
 	Info("Agent starting up...")
-	// TODO: Get hostname
 	if appConfig.Hostname == "" {
-		appConfig.Hostname = "ubuntu-tester"
-		Trace(appConfig.Hostname)
+		if appConfig.MachineInfo.Node.Hostname != "" {
+			appConfig.Hostname = appConfig.MachineInfo.Node.Hostname
+		} else {
+			appConfig.Hostname = "uh-oh"
+		}
 	}
+	Trace(appConfig.Hostname)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -363,7 +363,7 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 
 	// Gather machine info
-	// gatherMachineInfo(&appConfig)
+	gatherMachineInfo(&appConfig)
 
 	return appConfig
 }
