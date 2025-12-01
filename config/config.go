@@ -16,8 +16,10 @@ import (
 	"github.com/zcalusic/sysinfo"
 )
 
-const (
-	VERSION = "0.0.1"
+var (
+	Version   = "development"
+	Commit    = "none"
+	BuildDate = "unknown"
 )
 
 var (
