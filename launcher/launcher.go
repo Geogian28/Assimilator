@@ -78,7 +78,6 @@ func runAssimilator() {
 	}
 	log.Printf("Found 'assimilator' at %s. Executing...", binaryPath)
 	newArgv := append([]string{binaryPath}, os.Args[1:]...)
-	fmt.Println(newArgv)
 	err = syscall.Exec(binaryPath, newArgv, os.Environ())
 	if err != nil {
 		log.Fatalf("Fatal: Failed to execute 'assimilator': %v", err)
