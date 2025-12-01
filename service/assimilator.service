@@ -1,6 +1,7 @@
 [Unit]
 Description=Allows assimilating a machine into the collective.
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=root
