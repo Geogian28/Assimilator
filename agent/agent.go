@@ -61,7 +61,7 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 		// 	return err
 		// }
 	}
-	Info("Agent matches server version.")
+	Info("Agent version (", config.VERSION, ") matches server version (", resp.Version.Version, ").")
 
 	Info("Successfully got config for machine: ", req.MachineName)
 	packages := resp.GetMachine().GetPackages()
