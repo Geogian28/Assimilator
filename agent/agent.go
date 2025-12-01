@@ -122,18 +122,20 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 					if ok {
 						switch errorStatus.Code() {
 						case codes.Unavailable:
-							Error("Assimilator server is unavailable:\n      ", err.Error())
+							Warning("Assimilator server is unavailable (retrying at the next tick):\n      ", err.Error())
 							// return err
 						case codes.NotFound:
 							Error("Assimilator server could not find this machine's config:\n      ", err.Error())
 							// return err
 						case codes.Canceled:
-							Error("Assimilator server request was canceled:\n      ", err.Error())
+							Trace("Assimilator server request was canceled:\n      ", err.Error())
 							// return err
 						default:
 							Error("Assimilator server returned an unexpected error:\n      ", err.Error())
 							// return err
 						}
+					} else {
+						Warning("failed to ping server: ", err)
 					}
 				}
 				ticker = time.NewTicker(10 * time.Second)
