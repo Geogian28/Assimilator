@@ -54,7 +54,7 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 
 	respVersion, err := version.NewVersion(resp.Version.Version)
 	configVersion, _ := version.NewVersion(config.VERSION)
-	if err == nil && respVersion.LessThan(configVersion) {
+	if err == nil && configVersion.LessThan(respVersion) {
 		Info("Version mismatch. Server version: ", resp.Version, " Local version: ", config.VERSION)
 		// err = selfupdate.CheckForUpdates(appConfig, commandRunner)
 		// if err != nil {
