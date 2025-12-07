@@ -16,11 +16,11 @@ import (
 	"github.com/zcalusic/sysinfo"
 )
 
-var (
-	Version   = "development"
-	Commit    = "none"
-	BuildDate = "unknown"
-)
+// var (
+// 	Version   string = "0.3.11"
+// 	Commit    string
+// 	BuildDate string
+// )
 
 var (
 	Info      = asslog.Info

@@ -52,14 +52,19 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 		return err
 	}
 
+	Trace("setting respVersion to ", resp.Version.Version)
 	respVersion, err := version.NewVersion(resp.Version.Version)
-	configVersion, _ := version.NewVersion(config.Version)
+
+	Trace("setting configVersion to ", appConfig.Version)
+	configVersion, _ := version.NewVersion(appConfig.Version)
+
+	Trace("comparing ", configVersion, " to ", respVersion)
 	if err == nil && configVersion.LessThan(respVersion) {
-		Info("Version mismatch. Server version: ", respVersion, " Local version: ", config.Version)
+		Info("Version mismatch. Server version: ", respVersion, " Local version: ", appConfig.Version)
 		Info("Restarting to update...")
-		os.Exit(0)
+		asslog.Close()
 	}
-	Info("Agent version (", config.Version, ") matches server version (", resp.Version.Version, ").")
+	Info("Agent version (", appConfig.Version, ") matches server version (", resp.Version.Version, ").")
 
 	Info("Successfully got config for machine: ", req.MachineName)
 	packages := resp.GetMachine().GetPackages()
