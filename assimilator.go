@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 
@@ -11,7 +12,7 @@ import (
 )
 
 var (
-	version   = "0.3.11"
+	version   = "0.3.9"
 	commit    = "none"
 	buildDate = "unknown"
 )
@@ -94,9 +95,9 @@ func main() {
 	defer asslog.Close()
 	flags := config.ParseFlags()
 	if flags.ShowVersion {
-		// fmt.Println("Version: ", version)
-		// fmt.Println("Commit: ", commit)
-		// fmt.Println("Build Date: ", buildDate)
+		fmt.Println("Version: ", version)
+		fmt.Println("Commit: ", commit)
+		fmt.Println("Build Date: ", buildDate)
 		os.Exit(0)
 	}
 	appConfig := config.SetupAppConfig(version, commit, buildDate, flags)

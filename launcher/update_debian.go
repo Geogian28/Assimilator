@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-version"
 )
@@ -38,10 +39,15 @@ func (d *DebianManager) IsUpdateAvailable() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("error running assimilator --version: %s", err)
 	}
+	if string(binaryVersionString) == "" {
+		return false, fmt.Errorf("error running assimilator --version: no output")
+	}
 	assimilatorVersion := strings.TrimSpace(string(binaryVersionString))
+	fmt.Println("Assimilator version: ", assimilatorVersion)
 	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, ":")[1])
 	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, "\n")[0])
-	stdout, _, err := d.runner.Run("apt-cache", "policy", "assimilator")
+	stdout, _, err := d.runner.Run("apt-cache", "show", "--no-all-versions", "assimilator")
+	fmt.Println(string(stdout))
 	if err != nil {
 		return false, fmt.Errorf("error checking for updates: %s", err)
 	}
@@ -54,7 +60,8 @@ func (d *DebianManager) IsUpdateAvailable() (bool, error) {
 	}
 	var cacheVersion *version.Version
 	for _, line := range lines {
-		if strings.Contains(line, "Candidate:") {
+		fmt.Println("line: ", line)
+		if strings.Contains(line, "Version:") {
 			// Get version
 			versionString := strings.TrimSpace(strings.Split(line, ":")[1])
 			cacheVersion, err = version.NewVersion(versionString)
@@ -68,7 +75,11 @@ func (d *DebianManager) IsUpdateAvailable() (bool, error) {
 	if err != nil {
 		log.Fatal("Error parsing version: ", err)
 	}
+	fmt.Println("Local version: ", localVersion)
+	fmt.Println("Cache version: ", cacheVersion)
+
 	if localVersion.LessThan(cacheVersion) {
+		log.Println("Assimilator update available.")
 		return true, nil
 
 	}
@@ -77,6 +88,8 @@ func (d *DebianManager) IsUpdateAvailable() (bool, error) {
 }
 
 func (d *DebianManager) InstallUpdate() error {
+	fmt.Println("InstallUpdate: Installing assimilator")
 	_, _, err := d.runner.Run("apt", "install", "-y", "assimilator")
+	time.Sleep(60 * time.Second)
 	return err
 }

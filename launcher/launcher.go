@@ -69,6 +69,7 @@ func updateAssimilator(runner CommandRunner) {
 	if updateIsAvailable {
 		distro.InstallUpdate()
 	}
+	fmt.Println("no update neededed")
 }
 
 func runAssimilator() {
@@ -86,18 +87,20 @@ func runAssimilator() {
 
 func main() {
 	// Parse command-line flags for debugging
-	for _, arg := range os.Args[1:] {
-		if arg == "--test_mode" {
-			runAssimilator()
-		}
+	// for _, arg := range os.Args[1:] {
+	// 	if arg == "--test_mode" {
+	// 		runAssimilator()
+	// 	}
 
-	}
+	// }
 
 	// Create the command runner
 	commandRunner := &LiveCommandRunner{}
 	// Add the assimilator repo
+	fmt.Println("Updating assimilator")
 	updateAssimilator(commandRunner)
 
 	// Run assimilator itself
+	fmt.Println("Running assimilator")
 	runAssimilator()
 }
