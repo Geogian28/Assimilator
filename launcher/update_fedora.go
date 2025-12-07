@@ -18,7 +18,7 @@ func (d *FedoraManager) UpdateCache() error {
 	return fmt.Errorf("not implemented")
 }
 
-func (d *FedoraManager) CheckForUpdates() (bool, error) {
+func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
 	return false, nil
 }
 

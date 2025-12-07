@@ -18,7 +18,7 @@ func (d *ArchManager) UpdateCache() error {
 	return fmt.Errorf("not implemented")
 }
 
-func (d *ArchManager) CheckForUpdates() (bool, error) {
+func (d *ArchManager) IsUpdateAvailable() (bool, error) {
 	return false, nil
 }
 

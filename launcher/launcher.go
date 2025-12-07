@@ -60,13 +60,13 @@ func updateAssimilator(runner CommandRunner) {
 	}
 
 	// Check for updates
-	updateNeeded, err := distro.CheckForUpdates()
+	updateIsAvailable, err := distro.IsUpdateAvailable()
 	if err != nil {
 		log.Fatal("Unable to check for updates: ", err)
 	}
 
 	// Install the update if needed
-	if updateNeeded {
+	if updateIsAvailable {
 		distro.InstallUpdate()
 	}
 }

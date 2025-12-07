@@ -10,7 +10,7 @@ type DistroManager interface {
 	UpdateCache() error
 
 	// checkForUpdates checks for updates
-	CheckForUpdates() (bool, error)
+	IsUpdateAvailable() (bool, error)
 
 	// InstallPackages installs a list of packages
 	InstallUpdate() error

@@ -26,7 +26,9 @@ func (d *DebianManager) UpdateCache() error {
 	return err
 }
 
-func (d *DebianManager) CheckForUpdates() (bool, error) {
+// IsUpdateAvailable compares the local version against the cached version.
+// It returns true if a newer version is available.
+func (d *DebianManager) IsUpdateAvailable() (bool, error) {
 	_, err := os.Stat("/usr/bin/assimilator")
 	if os.IsNotExist(err) {
 		return false, fmt.Errorf("assimilator binary not found. Assuming Assimilator needs an update")
