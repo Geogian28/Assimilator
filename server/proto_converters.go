@@ -4,8 +4,6 @@ import (
 
 	// Import go-git
 
-	"fmt"
-
 	config "github.com/geogian28/Assimilator/config"
 	// Import go-git
 	// Import go-git
@@ -15,7 +13,6 @@ import (
 )
 
 func toProtoServerVersion(ServerVersion *ServerVersion) *pb.ServerVersion {
-	fmt.Println("toProtoServerVersion: ", ServerVersion.Version)
 	return &pb.ServerVersion{
 		Version:   ServerVersion.Version,
 		Commit:    ServerVersion.Commit,
