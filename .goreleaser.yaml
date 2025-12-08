@@ -32,6 +32,7 @@ builds:
       - -X main.date={{.Date}}
   - id: launcher
     binary: assimilator-launcher
+    dir: ./launcher
     env:
       - CGO_ENABLED=0
     goos:
@@ -50,11 +51,20 @@ nfpms:
       - deb
       - rpm
       - archlinux
-    bindir: /usr/bin
     description: "Facilitates assimilating a machine into the collective."
     license: GNU General Public License v3.0
     maintainer: "geogian28 <geo.sbrohaugh@gmail.com>"
     contents:
+      # Map 'assimilator-launcher' to the new /opt directory
+      - src: assimilator-launcher
+        dst: /opt/assimilator/bin/assimilator-launcher
+        file_info:
+          mode: 0755
+      # Map 'assimilator' to stay in /usr/bin
+      - src: assimilator
+        dst: /usr/bin/assimilator
+        file_info:
+          mode: 0755
       - src: ./service/assimilator.service
         dst: /lib/systemd/system/assimilator.service
       - src: ./LICENSE

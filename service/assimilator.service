@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 User=root
-ExecStart=/usr/bin/assimilator-launcher
-Restart=Always
+ExecStart=/opt/assimilator/bin/assimilator-launcher
+Restart=always
 RestartSec=120
 
 [Install]
