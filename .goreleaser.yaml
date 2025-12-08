@@ -1,3 +1,11 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
 version: 2
 
 before:
@@ -8,7 +16,7 @@ before:
     - go generate ./...
 
 builds:
-  - id: main-app # Changed ID to 'main-app' to avoid conflict with binary name
+  - id: assimilator
     binary: assimilator
     env:
       - CGO_ENABLED=0
@@ -22,7 +30,8 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
-  - id: launcher
+  - id: assimilator-launcher
+    # CHANGE: Use the final desired name for the built binary
     binary: assimilator-launcher
     dir: ./launcher
     env:
@@ -37,8 +46,8 @@ builds:
 nfpms:
   - id: packages
     builds:
-      - main-app # Reference the new ID
-      - launcher
+      - assimilator
+      - assimilator-launcher
     formats:
       - deb
       - rpm
@@ -47,15 +56,13 @@ nfpms:
     license: GNU General Public License v3.0
     maintainer: "geogian28 <geo.sbrohaugh@gmail.com>"
     contents:
-      # Source (src) uses the build ID 'launcher'
-      - src: launcher
-        # Destination (dst) is the desired location in /opt
+      # Map 'assimilator-launcher' to the new /opt directory
+      - src: assimilator-launcher
         dst: /opt/assimilator/bin/assimilator-launcher
         file_info:
           mode: 0755
-      # Source (src) uses the new build ID 'main-app'
-      - src: main-app
-        # Destination (dst) is the desired location in /usr/bin
+      # Map 'assimilator' to stay in /usr/bin
+      - src: assimilator
         dst: /usr/bin/assimilator
         file_info:
           mode: 0755
@@ -77,7 +84,7 @@ dockers:
 archives:
   - formats: [tar.gz]
     builds:
-      - main-app # Reference the new ID
+      - assimilator
       - launcher
     files:
       - LICENSE
