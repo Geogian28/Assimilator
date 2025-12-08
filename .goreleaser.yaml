@@ -57,7 +57,7 @@ nfpms:
     maintainer: "geogian28 <geo.sbrohaugh@gmail.com>"
     contents:
       # CHANGE: Update src to match the new binary name
-      - src: assimilator-launcher
+      - src: launcher
         dst: /opt/assimilator/bin/assimilator-launcher
         file_info:
           mode: 0755
