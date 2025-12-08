@@ -202,8 +202,19 @@ func ConfigFromFile(appConfig *AppConfig) {
 		Error("Failed to unmarshal config file: ", err)
 	} else {
 		Debug("Loaded config from file.")
+		// 1. Temporarily store the compile-time values
 		// Copy the loaded config back into your main appConfig
+		tempVersion := appConfig.Version
+		tempCommit := appConfig.Commit
+		tempBuildDate := appConfig.BuildDate
+
+		// 2. Copy the loaded config back into your main appConfig (this overwrites everything)
 		*appConfig = wrapper.Config
+
+		// 3. Restore the compile-time values
+		appConfig.Version = tempVersion
+		appConfig.Commit = tempCommit
+		appConfig.BuildDate = tempBuildDate
 
 	}
 }
