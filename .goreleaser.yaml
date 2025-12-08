@@ -31,6 +31,7 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
   - id: launcher
+    # CHANGE: Use the final desired name for the built binary
     binary: assimilator-launcher
     dir: ./launcher
     env:
@@ -55,12 +56,12 @@ nfpms:
     license: GNU General Public License v3.0
     maintainer: "geogian28 <geo.sbrohaugh@gmail.com>"
     contents:
-      # Map 'assimilator-launcher' to the new /opt directory
+      # CHANGE: Update src to match the new binary name
       - src: assimilator-launcher
         dst: /opt/assimilator/bin/assimilator-launcher
         file_info:
           mode: 0755
-      # Map 'assimilator' to stay in /usr/bin
+      # assimilator remains correct
       - src: assimilator
         dst: /usr/bin/assimilator
         file_info:
