@@ -211,6 +211,7 @@ func Server(appConfig *config.AppConfig) {
 		Commit:    appConfig.Commit,
 		BuildDate: appConfig.BuildDate,
 	}
+	fmt.Println("server.go: ", ServerVersionInfo.Version)
 	s := grpc.NewServer()
 	pb.RegisterAssimilatorServer(s, &AssimilatorServer{})
 	Info("Server listening on at ", lis.Addr())
