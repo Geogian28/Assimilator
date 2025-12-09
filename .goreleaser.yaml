@@ -30,10 +30,10 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
-  - id: assimilator-launcher
-    # CHANGE: Use the final desired name for the built binary
+  - id: launcher
+    main: ./launcher
     binary: assimilator-launcher
-    dir: ./launcher
+    # dir: ./launcher
     env:
       - CGO_ENABLED=0
     goos:
