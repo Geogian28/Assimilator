@@ -1,19 +1,21 @@
 package config
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"maps"
 	"os"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
 	toml "github.com/pelletier/go-toml/v2"
+	"github.com/zcalusic/sysinfo"
 	"gopkg.in/yaml.v3" // Import the YAML library
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
-	"github.com/zcalusic/sysinfo"
 )
 
 // var (
@@ -32,13 +34,6 @@ var (
 	Fatal     = asslog.Fatal
 	Unhandled = asslog.Unhandled
 )
-
-type DesiredState struct {
-	Global   AppConfig                `yaml:"global"`
-	Profiles map[string]ConfigProfile `yaml:"profiles"`
-	Machines map[string]MachineConfig `yaml:"machines"`
-	Users    map[string]UserConfig    `yaml:"users"`
-}
 
 type AppConfig struct {
 	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
@@ -61,6 +56,14 @@ type AppConfig struct {
 	Commit          string
 	BuildDate       string
 	MachineInfo     sysinfo.SysInfo
+	Distro          string
+}
+
+type DesiredState struct {
+	Global   AppConfig                `yaml:"global"`
+	Profiles map[string]ConfigProfile `yaml:"profiles"`
+	Machines map[string]MachineConfig `yaml:"machines"`
+	Users    map[string]UserConfig    `yaml:"users"`
 }
 
 // Top-level config structure for the entire desired state
@@ -534,4 +537,26 @@ func gatherMachineInfo(appConfig *AppConfig) {
 	var si sysinfo.SysInfo
 	si.GetSysInfo()
 	appConfig.MachineInfo = si
+	fileText, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		log.Fatal("Unable to determine OS: ", err)
+	}
+	scanner := bufio.NewScanner(strings.NewReader(string(fileText)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "ID=") || strings.HasPrefix(line, "ID_LIKE=") {
+			switch strings.Split(line, "=")[1] {
+			case "ubuntu", "debian":
+				appConfig.Distro = "debian"
+				return
+			case "fedora":
+				appConfig.Distro = "fedora"
+				return
+			case "arch":
+				appConfig.Distro = "arch"
+				return
+			}
+		}
+	}
+	log.Fatal("Unable to determine OS: ", err)
 }

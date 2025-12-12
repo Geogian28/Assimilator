@@ -68,7 +68,8 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 
 	Info("Successfully got config for machine: ", req.MachineName)
 	packages := resp.GetMachine().GetPackages()
-	installPrograms(packages, commandRunner)
+
+	setupMachine(packages)
 	return nil
 }
 
@@ -99,6 +100,8 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 		}
 	}
 	Trace(appConfig.Hostname)
+
+	setDistroManagerType(appConfig)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
