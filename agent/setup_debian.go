@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 
@@ -83,24 +82,12 @@ func (d *DebianManager) InstallPackages(packages map[string]*pb.PackageConfig) e
 func (d *DebianManager) UpdateCache() error {
 	Trace("Updating apt cache...")
 
-	lsbCommand, _, err := d.runner.Run("cat", "/etc/os-release")
+	_, _, err := d.runner.Run("apt", "update")
 	if err != nil {
 		return err
 	}
-	if string(lsbCommand) == "" {
-		return fmt.Errorf("lsbCommand is empty")
-	}
-	for line := range strings.SplitSeq(string(lsbCommand), "\n") {
-		if strings.Contains(strings.ToLower(line), "debian") {
-			_, _, err := d.runner.Run("apt", "update")
-			if err != nil {
-				return err
-			}
-			Trace("Apt cache updated.")
-			return nil
-		}
-	}
-	return fmt.Errorf("unsupported OS")
+	Trace("Apt cache updated.")
+	return nil
 }
 
 // collectInstalledPrograms runs apt list to get a list of the currently installed programs

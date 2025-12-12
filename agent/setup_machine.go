@@ -43,12 +43,17 @@ func setDistroManagerType(appConfig *config.AppConfig) {
 }
 
 func setupMachine(packages map[string]*pb.PackageConfig) error {
+	var err error
 
 	// Update the cache (if applicable)
-	Distro.UpdateCache()
+	err = Distro.UpdateCache()
+	if err != nil {
+		Error("unable to update cache: ", err)
+		Info("Continuing without cache update.")
+	}
 
 	// Install packages
-	err := Distro.InstallPackages(packages)
+	err = Distro.InstallPackages(packages)
 	if err != nil {
 		return err
 	}

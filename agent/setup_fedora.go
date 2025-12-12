@@ -32,5 +32,13 @@ func (d *FedoraManager) InstallPackages(packages map[string]*pb.PackageConfig) e
 }
 
 func (d *FedoraManager) UpdateCache() error {
+	// sudo dnf upgrade --refresh
+	Trace("Updating dnf cache...")
+
+	_, _, err := d.runner.Run("dnf", "upgrade", "--refresh")
+	if err != nil {
+		return err
+	}
+	Trace("dnf cache updated.")
 	return nil
 }
