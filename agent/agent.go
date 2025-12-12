@@ -107,7 +107,7 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 	defer cancel()
 
 	// Start the ticker which activates the agent subroutines
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 
 	// Create a "done" channel to signal when we want to stop the pinger
 	done := make(chan bool)

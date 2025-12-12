@@ -39,13 +39,12 @@ func (d *DebianManager) InstallPackages(packages map[string]*pb.PackageConfig) e
 	installedAPackge = false
 
 	// update apt cache
-	err := d.UpdateCache()
-	if err != nil {
-		Error("Error updating apt cache: ", err)
-	}
+	// err := d.UpdateCache()
+	// if err != nil {
+	// 	Error("Error updating apt cache: ", err)
+	// }
 
 	// collect installed programs from "apt list" command
-
 	installedPrograms, err := collectInstalledPrograms(d.runner)
 	if err != nil {
 		Error("Error collecting installed programs. Will continue but packages will be out of date.")
