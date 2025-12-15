@@ -1,0 +1,1 @@
+mv /usr/bin/assimilator-launcher /opt/assimilator/bin/assimilator-launcher
