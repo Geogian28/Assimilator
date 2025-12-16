@@ -48,11 +48,11 @@ func updateAssimilator(runner CommandRunner) {
 		log.Fatal("Unable to detect distro.")
 	}
 
-	// Add the assimilator repo
-	err = distro.AddRepo()
-	if err != nil && err != fmt.Errorf("not implemented") {
-		log.Fatal("unable to add repo: ", err)
-	}
+	// Add the assimilator repo - not implemented
+	// err = distro.AddRepo()
+	// if err != nil && err != fmt.Errorf("not implemented") {
+	// 	log.Fatal("unable to add repo: ", err)
+	// }
 
 	// Update the cache
 	err = distro.UpdateCache()
