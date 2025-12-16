@@ -22,9 +22,9 @@ func (d *FedoraManager) AddRepo() error {
 
 func (d *FedoraManager) UpdateCache() error {
 
-	_, _, err := d.runner.Run("dnf", "upgrade", "--refresh", "-y")
+	_, _, err := d.runner.Run("dnf", "clean", "all")
 	if err != nil {
-		fmt.Println("dnf upgrade --refresh failed: ", err)
+		fmt.Println("dnf clean all failed: ", err)
 		return err
 	}
 	return nil
@@ -38,7 +38,7 @@ func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
 	}
 
 	// Get cache version
-	stdout, stderr, err := d.runner.Run("dnf", "list", "installed", "assimilator")
+	stdout, stderr, err := d.runner.Run("dnf", "list", "installed", "assimilator", "--refresh")
 	if err != nil {
 		return false, fmt.Errorf("dnf list failed to find assimilator: %s", stderr)
 	}
@@ -50,6 +50,9 @@ func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
 		log.Fatal("Error parsing version: no lines returned")
 	}
 	for _, line := range lines {
+		if !strings.Contains(line, "assimilator") {
+			continue
+		}
 		fmt.Println("line: ", line)
 		if strings.Contains(line, "Version:") {
 			// Get version
