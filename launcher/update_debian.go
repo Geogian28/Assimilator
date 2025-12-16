@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -30,22 +29,10 @@ func (d *DebianManager) UpdateCache() error {
 // IsUpdateAvailable compares the local version against the cached version.
 // It returns true if a newer version is available.
 func (d *DebianManager) IsUpdateAvailable() (bool, error) {
-	_, err := os.Stat("/usr/bin/assimilator")
-	if os.IsNotExist(err) {
-		return false, fmt.Errorf("assimilator binary not found. Assuming Assimilator needs an update")
-	}
-
-	binaryVersionString, _, err := d.runner.Run("/usr/bin/assimilator", "--version")
+	assimilatorVersion, err := getAssimilatorVersion(d.runner)
 	if err != nil {
-		return false, fmt.Errorf("error running assimilator --version: %s", err)
+		return false, err
 	}
-	if string(binaryVersionString) == "" {
-		return false, fmt.Errorf("error running assimilator --version: no output")
-	}
-	assimilatorVersion := strings.TrimSpace(string(binaryVersionString))
-	fmt.Println("Assimilator version: ", assimilatorVersion)
-	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, ":")[1])
-	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, "\n")[0])
 	stdout, _, err := d.runner.Run("apt-cache", "show", "--no-all-versions", "assimilator")
 	fmt.Println(string(stdout))
 	if err != nil {

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/go-version"
@@ -32,25 +31,16 @@ func (d *FedoraManager) UpdateCache() error {
 }
 
 func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
-	_, err := os.Stat("/usr/bin/assimilator")
-	if os.IsNotExist(err) {
-		return false, fmt.Errorf("assimilator binary not found. Assuming Assimilator needs an update")
+	// Get local version
+	assimilatorVersion, err := getAssimilatorVersion(d.runner)
+	if err != nil {
+		return false, err
 	}
 
-	binaryVersionString, _, err := d.runner.Run("/usr/bin/assimilator", "--version")
+	// Get cache version
+	stdout, stderr, err := d.runner.Run("dnf", "list", "installed", "assimilator")
 	if err != nil {
-		return false, fmt.Errorf("error running assimilator --version: %s", err)
-	}
-	if string(binaryVersionString) == "" {
-		return false, fmt.Errorf("error running assimilator --version: no output")
-	}
-	assimilatorVersion := strings.TrimSpace(string(binaryVersionString))
-	fmt.Println("Assimilator version: ", assimilatorVersion)
-	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, ":")[1])
-	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, "\n")[0])
-	stdout, _, err := d.runner.Run("dnf", "list", "installed", "assimilator")
-	if err != nil {
-		return false, fmt.Errorf("error checking for updates: %s", err)
+		return false, fmt.Errorf("dnf list failed to find assimilator: %s", stderr)
 	}
 	words := strings.Fields(string(stdout))
 	var cacheVersion *version.Version
@@ -71,6 +61,8 @@ func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
 	if err != nil || cacheVersion == nil {
 		log.Fatal("Error parsing version: ", err)
 	}
+
+	// Convert to version then compare
 	localVersion, err := version.NewVersion(assimilatorVersion)
 	if err != nil {
 		log.Fatal("Error parsing version: ", err)
