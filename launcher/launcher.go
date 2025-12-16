@@ -39,6 +39,26 @@ func parseDistro(runner CommandRunner, reader io.Reader) (DistroManager, error) 
 	return nil, fmt.Errorf("unable to determine OS")
 }
 
+func getAssimilatorVersion(runner CommandRunner) (string, error) {
+	_, err := os.Stat("/usr/bin/assimilator")
+	if os.IsNotExist(err) {
+		return "", fmt.Errorf("assimilator binary not found. Assuming Assimilator needs an update")
+	}
+
+	binaryVersionString, _, err := runner.Run("/usr/bin/assimilator", "--version")
+	if err != nil {
+		return "", fmt.Errorf("error running assimilator --version: %s", err)
+	}
+	if string(binaryVersionString) == "" {
+		return "", fmt.Errorf("error running assimilator --version: no output")
+	}
+	assimilatorVersion := strings.TrimSpace(string(binaryVersionString))
+	fmt.Println("Assimilator version: ", assimilatorVersion)
+	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, ":")[1])
+	assimilatorVersion = strings.TrimSpace(strings.Split(assimilatorVersion, "\n")[0])
+	return assimilatorVersion, nil
+}
+
 func updateAssimilator(runner CommandRunner) {
 	log.Println("Checking for updates")
 
@@ -63,7 +83,7 @@ func updateAssimilator(runner CommandRunner) {
 	// Check for updates
 	updateIsAvailable, err := distro.IsUpdateAvailable()
 	if err != nil {
-		log.Fatal("Unable to check for updates: ", err)
+		log.Fatal("unable to check for updates: ", err)
 	}
 
 	// Install the update if needed
