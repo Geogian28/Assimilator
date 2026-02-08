@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	pb "github.com/geogian28/Assimilator/proto"
 )
@@ -61,6 +62,14 @@ func (a *AgentData) installUserPackage(pkgName string, cachePath string, usernam
 	if err != nil {
 		return fmt.Errorf("user %s not found: %w", username, err)
 	}
+	uid, err := strconv.ParseUint(targetUser.Uid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("failed to parse UID for %s: %w", username, err)
+	}
+	gid, err := strconv.ParseUint(targetUser.Gid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("failed to parse GID for %s: %w", username, err)
+	}
 
 	// 2. Set the extract variable
 	extractDir := filepath.Join(os.TempDir(), "assimilator", username, pkgName)
@@ -70,14 +79,26 @@ func (a *AgentData) installUserPackage(pkgName string, cachePath string, usernam
 	cmd := exec.Command("/bin/bash", scriptPath)
 
 	// 4. Prepare the environment
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("ASSIMILATOR_HOME=%s", targetUser.HomeDir))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("ASSIMILATOR_USER=%s", targetUser.Username))
+	cmd.Env = []string{
+		fmt.Sprintf("HOME=%s", targetUser.HomeDir),
+		fmt.Sprintf("USER=%s", targetUser.Username),
+		fmt.Sprintf("ASSIMILATOR_HOME=%s", targetUser.HomeDir),
+		fmt.Sprintf("ASSIMILATOR_USER=%s", targetUser.Username),
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", // Basic path
+	}
 
 	// 5. Set the working directory
 	cmd.Dir = extractDir
 
-	// 6. Run
+	// 6. Set the user
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uint32(uid),
+			Gid: uint32(gid),
+		},
+	}
+
+	// 7. Run
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("install failed for %s: %s", pkgName, string(output))
