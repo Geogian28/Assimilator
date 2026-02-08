@@ -14,31 +14,35 @@ import (
 	pb "github.com/geogian28/Assimilator/proto"
 )
 
-func (a *AgentData) ensurePackage(pkgName string, cachePath string, serverChecksum string, cacheFolder string) error {
-	// 0. Check if the folder exists
+func (a *AgentData) ensurePackage(pkgName string, cacheFolder string, serverChecksum string) error {
+	// 1. Check if the folder exists
 	if !a.fileExists(cacheFolder) {
 		err := os.MkdirAll(cacheFolder, 0755)
 		if err != nil {
-			return err
-		}
-	}
-	// 1. Check if we have the file and if it matches the server
-	if a.fileExists(cachePath) {
-		localChecksum, err := a.calculateSha256(cachePath)
-		if err != nil {
-			return err
-		}
-		if localChecksum == serverChecksum {
-			return nil
+			return fmt.Errorf("failed to create cache folder: %w", err)
 		}
 	}
 
-	// 2. If we are here, we either don't have it, or it's old.
-	// DOWNLOAD IT.
-	err := a.downloadPackage(pkgName, serverChecksum, cachePath)
+	// 2. Check if we have the file and if it matches the server
+	cachePackage := filepath.Join(cacheFolder, pkgName+".tar.gz")
+	if !a.fileExists(cachePackage) {
+		return fmt.Errorf("package %s not found", pkgName)
+	}
+	localChecksum, err := a.calculateSha256(cachePackage)
 	if err != nil {
 		return err
 	}
+	if localChecksum == serverChecksum {
+		return nil
+	}
+
+	// 3. If we are here, we either don't have it, or it's old.
+	// DOWNLOAD IT.
+	err = a.downloadPackage(pkgName, serverChecksum, cachePackage)
+	if err != nil {
+		return fmt.Errorf("error downloading package: %s", err)
+	}
+	Debug("Downloaded package %s to %s", pkgName, cachePackage)
 	return nil
 }
 
@@ -123,18 +127,8 @@ func (a *AgentData) downloadPackage(pkgName string, checksum string, destPath st
 	return nil
 }
 
-func (a *AgentData) extractMachinePackage(pkgName string, cachePath string) error {
-	destDir := filepath.Join(os.TempDir(), "assimilator", "machine", pkgName)
-	return a.extractArchive(destDir, cachePath)
-}
-
-func (a *AgentData) extractUserPackage(pkgName string, cachePath string, username string) error {
-	destDir := filepath.Join(os.TempDir(), "assimilator", "user", username, pkgName)
-	return a.extractArchive(destDir, cachePath)
-}
-
-func (a *AgentData) extractArchive(pkgName string, cachePath string) error {
-	extractDir := filepath.Join(os.TempDir(), "assimilator", pkgName)
+func (a *AgentData) extractPackage(pkgName string, subfolder string, cachePath string) error {
+	extractDir := filepath.Join(os.TempDir(), "assimilator", subfolder, pkgName)
 
 	// 1. Clean up any previous run to ensure a fresh slate
 	os.RemoveAll(extractDir)

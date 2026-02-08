@@ -18,22 +18,25 @@ import (
 func (a *AgentData) setupUser(username string, user *pb.UserConfig) error {
 	for packageName, pkg := range user.Packages {
 		// 1. Ensure the package exists and is up-to-date
+		if pkg.Checksum == "" {
+			return fmt.Errorf("package %s has no checksum", packageName)
+		}
 		cacheFolder := "/var/cache/assimilator/user"
 		packagePath := filepath.Join(cacheFolder, packageName+".tar.gz")
-		err := a.ensurePackage(packageName, packagePath, pkg.Checksum, cacheFolder)
+		err := a.ensurePackage(packageName, cacheFolder, pkg.Checksum)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
 		}
 
-		// 2. Extract
-		err = a.extractUserPackage(packageName, packagePath, username)
+		// 2. Extract package
+		err = a.extractPackage(packageName, "user", packagePath)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
 		}
 
-		// 3. Install
+		// 3. Install package
 		if username == "_default" {
 			realUsers, err := a.getValidUsers()
 			if err != nil {
@@ -41,14 +44,14 @@ func (a *AgentData) setupUser(username string, user *pb.UserConfig) error {
 				continue
 			}
 			for _, realUser := range realUsers {
-				err = a.installUserPackage(packageName, packagePath, realUser)
+				err = a.installUserPackage(packageName, realUser)
 				if err != nil {
-					Error("error installing package: ", err)
+					Error("error installing package '", packageName, "' for user '", realUser, "': ", err)
 				}
 			}
 			continue
 		}
-		err = a.installUserPackage(packageName, packagePath, username)
+		err = a.installUserPackage(packageName, username)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
@@ -57,7 +60,12 @@ func (a *AgentData) setupUser(username string, user *pb.UserConfig) error {
 	return nil
 }
 
-func (a *AgentData) installUserPackage(pkgName string, cachePath string, username string) error {
+// func (a *AgentData) extractUserPackage(pkgName string, cachePath string, username string) error {
+// 	destDir := filepath.Join(os.TempDir(), "assimilator", "user", username, pkgName)
+// 	return a.extractArchive(destDir, cachePath)
+// }
+
+func (a *AgentData) installUserPackage(pkgName string, username string) error {
 	// 1. Check if user exists and get their details
 	targetUser, err := user.Lookup(username)
 	if err != nil {

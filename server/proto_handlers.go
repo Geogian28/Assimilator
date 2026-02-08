@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	assctl "github.com/geogian28/Assimilator/proto"
 	pb "github.com/geogian28/Assimilator/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,7 +24,7 @@ func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllCon
 	return response, nil
 }
 
-// `GetAllConfigs` implements AssimilatorService
+// GetAllConfigs implements AssimilatorService
 func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSpecificConfigRequest) (*pb.GetSpecificConfigResponse, error) {
 	Trace("Agent attempting to get config for machine: ", req.MachineName)
 	if DesiredState == nil {
@@ -46,4 +47,25 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 	}
 	Debug("Cannot find a machine with name: ", req.MachineName)
 	return nil, status.Errorf(codes.NotFound, "cannot find a machine with name: %v", req.MachineName)
+}
+
+func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream pb.Assimilator_DownloadPackageServer) error {
+	Info("Client requested package: ", req.PackageName)
+	if s.RepoDir == "" {
+		return status.Error(codes.Internal, "Server repository directory is not configured")
+	}
+
+	// 1. Find the package
+	filepath := s.ChecksumMap[req.PackageChecksum]
+
+	// 2. Upload the package
+	err := stream.Send(&assctl.PackageResponse{
+		TotalSize: int64(len(filepath)),
+		Content:   []byte(filepath),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -13,22 +13,32 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 
 		// 1. Ensure the package exists and is up-to-date
 		cacheFolder := "/var/cache/assimilator/machine"
-		packagePath := filepath.Join(cacheFolder, packageName+".tar.gz")
-		err := a.ensurePackage(packageName, packagePath, pkg.Checksum, cacheFolder)
+		err := a.ensurePackage(packageName, cacheFolder, pkg.Checksum)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
 		}
-
-		// 2. Extract and install
-		err = a.installMachinePackage(packageName, packagePath)
+		// 2. Extract package
+		err = a.extractPackage(packageName, "machine", cacheFolder)
 		if err != nil {
-			Error("error installing package: ", err)
+			Error("error extracting machine package: ", err)
+			continue
+		}
+
+		// 3. Install package
+		err = a.installMachinePackage(packageName, cacheFolder)
+		if err != nil {
+			Error("error installing machine package: ", err)
 			continue
 		}
 	}
 	return nil
 }
+
+// func (a *AgentData) extractMachinePackage(pkgName string, cacheFolder string) error {
+// 	destDir := filepath.Join(os.TempDir(), "assimilator", "machine", pkgName)
+// 	return a.extractPackage(destDir, cacheFolder)
+// }
 
 func (a *AgentData) installMachinePackage(pkgName string, cachePath string) error {
 	// 1. Create a predictable temp directory using pkgName
