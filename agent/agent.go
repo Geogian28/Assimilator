@@ -69,6 +69,7 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 		Info("Version mismatch. Server version: ", respVersion, " Local version: ", appConfig.Version)
 		Info("Restarting to update...")
 		asslog.Close()
+		os.Exit(0)
 	}
 	Info("Agent version (", appConfig.Version, ") matches server version (", resp.Version.Version, ").")
 
