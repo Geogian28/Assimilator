@@ -554,14 +554,20 @@ func gatherMachineInfo(appConfig *AppConfig) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "ID=") || strings.HasPrefix(line, "ID_LIKE=") {
-			switch strings.Split(line, "=")[1] {
-			case "ubuntu", "debian":
+			idLike := strings.Split(line, "=")[1]
+			if strings.Contains(idLike, "ubuntu") {
 				appConfig.Distro = "debian"
 				return
-			case "fedora":
+			}
+			if strings.Contains(idLike, "debian") {
+				appConfig.Distro = "debian"
+				return
+			}
+			if strings.Contains(idLike, "fedora") {
 				appConfig.Distro = "fedora"
 				return
-			case "arch":
+			}
+			if strings.Contains(idLike, "arch") {
 				appConfig.Distro = "arch"
 				return
 			}
