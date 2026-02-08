@@ -1,69 +1,63 @@
 package agent
 
 import (
-	"github.com/geogian28/Assimilator/config"
+	"fmt"
+	"os"
+	"path/filepath"
+
 	pb "github.com/geogian28/Assimilator/proto"
 )
 
-type work struct {
-	packageName       string
-	installedPrograms map[string]bool
-}
+func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
+	for packageName, pkg := range packages {
 
-var installedAPackge bool = false
+		// 1. Ensure the package exists and is up-to-date
+		packagePath := filepath.Join("/var/cache/assimilator/machine", packageName+".tar.gz")
+		err := a.ensurePackage(packageName, packagePath, pkg.Checksum)
+		if err != nil {
+			Error("error installing package: ", err)
+			continue
+		}
 
-var Distro DistroManager
-
-type DistroManager interface {
-	// UpdateCache refreshes the local package list
-	UpdateCache() error
-
-	// InstallPackages installs a list of packages
-	InstallPackages(map[string]*pb.PackageConfig) error
-
-	// RemovePackages uninstalls a list of packages
-	RemovePackages(pkgs []string) error
-
-	// EnableService enables a systemd service
-	EnableService(service string) error
-
-	// StartService starts a systemd service
-	StartService(service string) error
-}
-
-func setDistroManagerType(appConfig *config.AppConfig) {
-	switch appConfig.Distro {
-	case "debian":
-		Distro = newDebianManager()
-	case "fedora":
-		Distro = newFedoraManager()
-	case "arch":
-		Distro = newArchManager()
+		// 2. Extract and install
+		err = a.installMachinePackage(packageName, packagePath)
+		if err != nil {
+			Error("error installing package: ", err)
+			continue
+		}
 	}
+	return nil
 }
 
-func setupMachine(packages map[string]*pb.PackageConfig) error {
-	var err error
+func (a *AgentData) installMachinePackage(pkgName string, cachePath string) error {
+	// 1. Create a predictable temp directory using pkgName
+	//    We use /tmp/assimilator/<pkgName> (e.g. /tmp/assimilator/zsh)
+	extractDir := filepath.Join(os.TempDir(), "assimilator", pkgName)
 
-	// Update the cache (if applicable)
-	err = Distro.UpdateCache()
+	// 2. Clean up any previous run to ensure a fresh slate
+	os.RemoveAll(extractDir)
+	if err := os.MkdirAll(extractDir, 0755); err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+
+	// 3. Extract the tarball INTO that directory
+	//    -C tells tar to change directory before extracting
+	_, _, err := a.commandRunner.Run("tar", "-xzf", cachePath, "-C", extractDir)
 	if err != nil {
-		Error("unable to update cache: ", err)
-		Info("Continuing without cache update.")
+		return fmt.Errorf("failed to extract %s: %w", pkgName, err)
 	}
 
-	// Install packages
-	err = Distro.InstallPackages(packages)
+	// 4. Run the install script
+	//    CRITICAL: We construct a command that CD's into the directory first.
+	//    If we just ran `${extractDir}/install.sh`, the script's CWD would be the Agent's CWD,
+	//    and commands like `cp ./.zshrc` would fail.
+	installCmd := fmt.Sprintf("cd %s && ./install.sh", extractDir)
+
+	//    Use sh -c to execute the compound command
+	_, _, err = a.commandRunner.Run("sh", "-c", installCmd)
 	if err != nil {
-		return err
+		return fmt.Errorf("install script failed for %s: %w", pkgName, err)
 	}
-
-	// Distro.RemovePackages(packages)
-
-	// Distro.EnableService()
-
-	// Distro.StartService()
 
 	return nil
-
 }

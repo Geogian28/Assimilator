@@ -71,46 +71,48 @@ type ConfigProfile struct {
 	Machines map[string]MachineConfig `yaml:"machines"`
 	Users    map[string]UserConfig    `yaml:"users"`
 	Packages map[string]PackageConfig `yaml:"packages"`
-	Services map[string]ServiceConfig `yaml:"services"`
-	Dotfiles map[string]Dotfiles      `yaml:"dotfiles"`
+	// Services map[string]ServiceConfig `yaml:"services"`
+	// Dotfiles map[string]Dotfiles      `yaml:"dotfiles"`
 }
 
 type MachineConfig struct {
 	AppliedProfiles []string                 `yaml:"applied_profiles"`
 	Packages        map[string]PackageConfig `yaml:"packages"`
-	Services        map[string]ServiceConfig `yaml:"services"`
+	// Services        map[string]ServiceConfig `yaml:"services"`
 }
 
 type UserConfig struct {
-	AppliedProfiles []string            `yaml:"applied_profiles"`
-	Dotfiles        map[string]Dotfiles `yaml:"dotfiles"`
+	AppliedProfiles []string                 `yaml:"applied_profiles"`
+	Packages        map[string]PackageConfig `yaml:"packages"`
+	// Dotfiles        map[string]Dotfiles `yaml:"dotfiles"`
 }
 
-type Dotfiles struct {
-	DotfileLocation string       `yaml:"location"`
-	Requires        Dependencies `yaml:"requires,omitempty"`
-}
+// type Dotfiles struct {
+// 	DotfileLocation string       `yaml:"location"`
+// 	Requires        Dependencies `yaml:"requires,omitempty"`
+// }
 
-type Dependencies struct {
-	Packages map[string]PackageConfig `yaml:"packages"`
-	Files    map[string]ServiceConfig `yaml:"files,omitempty"`
-}
+// type Dependencies struct {
+// 	Packages map[string]PackageConfig `yaml:"packages"`
+// 	Files    map[string]ServiceConfig `yaml:"files,omitempty"`
+// }
 
 type PackageConfig struct {
-	State    string                  `yaml:"state"`
-	Version  string                  `yaml:"version,omitempty"` // "omitempty" is good practice
-	Branch   string                  `yaml:"branch,omitempty"`
-	Requires map[string]Dependencies `yaml:"requires,omitempty"`
+	State   string `yaml:"state"`
+	Version string `yaml:"version,omitempty"` // "omitempty" is good practice
+	Branch  string `yaml:"branch,omitempty"`
+	// Requires map[string]Dependencies `yaml:"requires,omitempty"`
+	Checksum string `yaml:"checksum,omitempty"`
 }
 
 type PackageMap struct {
 	Packages map[string]PackageConfig `yaml:"packages"`
 }
 
-type ServiceConfig struct {
-	State   bool              `yaml:"enable"`
-	Configs map[string]string `yaml:"config"`
-}
+// type ServiceConfig struct {
+// 	State   bool              `yaml:"enable"`
+// 	Configs map[string]string `yaml:"config"`
+// }
 
 type State string
 
@@ -480,53 +482,52 @@ func applyProfiles(desiredState *DesiredState) {
 	allProfileNames := strings.Join(ProfileNames, ", ")
 	Debug("Available profiles: ", allProfileNames)
 
+	// -----------------------------------------------------------------------
+	// 1. MACHINES LOOP
 	// Take "applied_profiles" from machines and apply the actual profiles to machines
+	// -----------------------------------------------------------------------
 	for machineName, machineData := range desiredState.Machines {
 		modifiedMachine := machineData
 		for _, profileName := range machineData.AppliedProfiles {
 			profile, ok := desiredState.Profiles[profileName]
 
-			// Check if the profile exists. If not, skip
 			if !ok {
 				Error("Profile not found: ", profileName)
 				continue
 			}
 
-			// Check if the profile has any packages. If not, skip
+			// FIX: Check len(profile.Packages), not len(profile)
 			if len(profile.Packages) > 0 {
 				if modifiedMachine.Packages == nil {
 					modifiedMachine.Packages = make(map[string]PackageConfig)
 				}
-				Trace(`Copying packages from profile "`, profileName, `" to machine: `, machineName)
+				Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
 				maps.Copy(modifiedMachine.Packages, profile.Packages)
-			}
-			// Check if the profile has any services. If not, skip
-			if len(profile.Services) > 0 {
-				if modifiedMachine.Services == nil {
-					modifiedMachine.Services = make(map[string]ServiceConfig)
-				}
-				Trace(`Copying services from profile "`, profileName, `" to machine: `, machineName)
-				maps.Copy(modifiedMachine.Services, profile.Services)
 			}
 		}
 		desiredState.Machines[machineName] = modifiedMachine
 	}
 
+	// -----------------------------------------------------------------------
+	// 2. USERS LOOP
 	// Take "applied_profiles" from users and apply the actual profiles to users
+	// -----------------------------------------------------------------------
 	for userName, userData := range desiredState.Users {
 		modifiedUser := userData
 		for _, profileName := range modifiedUser.AppliedProfiles {
-			// Check if the profile exists. If not, skip
 			profile, ok := desiredState.Profiles[profileName]
 			if !ok {
 				Error("Profile not found: ", profileName)
 				continue
 			}
-			if len(profile.Dotfiles) > 0 {
-				Trace(`Copying dotfiles from profile "`, profileName, `" to machine: `, userName)
-				if modifiedUser.Dotfiles == nil {
-					maps.Copy(modifiedUser.Dotfiles, profile.Dotfiles)
+
+			// FIX: Copy from profile.Packages, NOT profile.Users
+			if len(profile.Packages) > 0 {
+				if modifiedUser.Packages == nil {
+					modifiedUser.Packages = make(map[string]PackageConfig)
 				}
+				Trace(fmt.Sprintf(`Copying packages from profile "%s" to user: %s`, profileName, userName))
+				maps.Copy(modifiedUser.Packages, profile.Packages)
 			}
 		}
 		desiredState.Users[userName] = modifiedUser

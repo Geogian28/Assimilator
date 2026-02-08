@@ -16,7 +16,8 @@ func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllCon
 		return nil, fmt.Errorf("server has not loaded the configuration yet")
 	}
 	response := &pb.GetAllConfigsResponse{
-		Config: toProtoDesiredState(DesiredState),
+		Machines: toProtoMachineConfigMap(&DesiredState.Machines),
+		Users:    toProtoUserConfigMap(&DesiredState.Users),
 	}
 	Info("Returning response to agent.")
 	return response, nil
@@ -40,7 +41,7 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 		return &pb.GetSpecificConfigResponse{
 			Machine: toProtoMachineConfig(&machine),
 			Version: toProtoServerVersion(ServerVersionInfo),
-			// TODO: Add more fields to the response
+			Users:   toProtoUserConfigMap(&DesiredState.Users),
 		}, nil
 	}
 	Debug("Cannot find a machine with name: ", req.MachineName)

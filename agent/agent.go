@@ -30,6 +30,12 @@ var (
 	Unhandled = asslog.Unhandled
 )
 
+type AgentData struct {
+	appConfig     *config.AppConfig
+	client        pb.AssimilatorClient
+	commandRunner CommandRunner
+}
+
 func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner CommandRunner) error {
 	address := appConfig.ServerIP + ":" + fmt.Sprint(appConfig.ServerPort)
 	Debug("Attempting to connect to server at ", address)
@@ -67,9 +73,12 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 	Info("Agent version (", appConfig.Version, ") matches server version (", resp.Version.Version, ").")
 
 	Info("Successfully got config for machine: ", req.MachineName)
-	packages := resp.GetMachine().GetPackages()
-
-	setupMachine(packages)
+	// packages := resp.GetMachine().GetPackages()
+	agent := &AgentData{appConfig: appConfig, client: client, commandRunner: commandRunner}
+	agent.setupMachine(resp.GetMachine().GetPackages())
+	for username, userConfig := range resp.GetUsers() {
+		agent.setupUser(username, userConfig)
+	}
 	return nil
 }
 
@@ -100,8 +109,6 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 		}
 	}
 	Trace(appConfig.Hostname)
-
-	setDistroManagerType(appConfig)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
