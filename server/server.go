@@ -148,14 +148,14 @@ func cloneOrPullRepo(appConfig *config.AppConfig) (string, error) {
 			}
 		}
 	}
-	repoDirErr := os.Mkdir(repoDir, 0755)
-	if repoDirErr != nil {
-		if errors.Is(repoDirErr, os.ErrExist) {
-			Debug(fmt.Sprintf("Repository directory '%s' already exists. Proceeding.", repoDir))
-		} else {
-			asslog.Unhandled("Error making the /tmp/assimilator-repo temp directory: ", repoDirErr)
-		}
-	}
+	// repoDirErr := os.Mkdir(repoDir, 0755)
+	// if repoDirErr != nil {
+	// 	if errors.Is(repoDirErr, os.ErrExist) {
+	// 		Debug(fmt.Sprintf("Repository directory '%s' already exists. Proceeding.", repoDir))
+	// 	} else {
+	// 		asslog.Unhandled("Error making the /tmp/assimilator-repo temp directory: ", repoDirErr)
+	// 	}
+	// }
 
 	// Clone or pull the repository
 	Info("Cloning or pulling repository to ", repoDir)
