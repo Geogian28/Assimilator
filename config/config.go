@@ -98,11 +98,11 @@ type UserConfig struct {
 // }
 
 type PackageConfig struct {
-	State   string `yaml:"state"`
-	Version string `yaml:"version,omitempty"` // "omitempty" is good practice
-	Branch  string `yaml:"branch,omitempty"`
-	// Requires map[string]Dependencies `yaml:"requires,omitempty"`
+	State    string `yaml:"state"`
+	Version  string `yaml:"version,omitempty"` // "omitempty" is good practice
+	Branch   string `yaml:"branch,omitempty"`
 	Checksum string `yaml:"checksum,omitempty"`
+	// Requires map[string]Dependencies `yaml:"requires,omitempty"`
 }
 
 type PackageMap struct {
@@ -487,7 +487,8 @@ func applyProfiles(desiredState *DesiredState) {
 	// Take "applied_profiles" from machines and apply the actual profiles to machines
 	// -----------------------------------------------------------------------
 	for machineName, machineData := range desiredState.Machines {
-		modifiedMachine := machineData
+		mergedPackages := make(map[string]PackageConfig)
+
 		for _, profileName := range machineData.AppliedProfiles {
 			profile, ok := desiredState.Profiles[profileName]
 
@@ -496,16 +497,19 @@ func applyProfiles(desiredState *DesiredState) {
 				continue
 			}
 
-			// FIX: Check len(profile.Packages), not len(profile)
 			if len(profile.Packages) > 0 {
-				if modifiedMachine.Packages == nil {
-					modifiedMachine.Packages = make(map[string]PackageConfig)
-				}
 				Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
-				maps.Copy(modifiedMachine.Packages, profile.Packages)
+				maps.Copy(mergedPackages, profile.Packages)
 			}
 		}
-		desiredState.Machines[machineName] = modifiedMachine
+
+		if len(machineData.Packages) > 0 {
+			Trace(fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
+			maps.Copy(mergedPackages, machineData.Packages)
+		}
+
+		machineData.Packages = mergedPackages
+		desiredState.Machines[machineName] = machineData
 	}
 
 	// -----------------------------------------------------------------------
@@ -513,24 +517,28 @@ func applyProfiles(desiredState *DesiredState) {
 	// Take "applied_profiles" from users and apply the actual profiles to users
 	// -----------------------------------------------------------------------
 	for userName, userData := range desiredState.Users {
-		modifiedUser := userData
-		for _, profileName := range modifiedUser.AppliedProfiles {
+		mergedPackages := make(map[string]PackageConfig)
+
+		for _, profileName := range userData.AppliedProfiles {
 			profile, ok := desiredState.Profiles[profileName]
 			if !ok {
 				Error("Profile not found: ", profileName)
 				continue
 			}
 
-			// FIX: Copy from profile.Packages, NOT profile.Users
 			if len(profile.Packages) > 0 {
-				if modifiedUser.Packages == nil {
-					modifiedUser.Packages = make(map[string]PackageConfig)
-				}
 				Trace(fmt.Sprintf(`Copying packages from profile "%s" to user: %s`, profileName, userName))
-				maps.Copy(modifiedUser.Packages, profile.Packages)
+				maps.Copy(mergedPackages, profile.Packages)
 			}
 		}
-		desiredState.Users[userName] = modifiedUser
+
+		if len(userData.Packages) > 0 {
+			Trace(fmt.Sprintf(`Applying specific overrides for user: %s`, userName))
+			maps.Copy(mergedPackages, userData.Packages)
+		}
+
+		userData.Packages = mergedPackages
+		desiredState.Users[userName] = userData
 	}
 }
 

@@ -68,11 +68,11 @@ func toProtoPackageConfigMap(packages *map[string]config.PackageConfig) map[stri
 
 func toProtoPackageConfig(packageConfig *config.PackageConfig) *pb.PackageConfig {
 	return &pb.PackageConfig{
-		State:   packageConfig.State,
-		Version: packageConfig.Version,
-		Branch:  packageConfig.Branch,
-		// Requires: toProtoDependenciesMap(&packageConfig.Requires),
+		State:    packageConfig.State,
+		Version:  packageConfig.Version,
+		Branch:   packageConfig.Branch,
 		Checksum: packageConfig.Checksum,
+		// Requires: toProtoDependenciesMap(&packageConfig.Requires),
 	}
 }
 
