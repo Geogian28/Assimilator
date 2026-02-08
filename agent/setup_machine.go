@@ -12,8 +12,9 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 	for packageName, pkg := range packages {
 
 		// 1. Ensure the package exists and is up-to-date
-		packagePath := filepath.Join("/var/cache/assimilator/machine", packageName+".tar.gz")
-		err := a.ensurePackage(packageName, packagePath, pkg.Checksum)
+		cacheFolder := "/var/cache/assimilator/machine"
+		packagePath := filepath.Join(cacheFolder, packageName+".tar.gz")
+		err := a.ensurePackage(packageName, packagePath, pkg.Checksum, cacheFolder)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue

@@ -14,7 +14,14 @@ import (
 	pb "github.com/geogian28/Assimilator/proto"
 )
 
-func (a *AgentData) ensurePackage(pkgName string, cachePath string, serverChecksum string) error {
+func (a *AgentData) ensurePackage(pkgName string, cachePath string, serverChecksum string, cacheFolder string) error {
+	// 0. Check if the folder exists
+	if !a.fileExists(cacheFolder) {
+		err := os.MkdirAll(cacheFolder, 0755)
+		if err != nil {
+			return err
+		}
+	}
 	// 1. Check if we have the file and if it matches the server
 	if a.fileExists(cachePath) {
 		localChecksum, err := a.calculateSha256(cachePath)
@@ -68,8 +75,6 @@ func (a *AgentData) calculateSha256(cachePath string) (string, error) {
 }
 
 func (a *AgentData) downloadPackage(pkgName string, checksum string, destPath string) error {
-	asslog.Debug("Starting download for package: ", pkgName)
-
 	// 1. Initiate the request
 	req := &pb.PackageRequest{
 		PackageName:     pkgName,

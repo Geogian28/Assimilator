@@ -18,8 +18,9 @@ import (
 func (a *AgentData) setupUser(username string, user *pb.UserConfig) error {
 	for packageName, pkg := range user.Packages {
 		// 1. Ensure the package exists and is up-to-date
-		packagePath := filepath.Join("/var/cache/assimilator/user", packageName+".tar.gz")
-		err := a.ensurePackage(packageName, packagePath, pkg.Checksum)
+		cacheFolder := "/var/cache/assimilator/user"
+		packagePath := filepath.Join(cacheFolder, packageName+".tar.gz")
+		err := a.ensurePackage(packageName, packagePath, pkg.Checksum, cacheFolder)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
