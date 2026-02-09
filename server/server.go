@@ -190,65 +190,64 @@ func cloneOrPullRepo(appConfig *config.AppConfig) (string, error) {
 
 func makePackages(repoDir string) error {
 	Info("Making packages from repository...")
-	os.Mkdir(repoDir+"/packages", 0755)
+	packagesFolder := filepath.Join(repoDir + "/packages")
+	os.Mkdir(packagesFolder, 0755)
 
 	// Make packages for machine
-	entries, err := os.ReadDir(repoDir + "/machine")
+	machineFolder := filepath.Join(repoDir + "/machine")
+	entries, err := os.ReadDir(machineFolder)
 	if err != nil {
 		asslog.Unhandled("error reading machine directory: ", err)
 	}
-	for _, folder := range entries {
-		if folder.IsDir() {
-			err = makePackage(repoDir, folder.Name())
-			if err != nil {
-				asslog.Unhandled("error making package: ", err)
-			}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		sourceDir := filepath.Join(machineFolder, entry.Name())
+		err = makePackage(sourceDir, packagesFolder)
+		if err != nil {
+			asslog.Unhandled("error making package: ", err)
 		}
 	}
 
 	// Make packages for users
-	entries, err = os.ReadDir(repoDir + "/user")
+	userFolder := filepath.Join(repoDir + "/user")
+	entries, err = os.ReadDir(userFolder)
 	if err != nil {
 		asslog.Unhandled("error reading user directory: ", err)
 	}
-	for _, folder := range entries {
-		if folder.IsDir() {
-			err = makePackage(repoDir, folder.Name())
-			if err != nil {
-				asslog.Unhandled("error making package: ", err)
-			}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		sourceDir := filepath.Join(machineFolder, entry.Name())
+		err = makePackage(sourceDir, packagesFolder)
+		if err != nil {
+			asslog.Unhandled("error making package: ", err)
 		}
 	}
 	return nil
 }
 
-func makePackage(sourceDir, packageName string) error {
-	Info("Making package: " + packageName)
-	// validate the input directory exists
-	info, err := os.Stat(sourceDir)
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("input directory is not a directory: %s", sourceDir)
-	}
-
+func makePackage(sourceDir string, packageDir string) error {
+	packageName := filepath.Base(sourceDir)
+	Info("Making package: ", packageName)
+	Trace("sourceDir: ", sourceDir)
 	// create the output file (the ".tar.gz" file)
-	packageFolder := filepath.Join(sourceDir, "packages")
 	hostname, _ := os.Hostname()
 	Trace("hostname: ", hostname)
-	packagePath := filepath.Join(packageFolder, packageName+".tar.gz."+hostname)
-	Trace("packagePath: ", packagePath)
-	packagePath, err = filepath.Abs(packagePath)
-	Trace("absolute packagePath: ", packagePath)
+	tempPackageFilePath := filepath.Join(packageDir, packageName+".tar.gz."+hostname)
+	Trace("tempPackageFilePath: ", tempPackageFilePath)
+	tempPackageFilePath, err := filepath.Abs(tempPackageFilePath)
+	Trace("absolute packagePath: ", tempPackageFilePath)
 	if err != nil {
 		return fmt.Errorf("error creating absolute package path: %s", err)
 	}
-	tarball, err := os.Create(packagePath)
+	tarball, err := os.Create(tempPackageFilePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating tarball: %s", err)
 	}
-	Trace("created the tarball")
+	Trace("created the tarball at ", tempPackageFilePath)
 	// create the compressor
 	gzw := gzip.NewWriter(tarball)
 
@@ -256,8 +255,10 @@ func makePackage(sourceDir, packageName string) error {
 	tw := tar.NewWriter(gzw)
 
 	filepath.Walk(sourceDir, func(file string, fi os.FileInfo, err error) error {
+		Trace("filepath.Walk: currently looking at: ", file)
 		// return any error
 		if err != nil {
+			Error("unable to walk directory: ", err)
 			return fmt.Errorf("unable to walk directory: %s", err)
 		}
 
@@ -266,35 +267,36 @@ func makePackage(sourceDir, packageName string) error {
 			return nil
 		}
 
-		if fi.IsDir() && fi.Name() == "packages" {
-			return filepath.SkipDir
-		}
-
 		// create a new dir/file header
 		header, err := tar.FileInfoHeader(fi, fi.Name())
 		if err != nil {
+			Error("unable to create header: ", err)
 			return fmt.Errorf("unable to create header: %s", err)
 		}
 
 		// update the name to correctly reflect the desired destination when untarring
 		header.Name, err = filepath.Rel(sourceDir, file)
 		if err != nil {
+			Error("unable to get relative path for header.Name: ", err)
 			return fmt.Errorf("unable to get relative path for header.Name: %s", err)
 		}
 
 		// write the header
 		if err := tw.WriteHeader(header); err != nil {
+			Error("unable to write header: ", err)
 			return fmt.Errorf("unable to write header: %s", err)
 		}
 
 		// open files for taring
 		f, err := os.Open(file)
 		if err != nil {
+			Error("unable to open file: ", err)
 			return fmt.Errorf("unable to open file: %s", err)
 		}
 
 		// copy file data into tar writer
 		if _, err := io.Copy(tw, f); err != nil {
+			Error("unable to copy file data: ", err)
 			return fmt.Errorf("unable to copy file data: %s", err)
 		}
 
@@ -312,28 +314,29 @@ func makePackage(sourceDir, packageName string) error {
 	Trace("closed the tarball for ", packageName)
 
 	// Calculate the SHA256 checksum
-	sha256, err := calculateSha256(packagePath)
+	sha256, err := calculateSha256(tempPackageFilePath)
 	if err != nil {
 		return fmt.Errorf("unable to calculate sha256 for package: %s", err)
 	}
-	checksumPath := filepath.Join(packageFolder, packageName+".tar.gz.sha256."+hostname)
-	_, err = os.Create(checksumPath)
-	os.WriteFile(checksumPath, []byte(sha256), 0644)
+	tempChecksumPath := filepath.Join(packageDir, packageName+".tar.gz.sha256"+hostname)
+	_, err = os.Create(tempChecksumPath)
+	os.WriteFile(tempChecksumPath, []byte(sha256), 0644)
 
 	// Rename the tarball and checksum
-	newPackagePath := filepath.Join(packageFolder, packageName+".tar.gz")
-	Trace("newPackagePath: ", newPackagePath)
-	newPackagePath, err = filepath.Abs(newPackagePath)
-	Trace("absolute newPackagePath: ", newPackagePath)
-	newChecksumPath := filepath.Join(packageFolder, packageName+".tar.gz.sha256")
+	finalPackagePath := filepath.Join(packageDir, packageName+".tar.gz")
+	Trace("finalPackagePath: ", finalPackagePath)
+	finalPackagePath, err = filepath.Abs(finalPackagePath)
+	Trace("absolute finalPackagePath: ", finalPackagePath)
+	finalChecksumPath := filepath.Join(packageDir, packageName+".tar.gz.sha256")
+
 	if err != nil {
 		return fmt.Errorf("error creating new absolute package path: %s", err)
 	}
-	err = os.Rename(packagePath, newPackagePath)
+	err = os.Rename(tempPackageFilePath, finalPackagePath)
 	if err != nil {
 		return fmt.Errorf("error renaming the tarball: %s", err)
 	}
-	err = os.Rename(checksumPath, newChecksumPath)
+	err = os.Rename(tempChecksumPath, finalChecksumPath)
 	if err != nil {
 		return fmt.Errorf("error renaming the checksum: %s", err)
 	}
