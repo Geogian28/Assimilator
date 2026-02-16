@@ -157,16 +157,14 @@ func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
 
 func ConfigFromFile(appConfig *AppConfig) {
 	// 1. Ensure folder exists:
-	if !fileExists("/etc/assimilator") {
-		err := os.Mkdir("/etc/assimilator", 0755)
-		if err != nil {
-			switch {
-			case errors.Is(err, os.ErrPermission):
-				Error("Cannot make /etc/assimilator directory. Try running as root.")
-				return
-			default:
-				asslog.Unhandled("Error creating assimilator directory: ", err)
-			}
+	err := os.MkdirAll("/etc/assimilator", 0755)
+	if err != nil {
+		switch {
+		case errors.Is(err, os.ErrPermission):
+			Error("Cannot make /etc/assimilator directory. Try running as root.")
+			return
+		default:
+			asslog.Unhandled("Error creating assimilator directory: ", err)
 		}
 	}
 
