@@ -30,6 +30,7 @@ type packageInfo struct {
 
 func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 1. Check if the folder exists
+	
 	Debug("Checking if package folder exists: ", pkg.cacheDir)
 	if !a.fileExists(pkg.cacheDir) {
 		err := os.MkdirAll(pkg.cacheDir, 0755)

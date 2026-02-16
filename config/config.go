@@ -59,12 +59,12 @@ type AppConfig struct {
 	Hostname        string                `toml:"hostname" env:"ASSIMILATOR_HOSTNAME"`
 	AptSources      string                `toml:"apt_sources" env:"ASSIMILATOR_APT_SOURCES"`
 	PackageMap      map[string]PackageMap `yaml:"package_map"`
+	CacheDir        string                `toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
 	Version         string
 	Commit          string
 	BuildDate       string
 	MachineInfo     sysinfo.SysInfo
 	Distro          string
-	CacheDir        string
 }
 
 // Top-level config structure for the entire desired state
@@ -187,10 +187,28 @@ func ConfigFromFile(appConfig *AppConfig) {
 			} else {
 			}
 		} else {
-			fmt.Println("Failed to open config file: ", err)
 			Error("Failed to open config file: ", err)
+			return
 		}
-		return
+
+		// 1. Initialize the wrapper WITH your existing defaults.
+		//    This ensures that any field NOT in the file stays at its default value.
+		wrapper := TomlConfigWrapper{
+			Config: *appConfig,
+		}
+
+		// 2. Unmarshal the file INTO the existing data.
+		//    The unmarshaler acts as a "patch", only updating fields found in the text.
+		err = toml.Unmarshal(configFile, &wrapper)
+		if err != nil {
+			Error("Failed to unmarshal config file: ", err)
+		} else {
+			Debug("Loaded config from file.")
+
+			// 3. Update the main config.
+			//    This now contains [Defaults] + [File Overrides]
+			*appConfig = wrapper.Config
+		}
 	}
 
 	var wrapper TomlConfigWrapper

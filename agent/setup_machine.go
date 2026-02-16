@@ -13,6 +13,9 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 		hostname, _ := os.Hostname()
 		return fmt.Errorf("No packages in machine package list. Check config.yaml for %s", hostname)
 	}
+	// if a.appConfig.CacheDir == "" {
+	// 	a.appConfig.CacheDir = "/var/cache/assimilator/packages"
+	// }
 	Debug("Listing machine packages:")
 	for packageName := range packages {
 		Debug("   - ", packageName)
