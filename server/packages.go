@@ -10,11 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
-	// Import go-git
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
-	// Import go-git
-	// Import go-git
-	// For basic HTTP auth if needed
+	config "github.com/geogian28/Assimilator/config"
 )
 
 // checksummap := make(map[string]map[string]PackageDetails)
@@ -36,8 +33,10 @@ type PackagesMap map[string]map[string]*packageInfo
 
 var packagesMap PackagesMap
 
-func makePackages(repoDir string) {
-	cacheDir := filepath.Join("/var/cache/assimilator/packages")
+func makePackages(appConfig *config.AppConfig) {
+	repoDir := appConfig.RepoDir
+	cacheDir := appConfig.CacheDir
+
 	err := os.MkdirAll(cacheDir, 0750)
 	if err != nil {
 		asslog.Unhandled("error creating /var/cache directory: ", err)
@@ -49,11 +48,11 @@ func makePackages(repoDir string) {
 
 	// Make packages for machine
 	packagesMap["machine"] = make(map[string]*packageInfo)
-	makePackagesFromPath(filepath.Join(repoDir+"/machine"), cacheDir, "machine")
+	makePackagesFromPath(filepath.Join(repoDir, "machine"), filepath.Join(cacheDir, "machine"), "machine")
 
 	// Make packages for user
 	packagesMap["user"] = make(map[string]*packageInfo)
-	makePackagesFromPath(filepath.Join(repoDir+"/user"), cacheDir, "user")
+	makePackagesFromPath(filepath.Join(repoDir, "user"), cacheDir, "user")
 
 }
 
@@ -68,6 +67,7 @@ func makePackagesFromPath(sourceDir string, cacheDir string, category string) {
 			continue
 		}
 
+		// 1. Setup the struct that's used many times throughout this process
 		sourceDir := filepath.Join(sourceDir, entry.Name())
 		pkgInfo := &packageInfo{
 			sourceDir:        sourceDir,
@@ -80,16 +80,29 @@ func makePackagesFromPath(sourceDir string, cacheDir string, category string) {
 			checksumPermPath: filepath.Join(cacheDir, entry.Name()+".tar.gz.sha256"),
 			hostname:         hostname,
 		}
-		err := makeTempPackage(pkgInfo)
+
+		// 2. Create the cache directory
+		err := os.MkdirAll(pkgInfo.cacheDir, 0750)
+		if err != nil {
+			asslog.Unhandled("error creating /var/cache directory: ", err)
+		}
+
+		// 3. Make the temporary package. This will be moved to the permanent location later.
+		err = makeTempPackage(pkgInfo)
 		if err != nil {
 			asslog.Unhandled("error making package: ", err)
 		}
+
+		// 4. Make the checksum from the created package.
 		err = makeTempChecksum(pkgInfo)
 		if err != nil {
 			asslog.Unhandled("error making package: ", err)
 		}
+
+		// 5. Make the permanent package by moving the temporary package to the permanent location.
 		makeTempFilesPermanent(pkgInfo)
 
+		// 6. Add the package to the map so it can be found and referenced later
 		packagesMap[category][pkgInfo.packageName] = pkgInfo
 	}
 }

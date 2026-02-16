@@ -13,9 +13,11 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 		hostname, _ := os.Hostname()
 		return fmt.Errorf("No packages in machine package list. Check config.yaml for %s", hostname)
 	}
-	// if a.appConfig.CacheDir == "" {
-	// 	a.appConfig.CacheDir = "/var/cache/assimilator/packages"
-	// }
+
+	if a.appConfig.CacheDir == "" {
+		Fatal(1, "CacheDir is empty")
+	}
+
 	Debug("Listing machine packages:")
 	for packageName := range packages {
 		Debug("   - ", packageName)
@@ -30,20 +32,17 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 			serverChecksum: packageData.Checksum,
 			path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
 		}
-		Debug("successfully created &packageInfo")
 
 		// 1. Ensure the package exists and is up-to-date
 		if pkg.serverChecksum == "" {
 			Error("package ", pkg.name, " has no server checksum")
 			continue
 		}
-		Debug("Invoking a.ensurePackage(pkg) for ", pkg.name)
 		err := a.ensurePackage(pkg)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
 		}
-		Debug("Machine package ", pkg.name, " is ensured.")
 
 		// 2. Extract package
 		err = a.extractPackage(pkg)
@@ -51,7 +50,6 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 			Error("error extracting machine package: ", err)
 			continue
 		}
-		Debug("Machine package ", pkg.name, " is extracted.")
 
 		// 3. Install package
 		err = a.installMachinePackage(pkg)
@@ -63,11 +61,6 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 	}
 	return nil
 }
-
-// func (a *AgentData) extractMachinePackage(pkgName string, cacheDir string) error {
-// 	destDir := filepath.Join(os.TempDir(), "assimilator", "machine", pkgName)
-// 	return a.extractPackage(destDir, cacheDir)
-// }
 
 func (a *AgentData) installMachinePackage(pkg *packageInfo) error {
 	// 1. Create a predictable temp directory using pkgName

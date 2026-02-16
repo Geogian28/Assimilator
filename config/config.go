@@ -118,6 +118,20 @@ type TomlConfigWrapper struct {
 	Config AppConfig `toml:"config"`
 }
 
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if err == nil {
+		return !info.IsDir()
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	// For other errors (e.g., permission denied), the file
+	// might exist, but we can't access it.
+	// You may want to handle these cases differently based on your application needs.
+	return false
+}
+
 func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
 	var tempStr string
 	// Unmarshall the YAML value into a temporary string variable.
@@ -142,96 +156,85 @@ func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
 }
 
 func ConfigFromFile(appConfig *AppConfig) {
-	// Load configs from /etc/assimilator
-	configFile, err := os.ReadFile("/etc/assimilator/config.toml")
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			Debug("Config file does not exist. Making one.")
-			defaultConfig, err := toml.Marshal(TomlConfigWrapper{
-				Config: *appConfig,
-			})
-			if err != nil {
-				asslog.Unhandled("Error marshalling default config: ", err)
-			}
-			err = os.Mkdir("/etc/assimilator", 0755)
-			if err != nil {
-				switch {
-				case errors.Is(err, os.ErrExist):
-					Trace("Cannot make /etc/assimilator directory. It already exists.")
-				case errors.Is(err, os.ErrPermission):
-					Error("Cannot make /etc/assimilator directory. Try running as root.")
-					return
-				default:
-					asslog.Unhandled("Error creating assimilator directory: ", err)
-				}
-			}
-			err = os.WriteFile("/etc/assimilator/config.toml", []byte(defaultConfig), 0644)
-			if err != nil {
-				switch {
-				case errors.Is(err, os.ErrExist):
-					Trace("Cannot make /etc/assimilator directory. It already exists.")
-				case errors.Is(err, os.ErrPermission):
-					Error("Received permission denied while creating config file. Try running as root.")
-				default:
-					asslog.Unhandled("Error creating config file: ", err)
-				}
-			}
-			err = toml.Unmarshal(defaultConfig, &appConfig)
-			if err != nil {
-				switch err {
-				case os.ErrPermission:
-					Error("Cannot make config file /etc/assimilator/config.toml. Try running as root.")
-				default:
-					Error("Failed to open newly created config file: ", err)
-				}
-			} else {
-			}
-		} else {
-			Error("Failed to open config file: ", err)
-			return
-		}
-
-		// 1. Initialize the wrapper WITH your existing defaults.
-		//    This ensures that any field NOT in the file stays at its default value.
-		wrapper := TomlConfigWrapper{
-			Config: *appConfig,
-		}
-
-		// 2. Unmarshal the file INTO the existing data.
-		//    The unmarshaler acts as a "patch", only updating fields found in the text.
-		err = toml.Unmarshal(configFile, &wrapper)
+	// 1. Ensure folder exists:
+	if !fileExists("/etc/assimilator") {
+		err := os.Mkdir("/etc/assimilator", 0755)
 		if err != nil {
-			Error("Failed to unmarshal config file: ", err)
-		} else {
-			Debug("Loaded config from file.")
-
-			// 3. Update the main config.
-			//    This now contains [Defaults] + [File Overrides]
-			*appConfig = wrapper.Config
+			switch {
+			case errors.Is(err, os.ErrPermission):
+				Error("Cannot make /etc/assimilator directory. Try running as root.")
+				return
+			default:
+				asslog.Unhandled("Error creating assimilator directory: ", err)
+			}
 		}
 	}
 
-	var wrapper TomlConfigWrapper
+	// 2. Ensure file exists
+	if !fileExists("/etc/assimilator/config.toml") {
+		Debug("Config file does not exist. Making one.")
+		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
+			Config: *appConfig,
+		})
+		if err != nil {
+			Unhandled("Error marshalling default config: ", err)
+		}
+		err = os.WriteFile("/etc/assimilator/config.toml", []byte(defaultConfig), 0644)
+		if err != nil {
+			switch {
+			case errors.Is(err, os.ErrPermission):
+				Error("Received permission denied while creating config file. Try running as root.")
+			default:
+				Unhandled("Error creating config file: ", err)
+			}
+		}
+	}
+
+	// Load configs from /etc/assimilator
+	configFile, err := os.ReadFile("/etc/assimilator/config.toml")
+	if err != nil {
+		Error("Failed to open config file: ", err)
+		return
+	}
+
+	// 1. Initialize the wrapper WITH your existing defaults.
+	//    This ensures that any field NOT in the file stays at its default value.
+	wrapper := TomlConfigWrapper{
+		Config: *appConfig,
+	}
+	// 2. Unmarshal the file INTO the existing data.
+	//    The unmarshaler acts as a "patch", only updating fields found in the text.
 	err = toml.Unmarshal(configFile, &wrapper)
 	if err != nil {
 		Error("Failed to unmarshal config file: ", err)
 	} else {
 		Debug("Loaded config from file.")
-		// 1. Temporarily store the compile-time values
-		// Copy the loaded config back into your main appConfig
-		tempVersion := appConfig.Version
-		tempCommit := appConfig.Commit
-		tempBuildDate := appConfig.BuildDate
 
-		// 2. Copy the loaded config back into your main appConfig (this overwrites everything)
+		// 3. Update the main config.
+		//    This now contains [Defaults] + [File Overrides]
 		*appConfig = wrapper.Config
-
-		// 3. Restore the compile-time values
-		appConfig.Version = tempVersion
-		appConfig.Commit = tempCommit
-		appConfig.BuildDate = tempBuildDate
-
 	}
+
+	// var wrapper TomlConfigWrapper
+	// err = toml.Unmarshal(configFile, &wrapper)
+	// if err != nil {
+	// 	Error("Failed to unmarshal config file: ", err)
+	// } else {
+	// 	Debug("Loaded config from file.")
+	// 	// 1. Temporarily store the compile-time values
+	// 	// Copy the loaded config back into your main appConfig
+	// 	tempVersion := appConfig.Version
+	// 	tempCommit := appConfig.Commit
+	// 	tempBuildDate := appConfig.BuildDate
+
+	// 	// 2. Copy the loaded config back into your main appConfig (this overwrites everything)
+	// 	*appConfig = wrapper.Config
+
+	// 	// 3. Restore the compile-time values
+	// 	appConfig.Version = tempVersion
+	// 	appConfig.Commit = tempCommit
+	// 	appConfig.BuildDate = tempBuildDate
+	// }
 }
 
 func ConfigFromEnv(appConfig *AppConfig) {
@@ -312,6 +315,8 @@ func traceAppConfig(appConfig *AppConfig) {
 	Trace("serverPort: ", appConfig.ServerPort)
 	Trace("hostname: ", appConfig.Hostname)
 	Trace("aptSources: ", appConfig.AptSources)
+	Trace("repoDir: ", appConfig.RepoDir)
+	Trace("cacheDir: ", appConfig.CacheDir)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the

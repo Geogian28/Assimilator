@@ -198,7 +198,7 @@ func Server(appConfig *config.AppConfig) {
 	}
 
 	// Make packages for machine and sync them with the desired state
-	makePackages(repoDir)
+	makePackages(appConfig)
 	syncChecksums()
 
 	// Collect checksums (potentially unneeded)
