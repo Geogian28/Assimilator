@@ -23,7 +23,7 @@ var (
 	Info      = asslog.Info
 	Debug     = asslog.Debug
 	Trace     = asslog.Trace
-	Sucess    = asslog.Success
+	Success   = asslog.Success
 	Warning   = asslog.Warning
 	Error     = asslog.Error
 	Fatal     = asslog.Fatal
@@ -36,8 +36,10 @@ type AgentData struct {
 	commandRunner CommandRunner
 }
 
-func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner CommandRunner) error {
-	address := appConfig.ServerIP + ":" + fmt.Sprint(appConfig.ServerPort)
+var agentData *AgentData
+
+func pingServer(ctx context.Context) error {
+	address := agentData.appConfig.ServerIP + ":" + fmt.Sprint(agentData.appConfig.ServerPort)
 	Debug("Attempting to connect to server at ", address)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -45,10 +47,11 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 	}
 	defer conn.Close()
 	client := pb.NewAssimilatorClient(conn)
+	agentData.client = client
 	// Get the machine's config
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	req := &pb.GetSpecificConfigRequest{MachineName: appConfig.Hostname}
+	req := &pb.GetSpecificConfigRequest{MachineName: agentData.appConfig.Hostname}
 	resp, err := client.GetSpecificConfig(ctx, req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -61,25 +64,28 @@ func pingServer(ctx context.Context, appConfig *config.AppConfig, commandRunner 
 	Trace("setting respVersion to ", resp.Version.Version)
 	respVersion, err := version.NewVersion(resp.Version.Version)
 
-	Trace("setting configVersion to ", appConfig.Version)
-	configVersion, _ := version.NewVersion(appConfig.Version)
+	Trace("setting configVersion to ", agentData.appConfig.Version)
+	configVersion, _ := version.NewVersion(agentData.appConfig.Version)
 
 	Trace("comparing ", configVersion, " to ", respVersion)
 	if err == nil && configVersion.LessThan(respVersion) {
-		Info("Version mismatch. Server version: ", respVersion, " Local version: ", appConfig.Version)
+		Info("Version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.Version)
 		Info("Restarting to update...")
 		asslog.Close()
 		os.Exit(0)
 	}
-	Info("Agent version (", appConfig.Version, ") matches server version (", resp.Version.Version, ").")
-
-	Info("Successfully got config for machine: ", req.MachineName)
-	// packages := resp.GetMachine().GetPackages()
-	agent := &AgentData{appConfig: appConfig, client: client, commandRunner: commandRunner}
-	agent.setupMachine(resp.GetMachine().GetPackages())
-	for username, userConfig := range resp.GetUsers() {
-		agent.setupUser(username, userConfig)
+	Info("Agent version (", agentData.appConfig.Version, ") matches server version (", resp.Version.Version, ").")
+	Debug("Length of machine packages: ", len(resp.GetMachine().GetPackages()))
+	if len(resp.GetMachine().GetPackages()) == 0 {
+		Info("No machine packages to install. Double-check config.yaml for ", agentData.appConfig.Hostname)
+		return nil
 	}
+	Info("Successfully got config for machine: ", req.MachineName)
+	agentData.setupMachine(resp.GetMachine().GetPackages())
+	Error("Skipping users for now. Please address before releasing.\n\n")
+	// for username, userConfig := range resp.GetUsers() {
+	// 	agentData.setupUser(username, userConfig)
+	// }
 	return nil
 }
 
@@ -98,6 +104,11 @@ func listenForShutdown(ticker *time.Ticker, done chan bool, cancel context.Cance
 }
 
 func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
+	agentData = &AgentData{
+		appConfig:     appConfig,
+		commandRunner: commandRunner,
+	}
+
 	// First, check for updates
 	// selfupdate.CheckForUpdates(appConfig, commandRunner)
 
@@ -120,6 +131,29 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 	// Create a "done" channel to signal when we want to stop the pinger
 	done := make(chan bool)
 
+	err := pingServer(ctx)
+	if err != nil {
+		errorStatus, ok := status.FromError(err)
+		if ok {
+			switch errorStatus.Code() {
+			case codes.Unavailable:
+				Warning("Assimilator server is unavailable (retrying at the next tick):\n      ", err.Error())
+				// return err
+			case codes.NotFound:
+				Error("Assimilator server could not find this machine's config:\n      ", err.Error())
+				// return err
+			case codes.Canceled:
+				Trace("Assimilator server request was canceled:\n      ", err.Error())
+				// return err
+			default:
+				Error("Assimilator server returned an unexpected error:\n      ", err.Error())
+				// return err
+			}
+		} else {
+			Warning("failed to ping server: ", err)
+		}
+	}
+
 	// Start a goutine to run the pinger
 	go func(ctx context.Context) {
 		Debug("Agent loop started.")
@@ -130,7 +164,7 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 			case <-ticker.C:
 				Trace("tick! ", time.Now())
 				ticker.Stop()
-				err := pingServer(ctx, appConfig, commandRunner)
+				err := pingServer(ctx)
 				if err != nil {
 					errorStatus, ok := status.FromError(err)
 					if ok {
@@ -152,7 +186,7 @@ func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
 						Warning("failed to ping server: ", err)
 					}
 				}
-				ticker = time.NewTicker(10 * time.Second)
+				ticker = time.NewTicker(60 * time.Second)
 			}
 		}
 	}(ctx)

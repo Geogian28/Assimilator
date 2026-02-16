@@ -1,20 +1,11 @@
 package server
 
 import (
-	"archive/tar"
-	"bufio"
-	"compress/gzip"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"io/fs"
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 
 	// Import go-git
@@ -41,12 +32,14 @@ var (
 	Unhandled = asslog.Unhandled
 )
 
+var AppConfig *config.AppConfig
+
 var DesiredState *config.DesiredState
 
 type AssimilatorServer struct {
 	pb.UnimplementedAssimilatorServer
-	RepoDir     string
-	ChecksumMap map[string]string
+	ServerVersion
+	PackageDir string
 }
 
 type ServerVersion struct {
@@ -65,8 +58,15 @@ var ServerVersionInfo *ServerVersion
 // 	}
 // }
 
+type PackageDetails struct {
+	Name     string
+	FilePath string
+	FileSize int64
+}
+
 // Clone the dotfiles repository
 func cloneRepo(appConfig *config.AppConfig, repoDir string, auth *http.BasicAuth) error {
+	AppConfig = appConfig
 	cloneOptions := &git.CloneOptions{
 		URL:      fmt.Sprintf("https://github.com/%s/%s.git", appConfig.GithubUsername, appConfig.GithubRepo),
 		Auth:     auth,
@@ -160,14 +160,6 @@ func cloneOrPullRepo(appConfig *config.AppConfig) (string, error) {
 			}
 		}
 	}
-	// repoDirErr := os.Mkdir(repoDir, 0755)
-	// if repoDirErr != nil {
-	// 	if errors.Is(repoDirErr, os.ErrExist) {
-	// 		Debug(fmt.Sprintf("Repository directory '%s' already exists. Proceeding.", repoDir))
-	// 	} else {
-	// 		asslog.Unhandled("Error making the /tmp/assimilator-repo temp directory: ", repoDirErr)
-	// 	}
-	// }
 
 	// Clone or pull the repository
 	Info("Cloning or pulling repository to ", repoDir)
@@ -188,212 +180,6 @@ func cloneOrPullRepo(appConfig *config.AppConfig) (string, error) {
 	return repoDir, nil
 }
 
-func makePackages(repoDir string) error {
-	Info("Making packages from repository...")
-	packagesFolder := filepath.Join(repoDir + "/packages")
-	os.Mkdir(packagesFolder, 0755)
-
-	// Make packages for machine
-	machineFolder := filepath.Join(repoDir + "/machine")
-	entries, err := os.ReadDir(machineFolder)
-	if err != nil {
-		asslog.Unhandled("error reading machine directory: ", err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		sourceDir := filepath.Join(machineFolder, entry.Name())
-		err = makePackage(sourceDir, packagesFolder)
-		if err != nil {
-			asslog.Unhandled("error making package: ", err)
-		}
-	}
-
-	// Make packages for users
-	userFolder := filepath.Join(repoDir + "/user")
-	entries, err = os.ReadDir(userFolder)
-	if err != nil {
-		asslog.Unhandled("error reading user directory: ", err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		sourceDir := filepath.Join(machineFolder, entry.Name())
-		err = makePackage(sourceDir, packagesFolder)
-		if err != nil {
-			asslog.Unhandled("error making package: ", err)
-		}
-	}
-	return nil
-}
-
-func makePackage(sourceDir string, packageDir string) error {
-	packageName := filepath.Base(sourceDir)
-	Info("Making package: ", packageName)
-	Trace("sourceDir: ", sourceDir)
-	// create the output file (the ".tar.gz" file)
-	hostname, _ := os.Hostname()
-	Trace("hostname: ", hostname)
-	tempPackageFilePath := filepath.Join(packageDir, packageName+".tar.gz."+hostname)
-	Trace("tempPackageFilePath: ", tempPackageFilePath)
-	tempPackageFilePath, err := filepath.Abs(tempPackageFilePath)
-	Trace("absolute packagePath: ", tempPackageFilePath)
-	if err != nil {
-		return fmt.Errorf("error creating absolute package path: %s", err)
-	}
-	tarball, err := os.Create(tempPackageFilePath)
-	if err != nil {
-		return fmt.Errorf("error creating tarball: %s", err)
-	}
-	Trace("created the tarball at ", tempPackageFilePath)
-	// create the compressor
-	gzw := gzip.NewWriter(tarball)
-
-	// 4. Create the tar writer
-	tw := tar.NewWriter(gzw)
-
-	filepath.Walk(sourceDir, func(file string, fi os.FileInfo, err error) error {
-		Trace("filepath.Walk: currently looking at: ", file)
-		// return any error
-		if err != nil {
-			Error("unable to walk directory: ", err)
-			return fmt.Errorf("unable to walk directory: %s", err)
-		}
-
-		// return on non-regular files
-		if !fi.Mode().IsRegular() {
-			return nil
-		}
-
-		// create a new dir/file header
-		header, err := tar.FileInfoHeader(fi, fi.Name())
-		if err != nil {
-			Error("unable to create header: ", err)
-			return fmt.Errorf("unable to create header: %s", err)
-		}
-
-		// update the name to correctly reflect the desired destination when untarring
-		header.Name, err = filepath.Rel(sourceDir, file)
-		if err != nil {
-			Error("unable to get relative path for header.Name: ", err)
-			return fmt.Errorf("unable to get relative path for header.Name: %s", err)
-		}
-
-		// write the header
-		if err := tw.WriteHeader(header); err != nil {
-			Error("unable to write header: ", err)
-			return fmt.Errorf("unable to write header: %s", err)
-		}
-
-		// open files for taring
-		f, err := os.Open(file)
-		if err != nil {
-			Error("unable to open file: ", err)
-			return fmt.Errorf("unable to open file: %s", err)
-		}
-
-		// copy file data into tar writer
-		if _, err := io.Copy(tw, f); err != nil {
-			Error("unable to copy file data: ", err)
-			return fmt.Errorf("unable to copy file data: %s", err)
-		}
-
-		// manually close here after each file operation;
-		// defering would cause each file close operation to wait until all operations have completed.
-		f.Close()
-
-		return nil
-	})
-
-	// Close files to start finishing up
-	tw.Close()
-	gzw.Close()
-	tarball.Close()
-	Trace("closed the tarball for ", packageName)
-
-	// Calculate the SHA256 checksum
-	sha256, err := calculateSha256(tempPackageFilePath)
-	if err != nil {
-		return fmt.Errorf("unable to calculate sha256 for package: %s", err)
-	}
-	tempChecksumPath := filepath.Join(packageDir, packageName+".tar.gz.sha256"+hostname)
-	_, err = os.Create(tempChecksumPath)
-	os.WriteFile(tempChecksumPath, []byte(sha256), 0644)
-
-	// Rename the tarball and checksum
-	finalPackagePath := filepath.Join(packageDir, packageName+".tar.gz")
-	Trace("finalPackagePath: ", finalPackagePath)
-	finalPackagePath, err = filepath.Abs(finalPackagePath)
-	Trace("absolute finalPackagePath: ", finalPackagePath)
-	finalChecksumPath := filepath.Join(packageDir, packageName+".tar.gz.sha256")
-
-	if err != nil {
-		return fmt.Errorf("error creating new absolute package path: %s", err)
-	}
-	err = os.Rename(tempPackageFilePath, finalPackagePath)
-	if err != nil {
-		return fmt.Errorf("error renaming the tarball: %s", err)
-	}
-	err = os.Rename(tempChecksumPath, finalChecksumPath)
-	if err != nil {
-		return fmt.Errorf("error renaming the checksum: %s", err)
-	}
-	Trace("renamed the tarball sucessfully")
-	Success("Package ", packageName, " was created successfully!")
-
-	return nil
-}
-
-func calculateSha256(filePath string) (string, error) {
-	// Open the file
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Calculate the SHA256 checksum
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", fmt.Errorf("failed to copy file content to hash: %w", err)
-	}
-	hashInBytes := hash.Sum(nil)
-	hashString := hex.EncodeToString(hashInBytes)
-	return hashString, nil
-}
-
-func collectChecksums(repoDir string) (map[string]string, error) {
-	checksumMap := make(map[string]string)
-	packageFolder := filepath.Join(repoDir, "packages")
-	filepath.WalkDir(packageFolder, func(path string, info fs.DirEntry, err error) error {
-		if strings.HasSuffix(info.Name(), ".sha256") {
-			// Open the checksum file
-			file, err := os.Open(path)
-			if err != nil {
-				return fmt.Errorf("unable to read file %s: %s", info.Name(), err)
-			}
-
-			// Read the checksum
-			scanner := bufio.NewScanner(file)
-			scanner.Scan()
-			checksum := scanner.Text()
-
-			// Add to map with the package path
-			checksumMap[checksum] = strings.TrimSuffix(path, ".sha256")
-
-			// Close the file
-			file.Close()
-		}
-		return nil
-	})
-	if len(checksumMap) == 0 {
-		return nil, fmt.Errorf("no checksums found in %s", repoDir+"/packages")
-	}
-	return checksumMap, nil
-}
-
 // Start the server
 func Server(appConfig *config.AppConfig) {
 	// Clone or pull the remote repository to the local one
@@ -405,29 +191,21 @@ func Server(appConfig *config.AppConfig) {
 		Info("Repository cloned or pulled successfully")
 	}
 
-	// Make packages for machine
-	err = makePackages(repoDir)
-	if err != nil {
-		asslog.Unhandled("error making packages: ", err)
-	}
-
-	// Collect checksums
-	checksumMap, err := collectChecksums(repoDir)
-	if err != nil {
-		asslog.Unhandled("error collecting checksums: ", err)
-	}
-
 	// Load the desired state
-	if appConfig.TestMode {
-		Debug("test-mode not implemented")
-	}
-
 	DesiredState, err = config.LoadDesiredState(repoDir + "/config.yaml")
 	if err != nil {
 		asslog.Unhandled("unable to load desired state: ", err)
 	}
-	Trace("DesiredState.Machine:")
-	Trace(DesiredState.Machines)
+
+	// Make packages for machine and sync them with the desired state
+	makePackages(repoDir)
+	syncChecksums()
+
+	// Collect checksums (potentially unneeded)
+	// collectChecksums(repoDir)
+	// if err != nil {
+	// 	asslog.Unhandled("error collecting checksums: ", err)
+	// }
 
 	// Start the server
 	address := fmt.Sprintf("%s:%d", appConfig.ServerIP, appConfig.ServerPort)
@@ -435,15 +213,14 @@ func Server(appConfig *config.AppConfig) {
 	if err != nil {
 		asslog.Unhandled("Failed to listen on address", address, ": ", err)
 	}
-	ServerVersionInfo = &ServerVersion{
-		Version:   appConfig.Version,
-		Commit:    appConfig.Commit,
-		BuildDate: appConfig.BuildDate,
-	}
 	s := grpc.NewServer()
 	pb.RegisterAssimilatorServer(s, &AssimilatorServer{
-		RepoDir:     repoDir,
-		ChecksumMap: checksumMap,
+		ServerVersion: ServerVersion{
+			Version:   appConfig.Version,
+			Commit:    appConfig.Commit,
+			BuildDate: appConfig.BuildDate,
+		},
+		PackageDir: "/var/cache/assimilator/packages",
 	})
 	Info("Server listening on at ", lis.Addr())
 

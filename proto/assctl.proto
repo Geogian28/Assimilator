@@ -4,9 +4,9 @@ package assctl;
 
 option go_package = "./assctl";
 
-// --------------------------------------------------------
+// ========================================================
 // THE SERVICE
-// --------------------------------------------------------
+// ========================================================
 
 service Assimilator {
     // This defines a "GetAllConfigs" function that clients can call to get all of the configs.
@@ -19,6 +19,10 @@ service Assimilator {
     rpc DownloadPackage(PackageRequest) returns (stream PackageResponse){}
 }
 
+// ========================================================
+// GetAllConfigs
+// ========================================================
+
 message GetAllConfigsRequest {}
 
 message GetAllConfigsResponse {
@@ -26,101 +30,28 @@ message GetAllConfigsResponse {
     map<string, UserConfig> Users = 2;
 }
 
+// ========================================================
+// GetSpecificConfig
+// ========================================================
+
 message GetSpecificConfigRequest {
     string MachineName  = 1;
 }
 
 message GetSpecificConfigResponse {
     ServerVersion Version = 1;
+    
     MachineConfig Machine = 2;
     map<string, UserConfig> Users = 3;
 }
 
-message ServerVersion {
-  string version = 1;
-  string commit = 2;
-  string build_date = 3;
-}
-
-
-message DesiredState
-{
-    // AppConfig     global    =1;
-    map<string, ConfigProfile> profiles   = 2;
-    map<string, MachineConfig> machines   = 3;
-    map<string, UserConfig>    users      = 4;
-}
-
-// message AppConfig
-// {
-//     bool isServer = 1;
-//     bool isAgent = 2;
-//     bool mAAS = 3;
-//     string githubUsername = 4;
-//     string githubToken = 5;
-//     string githubRepo = 6;
-//     bool testMode = 7;
-//     int32 verbosityLevel = 8;
-//     map<string, PackageMap> packageMap = 9;
-// }
-
-message ConfigProfile
-{
-    map<string, MachineConfig> machines = 1;
-    map<string, UserConfig>    users = 2;
-    // map<string, PackageConfig> packages = 3;
-    // map<string, ServiceConfig> services = 4;
-    // map<string, Dotfiles>      dotfiles = 5;
-}
-
-message MachineConfig
-{
-    repeated string appliedProfiles = 1;
-    map<string, PackageConfig> packages = 2;
-    // map<string, ServiceConfig> services = 3;
-}
-
-message UserConfig
-{
-    repeated string appliedProfiles = 1;
-    map<string, PackageConfig> packages = 2;
-}
-
-// message Dotfiles
-// {
-//     string dotfileLocation = 1;
-//     Dependencies requires = 2;
-// }
-
-// message Dependencies
-// {
-//     map<string, PackageConfig> packages = 1;
-//     map<string, ServiceConfig> files = 2;
-// }
-
-message PackageConfig
-{
-    string state = 1;
-    string version = 2 [json_name = "version,omitempty"];
-    string branch = 3  [json_name = "branch,omitempty"];
-    // map<string, Dependencies> requires = 4 [json_name = "requires,omitempty"];
-    string checksum = 5;
-}
-
-// message PackageMap
-// {
-//     map<string, PackageConfig> packages = 1;
-// }
-
-// message ServiceConfig
-// {
-//     bool state = 1;
-//     map<string, string> config = 2;
-// }
+// ========================================================
+// DownloadPackage
+// ========================================================
 
 message PackageRequest {
-    string PackageName = 1;
-    string PackageChecksum = 2;
+    string Name = 1;
+    string Category = 2;
 }
 
 message PackageResponse {
@@ -133,3 +64,87 @@ message PackageResponse {
     // so the client can initialize a progress bar. It sends 0 for the rest.
     int64 total_size = 2;
 }
+
+// ========================================================
+// Shared Types
+// ========================================================
+
+message DesiredState
+{
+    AppConfig global = 1;
+    map<string, ConfigProfile> profiles   = 2;
+    map<string, MachineConfig> machines   = 3;
+    map<string, UserConfig>    users      = 4;
+}
+
+message ServerVersion {
+  string version = 1;
+  string commit = 2;
+  string build_date = 3;
+}
+
+message AppConfig
+{
+    bool isServer = 1;
+    bool isAgent = 2;
+    bool mAAS = 3;
+    string githubUsername = 4;
+    string githubToken = 5;
+    string githubRepo = 6;
+    bool testMode = 7;
+    int32 verbosityLevel = 8;
+    map<string, PackageMap> packageMap = 9;
+}
+
+message ConfigProfile
+{
+    map<string, MachineConfig> machines = 2;
+    map<string, UserConfig>    users = 3;
+    // map<string, PackageConfig> packages = 3;
+    // map<string, ServiceConfig> services = 4;
+    // map<string, Dotfiles>      dotfiles = 5;
+}
+
+message MachineConfig
+{
+    repeated string appliedProfiles = 1;
+    map<string, PackageConfig> packages = 2;
+    AppConfig config_overrides = 3;
+    // map<string, ServiceConfig> services = 3;
+}
+
+message UserConfig
+{
+    repeated string appliedProfiles = 1;
+    map<string, PackageConfig> packages = 2;
+}
+
+message PackageConfig
+{
+    // Wether the package is installed or uninstalled
+    string state = 1;
+
+    // The version of the package to install
+    string version = 2 [json_name = "version,omitempty"];
+
+    // The branch of the package to install such as prod or dev
+    string branch = 3  [json_name = "branch,omitempty"];
+    // map<string, Dependencies> requires = 4 [json_name = "requires,omitempty"];
+
+    // The checksum of the package
+    string checksum = 5;
+
+    // Any arguments that should be passed to the package during runtime
+    repeated string arguments = 6;
+}
+
+message PackageMap
+{
+    map<string, PackageConfig> packages = 1;
+}
+
+// message ServiceConfig
+// {
+//     bool state = 1;
+//     map<string, string> config = 2;
+// }

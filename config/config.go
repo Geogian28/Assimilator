@@ -35,6 +35,13 @@ var (
 	Unhandled = asslog.Unhandled
 )
 
+type DesiredState struct {
+	Global   AppConfig                `yaml:"global"`
+	Profiles map[string]ConfigProfile `yaml:"profiles"`
+	Machines map[string]MachineConfig `yaml:"machines"`
+	Users    map[string]UserConfig    `yaml:"users"`
+}
+
 type AppConfig struct {
 	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
 	IsAgent         bool                  `toml:"is_agent" env:"ASSIMILATOR_IS_AGENT"`
@@ -57,62 +64,47 @@ type AppConfig struct {
 	BuildDate       string
 	MachineInfo     sysinfo.SysInfo
 	Distro          string
-}
-
-type DesiredState struct {
-	Global   AppConfig                `yaml:"global"`
-	Profiles map[string]ConfigProfile `yaml:"profiles"`
-	Machines map[string]MachineConfig `yaml:"machines"`
-	Users    map[string]UserConfig    `yaml:"users"`
+	CacheDir        string
 }
 
 // Top-level config structure for the entire desired state
+// type ConfigProfile struct {
+// 	Machine MachineConfig `yaml:"machines"`
+// 	Users   UserConfig    `yaml:"users"`
+// 	// Packages map[string]PackageConfig `yaml:"packages"`
+// 	// Services map[string]ServiceConfig `yaml:"services"`
+// 	// Dotfiles map[string]Dotfiles      `yaml:"dotfiles"`
+// }
+
 type ConfigProfile struct {
-	Machines map[string]MachineConfig `yaml:"machines"`
-	Users    map[string]UserConfig    `yaml:"users"`
-	Packages map[string]PackageConfig `yaml:"packages"`
-	// Services map[string]ServiceConfig `yaml:"services"`
-	// Dotfiles map[string]Dotfiles      `yaml:"dotfiles"`
+	MachinePackages map[string]PackageConfig            `yaml:"machines"`
+	UserPackages    map[string]map[string]PackageConfig `yaml:"users"`
 }
 
 type MachineConfig struct {
 	AppliedProfiles []string                 `yaml:"applied_profiles"`
 	Packages        map[string]PackageConfig `yaml:"packages"`
-	// Services        map[string]ServiceConfig `yaml:"services"`
+	Global          AppConfig                `yaml:"global"`
 }
 
 type UserConfig struct {
 	AppliedProfiles []string                 `yaml:"applied_profiles"`
 	Packages        map[string]PackageConfig `yaml:"packages"`
-	// Dotfiles        map[string]Dotfiles `yaml:"dotfiles"`
+	ConfigOverrides AppConfig                `yaml:"config_overrides"`
 }
 
-// type Dotfiles struct {
-// 	DotfileLocation string       `yaml:"location"`
-// 	Requires        Dependencies `yaml:"requires,omitempty"`
-// }
-
-// type Dependencies struct {
-// 	Packages map[string]PackageConfig `yaml:"packages"`
-// 	Files    map[string]ServiceConfig `yaml:"files,omitempty"`
-// }
-
 type PackageConfig struct {
-	State    string `yaml:"state"`
-	Version  string `yaml:"version,omitempty"` // "omitempty" is good practice
-	Branch   string `yaml:"branch,omitempty"`
-	Checksum string `yaml:"checksum,omitempty"`
+	State     string   `yaml:"state"`
+	Version   string   `yaml:"version,omitempty"` // "omitempty" is good practice
+	Branch    string   `yaml:"branch,omitempty"`
+	Checksum  string   `yaml:"checksum,omitempty"`
+	Arguments []string `yaml:"arguments,omitempty"`
 	// Requires map[string]Dependencies `yaml:"requires,omitempty"`
 }
 
 type PackageMap struct {
 	Packages map[string]PackageConfig `yaml:"packages"`
 }
-
-// type ServiceConfig struct {
-// 	State   bool              `yaml:"enable"`
-// 	Configs map[string]string `yaml:"config"`
-// }
 
 type State string
 
@@ -326,6 +318,7 @@ func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfi
 		Version:         version,
 		Commit:          commit,
 		BuildDate:       buildDate,
+		CacheDir:        "/var/cache/assimilator/packages",
 	}
 	Trace("Loading config from file.")
 	ConfigFromFile(&appConfig)
@@ -497,9 +490,9 @@ func applyProfiles(desiredState *DesiredState) {
 				continue
 			}
 
-			if len(profile.Packages) > 0 {
+			if len(profile.MachinePackages) > 0 {
 				Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
-				maps.Copy(mergedPackages, profile.Packages)
+				maps.Copy(mergedPackages, profile.MachinePackages)
 			}
 		}
 
@@ -526,12 +519,13 @@ func applyProfiles(desiredState *DesiredState) {
 				continue
 			}
 
-			if len(profile.Packages) > 0 {
+			if len(profile.UserPackages) > 0 {
 				Trace(fmt.Sprintf(`Copying packages from profile "%s" to user: %s`, profileName, userName))
-				maps.Copy(mergedPackages, profile.Packages)
+				maps.Copy(mergedPackages, profile.UserPackages[userName])
 			}
 		}
 
+		// !!! Potentially buggy !!!
 		if len(userData.Packages) > 0 {
 			Trace(fmt.Sprintf(`Applying specific overrides for user: %s`, userName))
 			maps.Copy(mergedPackages, userData.Packages)

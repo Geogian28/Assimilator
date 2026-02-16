@@ -16,21 +16,28 @@ import (
 )
 
 func (a *AgentData) setupUser(username string, user *pb.UserConfig) error {
-	for packageName, pkg := range user.Packages {
-		// 1. Ensure the package exists and is up-to-date
-		if pkg.Checksum == "" {
-			return fmt.Errorf("package %s has no checksum", packageName)
+	for packageName, packageData := range user.Packages {
+		pkg := &packageInfo{
+			cacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
+			name:           packageName,
+			category:       "machine",
+			localChecksum:  "",
+			serverChecksum: packageData.Checksum,
+			path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
 		}
-		cacheFolder := "/var/cache/assimilator/user"
-		packagePath := filepath.Join(cacheFolder, packageName+".tar.gz")
-		err := a.ensurePackage(packageName, cacheFolder, pkg.Checksum)
+
+		// 1. Ensure the package exists and is up-to-date
+		if pkg.serverChecksum == "" {
+			return fmt.Errorf("package %s has no server checksum", pkg.name)
+		}
+		err := a.ensurePackage(pkg)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
 		}
 
 		// 2. Extract package
-		err = a.extractPackage(packageName, "user", packagePath)
+		err = a.extractPackage(pkg)
 		if err != nil {
 			Error("error installing package: ", err)
 			continue
