@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	pb "github.com/geogian28/Assimilator/proto"
 )
@@ -31,7 +32,10 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 			localChecksum:  "",
 			serverChecksum: packageData.Checksum,
 			path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
+			arguments:      packageData.Arguments,
 		}
+		Trace("packageData.Arguments: ", packageData.Arguments) //packageData.Arguments =
+		Trace("pkg.arguments: ", pkg.arguments)
 
 		// 1. Ensure the package exists and is up-to-date
 		if pkg.serverChecksum == "" {
@@ -86,15 +90,21 @@ func (a *AgentData) installMachinePackage(pkg *packageInfo) error {
 	}
 
 	// 5. Run the install script
+	// Join the arguments array into a space-separated string (e.g. "--unattended --force")
+	Trace("Arguments: ", pkg.arguments)
+	argsString := strings.Join(pkg.arguments, " ")
+	Trace("Args string: ", argsString)
+
 	//    CRITICAL: We construct a command that CD's into the directory first.
 	//    If we just ran `${extractDir}/install.sh`, the script's CWD would be the Agent's CWD,
 	//    and commands like `cp ./.zshrc` would fail.
-	installCmd := fmt.Sprintf("cd %s && ./install.sh", extractDir)
+	installCmd := fmt.Sprintf("cd %s && ./install.sh %s", extractDir, argsString)
+	Trace("installCmd: ", installCmd)
 
 	//    Use sh -c to execute the compound command
-	_, _, err = a.commandRunner.Run("sh", "-c", installCmd)
+	_, stderr, err := a.commandRunner.Run("sh", "-c", installCmd)
 	if err != nil {
-		return fmt.Errorf("install script failed for %s: %w", pkg.name, err)
+		return fmt.Errorf("install script failed for %s: %w: %s", pkg.name, err, stderr)
 	}
 
 	return nil

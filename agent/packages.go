@@ -14,23 +14,18 @@ import (
 )
 
 type packageInfo struct {
-	// the cache directory obtained from appconfig. Usually /var/cache/assimilator/packages
-	cacheDir string
-	// the name of the package, but excluding the .tar.gz extension
-	name string
-	// the category of the package. Ex: machine or user
-	category string
-	// the checksum of the local package file
-	localChecksum string
-	// the checksum of the server's package file
-	serverChecksum string
-	// the path to the local package including the .tar.gz extension
-	path string
+	cacheDir       string   // the cache directory obtained from appconfig. Usually /var/cache/assimilator/packages
+	name           string   // the name of the package, but excluding the .tar.gz extension
+	category       string   // the category of the package. Ex: machine or user
+	localChecksum  string   // the checksum of the local package file
+	serverChecksum string   // the checksum of the server's package file
+	path           string   // the path to the local package including the .tar.gz extension
+	arguments      []string // Any arguments that need to be passed to the package installer
 }
 
 func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 1. Check if the folder exists
-	
+
 	Debug("Checking if package folder exists: ", pkg.cacheDir)
 	if !a.fileExists(pkg.cacheDir) {
 		err := os.MkdirAll(pkg.cacheDir, 0755)
