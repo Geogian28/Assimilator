@@ -102,9 +102,10 @@ func (a *AgentData) installMachinePackage(pkg *packageInfo) error {
 	Trace("installCmd: ", installCmd)
 
 	//    Use sh -c to execute the compound command
-	_, stderr, err := a.commandRunner.Run("sh", "-c", installCmd)
+	stdout, stderr, err := a.commandRunner.Run("sh", "-c", installCmd)
 	if err != nil {
-		return fmt.Errorf("install script failed for %s: %w: %s", pkg.name, err, stderr)
+		Error("install script failed for ", pkg.name, ": ", err, "\n", stdout, "\n", stderr)
+		return fmt.Errorf("install script failed for %s: %s: %s", pkg.name, err, stderr)
 	}
 
 	return nil
