@@ -27,6 +27,11 @@ func (d *FedoraManager) UpdateCache() error {
 		fmt.Println("dnf clean all failed: ", err)
 		return err
 	}
+	_, _, err = d.runner.Run("dnf", "makecache")
+	if err != nil {
+		fmt.Println("dnf clean all failed: ", err)
+		return err
+	}
 	return nil
 }
 
@@ -36,6 +41,7 @@ func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	fmt.Println(assimilatorVersion)
 
 	// Get cache version
 	stdout, stderr, err := d.runner.Run("dnf", "repoquery", "--latest-limit=1", "--qf", "%{version}-%{release}", "assimilator")
@@ -69,7 +75,15 @@ func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
 }
 
 func (d *FedoraManager) InstallUpdate() error {
-	_, _, err := d.runner.Run("dnf", "install", "assimilator", "-y")
+	stdout, stderr, err := d.runner.Run("dnf", "repoquery", "--latest-limit=1", "--qf", "%{version}-%{release}", "assimilator")
+	if err != nil {
+		return fmt.Errorf("dnf list failed to find assimilator: %s", stderr)
+	}
+	if len(stdout) == 0 {
+		return fmt.Errorf("dnf repoquery failed to find assimilator, but did not error out")
+	}
+	version := "assimilator-" + strings.TrimSpace(string(stdout))
+	_, _, err = d.runner.Run("dnf", "install", "assimilator"+version, "-y")
 
 	if err != nil {
 		fmt.Println("Error installing package: ", err)
