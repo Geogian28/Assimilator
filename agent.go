@@ -27,7 +27,7 @@ type AgentData struct {
 var agentData *AgentData
 
 func pingServer(ctx context.Context) error {
-	address := agentData.appConfig.ServerIP + ":" + fmt.Sprint(agentData.appConfig.ServerPort)
+	address := agentData.appConfig.serverIP + ":" + fmt.Sprint(agentData.appConfig.serverPort)
 	Debug("Attempting to connect to server at ", address)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -39,7 +39,7 @@ func pingServer(ctx context.Context) error {
 	// Get the machine's config
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	req := &pb.GetSpecificConfigRequest{MachineName: agentData.appConfig.Hostname}
+	req := &pb.GetSpecificConfigRequest{MachineName: agentData.appConfig.hostname}
 	resp, err := client.GetSpecificConfig(ctx, req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -52,20 +52,20 @@ func pingServer(ctx context.Context) error {
 	Trace("setting respVersion to ", resp.Version.Version)
 	respVersion, err := version.NewVersion(resp.Version.Version)
 
-	Trace("setting configVersion to ", agentData.appConfig.Version)
-	configVersion, _ := version.NewVersion(agentData.appConfig.Version)
+	Trace("setting configVersion to ", agentData.appConfig.version)
+	configVersion, _ := version.NewVersion(agentData.appConfig.version)
 
 	Trace("comparing ", configVersion, " to ", respVersion)
 	if err == nil && configVersion.LessThan(respVersion) {
-		Info("Version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.Version)
+		Info("version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.version)
 		Info("Restarting to update...")
 		asslog.Close()
 		os.Exit(0)
 	}
-	Info("Agent version (", agentData.appConfig.Version, ") matches server version (", resp.Version.Version, ").")
+	Info("Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
 	Debug("Length of machine packages: ", len(resp.GetMachine().GetPackages()))
 	if len(resp.GetMachine().GetPackages()) == 0 {
-		Info("No machine packages to install. Double-check config.yaml for ", agentData.appConfig.Hostname)
+		Info("No machine packages to install. Double-check config.yaml for ", agentData.appConfig.hostname)
 		return nil
 	}
 	Info("Successfully got config for machine: ", req.MachineName)
@@ -101,14 +101,14 @@ func Agent(commandRunner CommandRunner) {
 	// selfupdate.CheckForUpdates(appConfig, commandRunner)
 
 	Info("Agent starting up...")
-	if appConfig.Hostname == "" {
-		if appConfig.MachineInfo.Node.Hostname != "" {
-			appConfig.Hostname = appConfig.MachineInfo.Node.Hostname
+	if appConfig.hostname == "" {
+		if appConfig.machineInfo.Node.Hostname != "" {
+			appConfig.hostname = appConfig.machineInfo.Node.Hostname
 		} else {
-			appConfig.Hostname = "uh-oh"
+			appConfig.hostname = "uh-oh"
 		}
 	}
-	Trace(appConfig.Hostname)
+	Trace(appConfig.hostname)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

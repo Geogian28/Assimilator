@@ -42,7 +42,7 @@ type PackageDetails struct {
 // Clone the dotfiles repository
 func cloneRepo(repoDir string, auth *http.BasicAuth) error {
 	cloneOptions := &git.CloneOptions{
-		URL:      fmt.Sprintf("https://github.com/%s/%s.git", appConfig.GithubUsername, appConfig.GithubRepo),
+		URL:      fmt.Sprintf("https://github.com/%s/%s.git", appConfig.githubUsername, appConfig.githubRepo),
 		Auth:     auth,
 		Progress: asslog.NewLogWriter(),
 	}
@@ -115,11 +115,11 @@ func cloneOrPullRepo() (string, error) {
 	Info("Cloning or pulling repository...")
 	repoDir := appConfig.RepoDir
 	auth := &http.BasicAuth{ // Use BasicAuth for PAT
-		Username: appConfig.GithubUsername,
-		Password: appConfig.GithubToken,
+		Username: appConfig.githubUsername,
+		Password: appConfig.githubToken,
 	}
-	Trace("appConfig.GithubUsername: ", appConfig.GithubUsername)
-	Trace("appConfig.GithubToken: ", appConfig.GithubToken)
+	Trace("appConfig.GithubUsername: ", appConfig.githubUsername)
+	Trace("appConfig.GithubToken: ", appConfig.githubToken)
 
 	// Create the repo temp directory
 	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
@@ -182,7 +182,7 @@ func Server() {
 	// }
 
 	// Start the server
-	address := fmt.Sprintf("%s:%d", appConfig.ServerIP, appConfig.ServerPort)
+	address := fmt.Sprintf("%s:%d", appConfig.serverIP, appConfig.serverPort)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		asslog.Unhandled("Failed to listen on address", address, ": ", err)
@@ -190,9 +190,9 @@ func Server() {
 	s := grpc.NewServer()
 	pb.RegisterAssimilatorServer(s, &AssimilatorServer{
 		ServerVersion: ServerVersion{
-			Version:   appConfig.Version,
-			Commit:    appConfig.Commit,
-			BuildDate: appConfig.BuildDate,
+			Version:   appConfig.version,
+			Commit:    appConfig.commit,
+			BuildDate: appConfig.buildDate,
 		},
 		PackageDir:   "/var/cache/assimilator/packages",
 		desiredState: desiredState,

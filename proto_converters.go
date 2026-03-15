@@ -6,13 +6,13 @@ import (
 
 func toProtoAppConfig(ac AppConfig) *pb.AppConfig {
 	return &pb.AppConfig{
-		IsServer: ac.IsServer, // Maps to bool isServer = 1
-		IsAgent:  ac.IsAgent,  // Maps to bool isAgent = 2
+		IsServer: ac.isServer, // Maps to bool isServer = 1
+		IsAgent:  ac.isAgent,  // Maps to bool isAgent = 2
 		// MAAS:           ac.MAAS,                  // Maps to bool mAAS = 3
-		GithubUsername: ac.GithubUsername,        // Maps to string githubUsername = 4
-		GithubToken:    ac.GithubToken,           // Maps to string githubToken = 5
-		GithubRepo:     ac.GithubRepo,            // Maps to string githubRepo = 6
-		TestMode:       ac.TestMode,              // Maps to bool testMode = 7
+		GithubUsername: ac.githubUsername,        // Maps to string githubUsername = 4
+		GithubToken:    ac.githubToken,           // Maps to string githubToken = 5
+		GithubRepo:     ac.githubRepo,            // Maps to string githubRepo = 6
+		TestMode:       ac.testMode,              // Maps to bool testMode = 7
 		VerbosityLevel: int32(ac.VerbosityLevel), // Maps to int32 verbosityLevel = 8
 
 		// Note: packageMap (tag 9) requires a separate helper function

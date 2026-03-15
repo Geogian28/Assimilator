@@ -36,14 +36,14 @@ func main() {
 		os.Exit(0)
 	}
 	SetupAppConfig(flags)
-	appConfig.Version = appVersion
-	appConfig.Commit = commit
-	appConfig.BuildDate = buildDate
+	appConfig.version = appVersion
+	appConfig.commit = commit
+	appConfig.buildDate = buildDate
 	Trace("Version: ", appVersion)
 	Trace("Commit: ", commit)
 	Trace("Build Date: ", buildDate)
 
-	if appConfig.IsServer {
+	if appConfig.isServer {
 		asslog.Info("Running as server")
 		Server()
 	} else {

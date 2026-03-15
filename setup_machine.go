@@ -15,8 +15,8 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 		return fmt.Errorf("No packages in machine package list. Check config.yaml for %s", hostname)
 	}
 
-	if a.appConfig.CacheDir == "" {
-		Fatal(1, "CacheDir is empty")
+	if a.appConfig.cacheDir == "" {
+		Fatal(1, "cacheDir is empty")
 	}
 
 	Debug("Listing machine packages:")
@@ -26,12 +26,12 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 	for packageName, packageData := range packages {
 		Trace("Installing machine package: ", packageName)
 		pkg := &packageInfo{
-			cacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
+			cacheDir:       filepath.Join(a.appConfig.cacheDir, "machine"),
 			name:           packageName,
 			category:       "machine",
 			localChecksum:  "",
 			serverChecksum: packageData.Checksum,
-			path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
+			path:           filepath.Join(a.appConfig.cacheDir, "machine", packageName+".tar.gz"),
 			arguments:      packageData.Arguments,
 		}
 		Trace("packageData.Arguments: ", packageData.Arguments) //packageData.Arguments =

@@ -38,7 +38,7 @@ var packagesMap PackagesMap
 
 func makePackages() {
 	repoDir := appConfig.RepoDir
-	cacheDir := appConfig.CacheDir
+	cacheDir := appConfig.cacheDir
 
 	err := os.MkdirAll(cacheDir, 0750)
 	if err != nil {
