@@ -38,31 +38,17 @@ func (d *FedoraManager) IsUpdateAvailable() (bool, error) {
 	}
 
 	// Get cache version
-	stdout, stderr, err := d.runner.Run("dnf", "list", "installed", "assimilator", "--refresh")
+	stdout, stderr, err := d.runner.Run("dnf", "repoquery", "--latest-limit=1", "--qf", "%{version}-%{release}", "assimilator")
 	if err != nil {
 		return false, fmt.Errorf("dnf list failed to find assimilator: %s", stderr)
 	}
-	words := strings.Fields(string(stdout))
-	var cacheVersion *version.Version
-	cacheVersion, err = version.NewVersion(words[1])
-	lines := strings.Split((string(stdout)), "\n")
-	if len(lines) == 0 {
-		log.Fatal("Error parsing version: no lines returned")
+	if len(stdout) == 0 {
+		return false, fmt.Errorf("dnf repoquery failed to find assimilator, but did not error out")
 	}
-	for _, line := range lines {
-		if !strings.Contains(line, "assimilator") {
-			continue
-		}
-		fmt.Println("line: ", line)
-		if strings.Contains(line, "Version:") {
-			// Get version
-			versionString := strings.TrimSpace(strings.Split(line, ":")[1])
-			cacheVersion, err = version.NewVersion(versionString)
-			break
-		}
-	}
-	if err != nil || cacheVersion == nil {
-		log.Fatal("Error parsing version: ", err)
+	cachVerisonString := strings.TrimSpace(string(stdout))
+	cacheVersion, err := version.NewVersion(cachVerisonString)
+	if err != nil {
+		return false, fmt.Errorf("error parsing version: %s", err)
 	}
 
 	// Convert to version then compare
