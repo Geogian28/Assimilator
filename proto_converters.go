@@ -1,22 +1,14 @@
-package server
+package main
 
 import (
-
-	// Import go-git
-
-	config "github.com/geogian28/Assimilator/config"
-	// Import go-git
-	// Import go-git
-	// For basic HTTP auth if needed
-
 	pb "github.com/geogian28/Assimilator/proto"
 )
 
-func toProtoAppConfig(ac config.AppConfig) *pb.AppConfig {
+func toProtoAppConfig(ac AppConfig) *pb.AppConfig {
 	return &pb.AppConfig{
-		IsServer:       ac.IsServer,              // Maps to bool isServer = 1
-		IsAgent:        ac.IsAgent,               // Maps to bool isAgent = 2
-		MAAS:           ac.MAAS,                  // Maps to bool mAAS = 3
+		IsServer: ac.IsServer, // Maps to bool isServer = 1
+		IsAgent:  ac.IsAgent,  // Maps to bool isAgent = 2
+		// MAAS:           ac.MAAS,                  // Maps to bool mAAS = 3
 		GithubUsername: ac.GithubUsername,        // Maps to string githubUsername = 4
 		GithubToken:    ac.GithubToken,           // Maps to string githubToken = 5
 		GithubRepo:     ac.GithubRepo,            // Maps to string githubRepo = 6
@@ -36,7 +28,7 @@ func toProtoServerVersion(version *ServerVersion) *pb.ServerVersion {
 	}
 }
 
-// func toProtoDesiredState(DesiredState *config.DesiredState) *pb.DesiredState {
+// func toProtoDesiredState(DesiredState DesiredState) *pb.DesiredState {
 // 	return &pb.DesiredState{ // The 'Config' field of the response
 // 		// Global:   toProtoAppConfig(DesiredState.Global),
 // 		Profiles: toProtoConfigProfileMap(&DesiredState.Profiles),
@@ -65,7 +57,7 @@ func toProtoServerVersion(version *ServerVersion) *pb.ServerVersion {
 // 	return res
 // }
 
-// func toProtoConfigProfile(profile *config.ConfigProfile) *pb.ConfigProfile {
+// func toProtoConfigProfile(profile ConfigProfile) *pb.ConfigProfile {
 // 	return &pb.ConfigProfile{
 // 		Machines: toProtoMachineConfigMap(&profile.Machines),
 // 		Users:    toProtoUserConfigMap(&profile.Users),
@@ -74,7 +66,7 @@ func toProtoServerVersion(version *ServerVersion) *pb.ServerVersion {
 // 	}
 // }
 
-func toProtoPackageConfigMap(packages *map[string]config.PackageConfig) map[string]*pb.PackageConfig {
+func toProtoPackageConfigMap(packages *map[string]PackageConfig) map[string]*pb.PackageConfig {
 	res := make(map[string]*pb.PackageConfig, len(*packages))
 	for packageName, packageConfig := range *packages {
 		res[packageName] = toProtoPackageConfig(&packageConfig)
@@ -82,7 +74,7 @@ func toProtoPackageConfigMap(packages *map[string]config.PackageConfig) map[stri
 	return res
 }
 
-func toProtoPackageConfig(packageConfig *config.PackageConfig) *pb.PackageConfig {
+func toProtoPackageConfig(packageConfig *PackageConfig) *pb.PackageConfig {
 	return &pb.PackageConfig{
 		State:     packageConfig.State,
 		Version:   packageConfig.Version,
@@ -102,7 +94,7 @@ func toProtoPackageConfig(packageConfig *config.PackageConfig) *pb.PackageConfig
 // 	return res
 // }
 
-// func toProtoDependencies(dep *config.Dependencies) *pb.Dependencies {
+// func toProtoDependencies(dep Dependencies) *pb.Dependencies {
 // 	return &pb.Dependencies{
 // 		Packages: toProtoPackageConfigMap(&dep.Packages),
 // 		Files:    toProtoServiceConfigMap(&dep.Files),
@@ -117,22 +109,22 @@ func toProtoPackageConfig(packageConfig *config.PackageConfig) *pb.PackageConfig
 // 	return res
 // }
 
-// func toProtoServiceConfig(serviceConfig *config.ServiceConfig) *pb.ServiceConfig {
+// func toProtoServiceConfig(serviceConfig ServiceConfig) *pb.ServiceConfig {
 // 	return &pb.ServiceConfig{
 // 		State:  serviceConfig.State,
 // 		Config: serviceConfig.Configs,
 // 	}
 // }
 
-func toProtoMachineConfigMap(machines *map[string]config.MachineConfig) map[string]*pb.MachineConfig {
+func toProtoMachineConfigMap(machines *map[string]MachineConfig) map[string]*pb.MachineConfig {
 	res := make(map[string]*pb.MachineConfig, len(*machines))
 	for machineName, machineConfig := range *machines {
-		res[machineName] = toProtoMachineConfig(&machineConfig)
+		res[machineName] = toProtoMachineConfig(machineConfig)
 	}
 	return res
 }
 
-func toProtoMachineConfig(machineConfig *config.MachineConfig) *pb.MachineConfig {
+func toProtoMachineConfig(machineConfig MachineConfig) *pb.MachineConfig {
 	return &pb.MachineConfig{
 		AppliedProfiles: machineConfig.AppliedProfiles,
 		Packages:        toProtoPackageConfigMap(&machineConfig.Packages),
@@ -140,15 +132,15 @@ func toProtoMachineConfig(machineConfig *config.MachineConfig) *pb.MachineConfig
 	}
 }
 
-func toProtoUserConfigMap(users *map[string]config.UserConfig) map[string]*pb.UserConfig {
+func toProtoUserConfigMap(users *map[string]UserConfig) map[string]*pb.UserConfig {
 	res := make(map[string]*pb.UserConfig, len(*users))
 	for userName, userConfig := range *users {
-		res[userName] = toProtoUserConfig(&userConfig)
+		res[userName] = toProtoUserConfig(userConfig)
 	}
 	return res
 }
 
-func toProtoUserConfig(userConfig *config.UserConfig) *pb.UserConfig {
+func toProtoUserConfig(userConfig UserConfig) *pb.UserConfig {
 	return &pb.UserConfig{
 		AppliedProfiles: userConfig.AppliedProfiles,
 		Packages:        toProtoPackageConfigMap(&userConfig.Packages),
@@ -164,7 +156,7 @@ func toProtoUserConfig(userConfig *config.UserConfig) *pb.UserConfig {
 // 	return res
 // }
 
-// func toProtoDotfiles(dotfile *config.Dotfiles) *pb.Dotfiles {
+// func toProtoDotfiles(dotfile Dotfiles) *pb.Dotfiles {
 // 	return &pb.Dotfiles{
 // 		DotfileLocation: dotfile.DotfileLocation,
 // 		Requires:        toProtoDependencies(&dotfile.Requires),

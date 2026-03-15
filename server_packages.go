@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"archive/tar"
@@ -11,10 +11,7 @@ import (
 	"path/filepath"
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
-	config "github.com/geogian28/Assimilator/config"
 )
-
-// checksummap := make(map[string]map[string]PackageDetails)
 
 type packageInfo struct {
 	sourceDir        string
@@ -27,13 +24,19 @@ type packageInfo struct {
 	checksumPermPath string
 	hostname         string
 	size             int64
+	name             string   // the name of the package, but excluding the .tar.gz extension
+	category         string   // the category of the package. Ex: machine or user
+	localChecksum    string   // the checksum of the local package file
+	serverChecksum   string   // the checksum of the server's package file
+	path             string   // the path to the local package including the .tar.gz extension
+	arguments        []string // Any arguments that need to be passed to the package installer
 }
 
 type PackagesMap map[string]map[string]*packageInfo
 
 var packagesMap PackagesMap
 
-func makePackages(appConfig *config.AppConfig) {
+func makePackages() {
 	repoDir := appConfig.RepoDir
 	cacheDir := appConfig.CacheDir
 
@@ -220,72 +223,11 @@ func makeTempFilesPermanent(pkg *packageInfo) {
 	Success("Package ", pkg.packageName, " was created successfully!")
 }
 
-// func collectChecksums(repoDir string) map[string]PackageDetails {
-// 	fmt.Println("collectChecksums: repoDir: ", repoDir)
-// 	checksumMap := make(map[string]PackageDetails)
-// 	packageFolder := filepath.Join(repoDir, "packages")
-// 	filepath.WalkDir(packageFolder, func(pkgFilePath string, pkgFileName fs.DirEntry, err error) error {
-// 		Trace("filepath.WalkDir: currently looking at: ", pkgFilePath)
-// 		if !strings.HasSuffix(pkgFileName.Name(), ".tar.gz") {
-// 			return nil
-// 		}
-// 		packageName := strings.TrimSuffix(pkgFileName.Name(), ".tar.gz")
-// 		// Open and read the checksum file
-// 		checksumFile, err := os.Open(pkgFilePath + ".sha256")
-// 		if err != nil {
-// 			return fmt.Errorf("unable to read file %s: %s", pkgFileName.Name(), err)
-// 		}
-// 		scanner := bufio.NewScanner(checksumFile)
-// 		scanner.Scan()
-// 		checksum := scanner.Text()
-// 		checksumFile.Close()
-
-// 		// Get the package file size
-// 		packageFile, _ := pkgFileName.Info()
-// 		packageSize := packageFile.Size()
-
-// 		// Add to map with the package path
-// 		checksumMap[checksum] = PackageDetails{
-// 			Name:     pkgFileName.Name(),
-// 			FilePath: pkgFilePath,
-// 			FileSize: packageSize,
-// 		}
-// 		Trace("added package to checksum map:")
-// 		Trace("    packageName: ", packageName)
-// 		Trace("    checksum: ", checksum)
-// 		Trace("    filePath: ", pkgFilePath)
-// 		Trace("    fileSize: ", packageSize)
-
-// 		for _, machineConfig := range DesiredState.Machines {
-// 			if _, okay := machineConfig.Packages[packageName]; okay {
-// 				pkg := machineConfig.Packages[packageName]
-// 				pkg.Checksum = checksum
-// 				machineConfig.Packages[packageName] = pkg
-// 				Debug("machineConfig.Packages[", packageName, "].Checksum: ", machineConfig.Packages[packageName].Checksum)
-// 			}
-// 		}
-// 		for _, userConfig := range DesiredState.Users {
-// 			if _, okay := userConfig.Packages[packageName]; okay {
-// 				pkg := userConfig.Packages[packageName]
-// 				pkg.Checksum = checksum
-// 				userConfig.Packages[packageName] = pkg
-// 				Debug("machineConfig.Packages[packageName].Checksum: ", userConfig.Packages[packageName].Checksum)
-// 			}
-// 		}
-// 		return nil
-// 	})
-// 	if len(checksumMap) == 0 {
-// 		Error("No checksums found in ", repoDir+"/packages")
-// 		return nil
-// 	}
-// 	return checksumMap
-// }
-
-func syncChecksums() {
+func syncChecksums(desiredState *DesiredState) {
 	Info("Syncing calculated checksums to DesiredState...")
 
 	// 1. Sync Machine Packages
-	for _, machineConfig := range DesiredState.Machines {
+	for _, machineConfig := range desiredState.Machines {
 		Debug("machineConfig: ", machineConfig)
 		for pkgName, pkgConfig := range machineConfig.Packages {
 			Trace("syncing checksum for machineConfig.Packages[", pkgName, "]")

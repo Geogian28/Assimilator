@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 
 // GetAllConfigs implements AssimilatorService
 func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllConfigsRequest) (*pb.GetAllConfigsResponse, error) {
-	if DesiredState == nil {
+	if s.desiredState == nil {
 		Warning("Agent attempted to get all configs, but Server has not loaded the configuration yet")
 		return nil, fmt.Errorf("server has not loaded the configuration yet")
 	}
 	response := &pb.GetAllConfigsResponse{
-		Machines: toProtoMachineConfigMap(&DesiredState.Machines),
-		Users:    toProtoUserConfigMap(&DesiredState.Users),
+		Machines: toProtoMachineConfigMap(&s.desiredState.Machines),
+		Users:    toProtoUserConfigMap(&s.desiredState.Users),
 	}
 	Info("Returning response to agent.")
 	return response, nil
@@ -29,23 +29,23 @@ func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllCon
 // GetAllConfigs implements AssimilatorService
 func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSpecificConfigRequest) (*pb.GetSpecificConfigResponse, error) {
 	Trace("Agent attempting to get config for machine: ", req.MachineName)
-	if DesiredState == nil {
+	if s.desiredState == nil {
 		Warning("Agent attempted to get a specific config, but Server has not loaded the configuration yet")
 		return nil, fmt.Errorf("server has not loaded the configuration yet")
 	}
-	if len(DesiredState.Machines) == 0 {
+	if len(s.desiredState.Machines) == 0 {
 		Warning("Configs loaded, but there are no machines.")
 		return nil, fmt.Errorf("configs loaded, but there are no machines")
 	}
 	// Trace("Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
-	if machine, okay := DesiredState.Machines[req.MachineName]; okay {
+	if machine, okay := s.desiredState.Machines[req.MachineName]; okay {
 		Trace("Found a machine with name: ", req.MachineName)
 		Info("Returning response to ", req.MachineName, "'s agent.")
 		Trace("")
 		return &pb.GetSpecificConfigResponse{
-			Machine: toProtoMachineConfig(&machine),
+			Machine: toProtoMachineConfig(machine),
 			Version: toProtoServerVersion(&s.ServerVersion),
-			Users:   toProtoUserConfigMap(&DesiredState.Users),
+			Users:   toProtoUserConfigMap(&s.desiredState.Users),
 		}, nil
 	}
 	Debug("Cannot find a machine with name: ", req.MachineName)

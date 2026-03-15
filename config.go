@@ -1,4 +1,4 @@
-package config
+package main
 
 import (
 	"bufio"
@@ -24,17 +24,6 @@ import (
 // 	BuildDate string
 // )
 
-var (
-	Info      = asslog.Info
-	Debug     = asslog.Debug
-	Trace     = asslog.Trace
-	Success   = asslog.Success
-	Warning   = asslog.Warning
-	Error     = asslog.Error
-	Fatal     = asslog.Fatal
-	Unhandled = asslog.Unhandled
-)
-
 type DesiredState struct {
 	Global   AppConfig                `yaml:"global"`
 	Profiles map[string]ConfigProfile `yaml:"profiles"`
@@ -45,7 +34,6 @@ type DesiredState struct {
 type AppConfig struct {
 	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
 	IsAgent         bool                  `toml:"is_agent" env:"ASSIMILATOR_IS_AGENT"`
-	MAAS            bool                  `toml:"maas" env:"ASSIMILATOR_MAAS"`
 	GithubUsername  string                `toml:"github_username" env:"ASSIMILATOR_GITHUB_USERNAME"`
 	GithubToken     string                `toml:"github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
 	GithubRepo      string                `toml:"github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
@@ -57,7 +45,6 @@ type AppConfig struct {
 	ServerIP        string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
 	ServerPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
 	Hostname        string                `toml:"hostname" env:"ASSIMILATOR_HOSTNAME"`
-	AptSources      string                `toml:"apt_sources" env:"ASSIMILATOR_APT_SOURCES"`
 	PackageMap      map[string]PackageMap `yaml:"package_map"`
 	CacheDir        string                `toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
 	Version         string
@@ -67,14 +54,22 @@ type AppConfig struct {
 	Distro          string
 }
 
-// Top-level config structure for the entire desired state
-// type ConfigProfile struct {
-// 	Machine MachineConfig `yaml:"machines"`
-// 	Users   UserConfig    `yaml:"users"`
-// 	// Packages map[string]PackageConfig `yaml:"packages"`
-// 	// Services map[string]ServiceConfig `yaml:"services"`
-// 	// Dotfiles map[string]Dotfiles      `yaml:"dotfiles"`
-// }
+var appConfig = AppConfig{
+	IsAgent:         true,
+	IsServer:        false,
+	GithubUsername:  "",
+	GithubToken:     "",
+	GithubRepo:      "",
+	TestMode:        false,
+	VerbosityLevel:  4,
+	LogTypes:        "console file",
+	LogFileLocation: "/var/log/assimilator.log",
+	RepoDir:         "",
+	ServerIP:        "0.0.0.0",
+	ServerPort:      2390,
+	Hostname:        "",
+	CacheDir:        "/var/cache/assimilator/packages",
+}
 
 type ConfigProfile struct {
 	MachinePackages map[string]PackageConfig            `yaml:"machines"`
@@ -265,9 +260,6 @@ func ConfigFromFlags(appConfig *AppConfig, flags *CliFlags) {
 	if userSetFlags["github_repo"] {
 		appConfig.GithubRepo = flags.GithubRepo
 	}
-	if userSetFlags["maas"] {
-		appConfig.MAAS = flags.Maas
-	}
 	if userSetFlags["test_mode"] {
 		appConfig.TestMode = flags.TestMode
 	}
@@ -292,9 +284,6 @@ func ConfigFromFlags(appConfig *AppConfig, flags *CliFlags) {
 	if userSetFlags["hostname"] {
 		appConfig.Hostname = flags.Hostname
 	}
-	if userSetFlags["apt_sources"] {
-		appConfig.AptSources = flags.AptSources
-	}
 }
 
 func traceAppConfig(appConfig *AppConfig) {
@@ -303,7 +292,6 @@ func traceAppConfig(appConfig *AppConfig) {
 	Trace("githubUsername: ", appConfig.GithubUsername)
 	Trace("githubToken: ", appConfig.GithubToken)
 	Trace("githubRepo: ", appConfig.GithubRepo)
-	Trace("maas: ", appConfig.MAAS)
 	Trace("testMode: ", appConfig.TestMode)
 	Trace("verbosity: ", appConfig.VerbosityLevel)
 	Trace("logTypes: ", appConfig.LogTypes)
@@ -312,35 +300,13 @@ func traceAppConfig(appConfig *AppConfig) {
 	Trace("serverIP: ", appConfig.ServerIP)
 	Trace("serverPort: ", appConfig.ServerPort)
 	Trace("hostname: ", appConfig.Hostname)
-	Trace("aptSources: ", appConfig.AptSources)
 	Trace("repoDir: ", appConfig.RepoDir)
 	Trace("cacheDir: ", appConfig.CacheDir)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
 // corresponding FlagsAndArgs structure.
-func SetupAppConfig(version, commit, buildDate string, flags *CliFlags) AppConfig {
-	appConfig := AppConfig{
-		IsAgent:         false,
-		IsServer:        false,
-		GithubUsername:  "",
-		GithubToken:     "",
-		GithubRepo:      "",
-		MAAS:            false,
-		TestMode:        false,
-		VerbosityLevel:  1,
-		LogTypes:        "console",
-		LogFileLocation: "/etc/assimilator/assimilator.log",
-		RepoDir:         "",
-		ServerIP:        "0.0.0.0",
-		ServerPort:      2390,
-		Hostname:        "",
-		AptSources:      "",
-		Version:         version,
-		Commit:          commit,
-		BuildDate:       buildDate,
-		CacheDir:        "/var/cache/assimilator/packages",
-	}
+func SetupAppConfig(flags *CliFlags) AppConfig {
 	Trace("Loading config from file.")
 	ConfigFromFile(&appConfig)
 	traceAppConfig(&appConfig)
@@ -406,7 +372,6 @@ type CliFlags struct {
 	GithubUsername  string
 	GithubToken     string
 	GithubRepo      string
-	Maas            bool
 	TestMode        bool
 	Verbosity       int
 	LogTypes        string
@@ -415,19 +380,17 @@ type CliFlags struct {
 	ServerIP        string
 	ServerPort      int
 	Hostname        string
-	AptSources      string
 	ShowVersion     bool
 }
 
 func ParseFlags() *CliFlags {
 	flags := &CliFlags{}
 
-	flag.BoolVar(&flags.Agent, "agent", false, "Run as agent")
+	flag.BoolVar(&flags.Agent, "agent", true, "Run as agent")
 	flag.BoolVar(&flags.Server, "server", false, "Run as server")
 	flag.StringVar(&flags.GithubUsername, "github_username", "", "GitHub username")
 	flag.StringVar(&flags.GithubToken, "github_token", "", "GitHub access token")
 	flag.StringVar(&flags.GithubRepo, "github_repo", "", "GitHub repository")
-	flag.BoolVar(&flags.Maas, "maas", false, "Only MAAS should use this flag")
 	flag.BoolVar(&flags.TestMode, "test_mode", false, "Used when testing, do not use in production")
 	flag.IntVar(&flags.Verbosity, "verbosity", 1, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
 	flag.StringVar(&flags.LogTypes, "log_types", "", "Set log output locations (console, file)")
@@ -436,7 +399,6 @@ func ParseFlags() *CliFlags {
 	flag.StringVar(&flags.ServerIP, "server_ip", "0.0.0.0", "Set server IP")
 	flag.IntVar(&flags.ServerPort, "server_port", 2390, "Set server port")
 	flag.StringVar(&flags.Hostname, "hostname", "", "Set hostname of the agent...")
-	flag.StringVar(&flags.AptSources, "apt_sources", "", "Set custom apt sources...")
 	flag.BoolVar(&flags.ShowVersion, "version", false, "Show version information.")
 
 	flag.Parse() // Parse them once all are defined

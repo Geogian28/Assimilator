@@ -1,4 +1,4 @@
-package agent
+package main
 
 import (
 	"context"
@@ -12,16 +12,6 @@ import (
 
 	pb "github.com/geogian28/Assimilator/proto"
 )
-
-type packageInfo struct {
-	cacheDir       string   // the cache directory obtained from appconfig. Usually /var/cache/assimilator/packages
-	name           string   // the name of the package, but excluding the .tar.gz extension
-	category       string   // the category of the package. Ex: machine or user
-	localChecksum  string   // the checksum of the local package file
-	serverChecksum string   // the checksum of the server's package file
-	path           string   // the path to the local package including the .tar.gz extension
-	arguments      []string // Any arguments that need to be passed to the package installer
-}
 
 func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 1. Check if the folder exists

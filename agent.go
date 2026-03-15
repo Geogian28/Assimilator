@@ -1,4 +1,4 @@
-package agent
+package main
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
-	config "github.com/geogian28/Assimilator/config"
 	pb "github.com/geogian28/Assimilator/proto"
 	"github.com/hashicorp/go-version"
 	"google.golang.org/grpc"
@@ -19,19 +18,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	Info      = asslog.Info
-	Debug     = asslog.Debug
-	Trace     = asslog.Trace
-	Success   = asslog.Success
-	Warning   = asslog.Warning
-	Error     = asslog.Error
-	Fatal     = asslog.Fatal
-	Unhandled = asslog.Unhandled
-)
-
 type AgentData struct {
-	appConfig     *config.AppConfig
+	appConfig     *AppConfig
 	client        pb.AssimilatorClient
 	commandRunner CommandRunner
 }
@@ -103,9 +91,9 @@ func listenForShutdown(ticker *time.Ticker, done chan bool, cancel context.Cance
 	done <- true
 }
 
-func Agent(appConfig *config.AppConfig, commandRunner CommandRunner) {
+func Agent(commandRunner CommandRunner) {
 	agentData = &AgentData{
-		appConfig:     appConfig,
+		appConfig:     &appConfig,
 		commandRunner: commandRunner,
 	}
 
