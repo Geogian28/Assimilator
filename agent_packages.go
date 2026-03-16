@@ -16,9 +16,9 @@ import (
 func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 1. Check if the folder exists
 
-	Debug("Checking if package folder exists: ", pkg.cacheDir)
-	if !a.fileExists(pkg.cacheDir) {
-		err := os.MkdirAll(pkg.cacheDir, 0755)
+	Debug("Checking if package folder exists: ", pkg.CacheDir)
+	if !a.fileExists(pkg.CacheDir) {
+		err := os.MkdirAll(pkg.CacheDir, 0755)
 		if err != nil {
 			return fmt.Errorf("failed to create cache folder: %w", err)
 		}

@@ -18,12 +18,12 @@ import (
 func (a *AgentData) setupUser(username string, user *pb.UserConfig) error {
 	for packageName, packageData := range user.Packages {
 		pkg := &packageInfo{
-			cacheDir:       filepath.Join(a.appConfig.cacheDir, "machine"),
+			CacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
 			name:           packageName,
 			category:       "machine",
 			localChecksum:  "",
 			serverChecksum: packageData.Checksum,
-			path:           filepath.Join(a.appConfig.cacheDir, "machine", packageName+".tar.gz"),
+			path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
 		}
 
 		// 1. Ensure the package exists and is up-to-date

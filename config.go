@@ -32,21 +32,21 @@ type DesiredState struct {
 }
 
 type AppConfig struct {
-	isServer        bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
-	isAgent         bool                  `toml:"is_agent" env:"ASSIMILATOR_IS_AGENT"`
-	githubUsername  string                `toml:"github_username" env:"ASSIMILATOR_GITHUB_USERNAME"`
-	githubToken     string                `toml:"github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
-	githubRepo      string                `toml:"github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
+	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
+	IsAgent         bool                  `toml:"is_agent" env:"ASSIMILATOR_IS_AGENT"`
+	GithubUsername  string                `toml:"Github_username" env:"ASSIMILATOR_GITHUB_USERNAME"`
+	GithubToken     string                `toml:"Github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
+	GithubRepo      string                `toml:"Github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
 	testMode        bool                  `toml:"-" env:"ASSIMILATOR_TEST_MODE"`
 	VerbosityLevel  int                   `toml:"verbosity_level" env:"ASSIMILATOR_VERBOSITY_LEVEL"`
 	LogTypes        string                `toml:"log_types" env:"ASSIMILATOR_LOG_TYPES"`
 	LogFileLocation string                `toml:"log_file_location" env:"ASSIMILATOR_LOG_FILE_LOCATION"`
 	RepoDir         string                `toml:"repo_dir" env:"ASSIMILATOR_REPO_DIR"`
-	serverIP        string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
-	serverPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
-	hostname        string                `toml:"hostname" env:"ASSIMILATOR_HOSTNAME"`
+	ServerIP        string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
+	ServerPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
+	Hostname        string                `toml:"Hostname" env:"ASSIMILATOR_HOSTNAME"`
 	packageMap      map[string]PackageMap `toml:"-" yaml:"package_map"`
-	cacheDir        string                `toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
+	CacheDir        string                `toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
 	version         string                `toml:"-"`
 	commit          string                `toml:"-"`
 	buildDate       string                `toml:"-"`
@@ -55,20 +55,20 @@ type AppConfig struct {
 }
 
 var appConfig = AppConfig{
-	isAgent:         true,
-	isServer:        false,
-	githubUsername:  "",
-	githubToken:     "",
-	githubRepo:      "",
+	IsAgent:         false,
+	IsServer:        false,
+	GithubUsername:  "",
+	GithubToken:     "",
+	GithubRepo:      "",
 	testMode:        false,
 	VerbosityLevel:  4,
 	LogTypes:        "console file",
 	LogFileLocation: "/var/log/assimilator.log",
 	RepoDir:         "",
-	serverIP:        "0.0.0.0",
-	serverPort:      2390,
-	hostname:        "",
-	cacheDir:        "/var/cache/assimilator/packages",
+	ServerIP:        "0.0.0.0",
+	ServerPort:      2390,
+	Hostname:        "",
+	CacheDir:        "/var/cache/assimilator/packages",
 }
 
 type ConfigProfile struct {
@@ -150,7 +150,7 @@ func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 }
 
-func ConfigFromFile(appConfig *AppConfig) {
+func ConfigFromFile() {
 	// 1. Ensure folder exists:
 	err := os.MkdirAll("/etc/assimilator", 0755)
 	if err != nil {
@@ -167,7 +167,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 	if !fileExists("/etc/assimilator/config.toml") {
 		Debug("Config file does not exist. Making one.")
 		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
-			Config: *appConfig,
+			Config: appConfig,
 		})
 		if err != nil {
 			Unhandled("Error marshalling default config: ", err)
@@ -193,7 +193,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 	// 1. Initialize the wrapper WITH your existing defaults.
 	//    This ensures that any field NOT in the file stays at its default value.
 	wrapper := TomlConfigWrapper{
-		Config: *appConfig,
+		Config: appConfig,
 	}
 	// 2. Unmarshal the file INTO the existing data.
 	//    The unmarshaler acts as a "patch", only updating fields found in the text.
@@ -205,7 +205,7 @@ func ConfigFromFile(appConfig *AppConfig) {
 
 		// 3. Update the main config.
 		//    This now contains [Defaults] + [File Overrides]
-		*appConfig = wrapper.Config
+		appConfig = wrapper.Config
 	}
 
 	// var wrapper TomlConfigWrapper
@@ -230,13 +230,15 @@ func ConfigFromFile(appConfig *AppConfig) {
 	// }
 }
 
-func ConfigFromEnv(appConfig *AppConfig) {
-	if err := env.Parse(appConfig); err != nil {
+func ConfigFromEnv() {
+	fmt.Println(appConfig.IsServer)
+	if err := env.Parse(&appConfig); err != nil {
 		Error("Failed to parse environment variables: ", err)
 	}
+	fmt.Println(appConfig.IsServer)
 }
 
-func ConfigFromFlags(appConfig *AppConfig, flags *CliFlags) {
+func ConfigFromFlags(flags *CliFlags) {
 
 	// Create a map to know which flags were set by the user.
 	userSetFlags := make(map[string]bool)
@@ -246,19 +248,19 @@ func ConfigFromFlags(appConfig *AppConfig, flags *CliFlags) {
 
 	// Now, conditionally update the config
 	if userSetFlags["server"] {
-		appConfig.isServer = flags.Server
+		appConfig.IsServer = flags.Server
 	}
 	if userSetFlags["agent"] {
-		appConfig.isAgent = flags.Agent
+		appConfig.IsAgent = flags.Agent
 	}
-	if userSetFlags["github_username"] {
-		appConfig.githubUsername = flags.githubUsername
+	if userSetFlags["Github_username"] {
+		appConfig.GithubUsername = flags.GithubUsername
 	}
-	if userSetFlags["github_token"] {
-		appConfig.githubToken = flags.githubToken
+	if userSetFlags["Github_token"] {
+		appConfig.GithubToken = flags.GithubToken
 	}
-	if userSetFlags["github_repo"] {
-		appConfig.githubRepo = flags.githubRepo
+	if userSetFlags["Github_repo"] {
+		appConfig.GithubRepo = flags.GithubRepo
 	}
 	if userSetFlags["test_mode"] {
 		appConfig.testMode = flags.testMode
@@ -276,73 +278,73 @@ func ConfigFromFlags(appConfig *AppConfig, flags *CliFlags) {
 		appConfig.RepoDir = flags.RepoDir
 	}
 	if userSetFlags["server_ip"] {
-		appConfig.serverIP = flags.serverIP
+		appConfig.ServerIP = flags.ServerIP
 	}
 	if userSetFlags["server_port"] {
-		appConfig.serverPort = flags.serverPort
+		appConfig.ServerPort = flags.ServerPort
 	}
-	if userSetFlags["hostname"] {
-		appConfig.hostname = flags.hostname
+	if userSetFlags["Hostname"] {
+		appConfig.Hostname = flags.Hostname
 	}
 }
 
-func traceAppConfig(appConfig *AppConfig) {
-	Trace("agent: ", appConfig.isAgent)
-	Trace("server: ", appConfig.isServer)
-	Trace("githubUsername: ", appConfig.githubUsername)
-	Trace("githubToken: ", appConfig.githubToken)
-	Trace("githubRepo: ", appConfig.githubRepo)
+func traceAppConfig() {
+	Trace("agent: ", appConfig.IsAgent)
+	Trace("server: ", appConfig.IsServer)
+	Trace("GithubUsername: ", appConfig.GithubUsername)
+	Trace("GithubToken: ", appConfig.GithubToken)
+	Trace("GithubRepo: ", appConfig.GithubRepo)
 	Trace("testMode: ", appConfig.testMode)
 	Trace("verbosity: ", appConfig.VerbosityLevel)
 	Trace("logTypes: ", appConfig.LogTypes)
 	Trace("logFileLocation: ", appConfig.LogFileLocation)
 	Trace("repoDir: ", appConfig.RepoDir)
-	Trace("serverIP: ", appConfig.serverIP)
-	Trace("serverPort: ", appConfig.serverPort)
-	Trace("hostname: ", appConfig.hostname)
+	Trace("ServerIP: ", appConfig.ServerIP)
+	Trace("ServerPort: ", appConfig.ServerPort)
+	Trace("Hostname: ", appConfig.Hostname)
 	Trace("repoDir: ", appConfig.RepoDir)
-	Trace("cacheDir: ", appConfig.cacheDir)
+	Trace("CacheDir: ", appConfig.CacheDir)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
 // corresponding FlagsAndArgs structure.
-func SetupAppConfig(flags *CliFlags) AppConfig {
+func SetupAppConfig(flags *CliFlags) {
 	Trace("Loading config from file.")
-	ConfigFromFile(&appConfig)
-	traceAppConfig(&appConfig)
+	ConfigFromFile()
+	traceAppConfig()
 
 	Trace("Loading config from environment.")
-	ConfigFromEnv(&appConfig)
-	traceAppConfig(&appConfig)
+	ConfigFromEnv()
+	traceAppConfig()
 
 	Trace("Loading config from flags.")
-	ConfigFromFlags(&appConfig, flags)
-	traceAppConfig(&appConfig)
+	ConfigFromFlags(flags)
+	traceAppConfig()
 
 	switch {
-	case !appConfig.isServer && !appConfig.isAgent:
+	case !appConfig.IsServer && !appConfig.IsAgent:
 		Fatal(1, "Neither server nor agent flags provided.")
-	case appConfig.isServer && appConfig.isAgent:
+	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
 	// Evaluate server flags
-	case appConfig.isServer:
+	case appConfig.IsServer:
 		switch {
-		case appConfig.githubUsername == "":
+		case appConfig.GithubUsername == "":
 			Fatal(1, "GitHub username not provided.")
-		case appConfig.githubRepo == "":
+		case appConfig.GithubRepo == "":
 			Fatal(1, "GitHub repo not provided.")
-		case appConfig.githubToken == "":
+		case appConfig.GithubToken == "":
 			Fatal(1, "GitHub token not provided.")
 		}
 	// Evaluate agent flags
-	case appConfig.isAgent:
+	case appConfig.IsAgent:
 		switch {
-		case appConfig.serverIP == "":
+		case appConfig.ServerIP == "":
 			Fatal(1, "Server IP not provided.")
-		case appConfig.serverIP == "0.0.0.0":
+		case appConfig.ServerIP == "0.0.0.0":
 			Fatal(1, "0.0.0.0 is not a valid server IP.")
-		case appConfig.serverPort <= 0 ||
-			appConfig.serverPort > 65535:
+		case appConfig.ServerPort <= 0 ||
+			appConfig.ServerPort > 65535:
 			Fatal(1, "Server port must be between 1 and 65535.")
 		}
 	// Evaluate misc flags
@@ -363,23 +365,23 @@ func SetupAppConfig(flags *CliFlags) AppConfig {
 	// Gather machine info
 	gatherMachineInfo(&appConfig)
 
-	return appConfig
+	return
 }
 
 type CliFlags struct {
 	Agent           bool
 	Server          bool
-	githubUsername  string
-	githubToken     string
-	githubRepo      string
+	GithubUsername  string
+	GithubToken     string
+	GithubRepo      string
 	testMode        bool
 	Verbosity       int
 	LogTypes        string
 	LogFileLocation string
 	RepoDir         string
-	serverIP        string
-	serverPort      int
-	hostname        string
+	ServerIP        string
+	ServerPort      int
+	Hostname        string
 	ShowVersion     bool
 }
 
@@ -388,17 +390,17 @@ func ParseFlags() *CliFlags {
 
 	flag.BoolVar(&flags.Agent, "agent", true, "Run as agent")
 	flag.BoolVar(&flags.Server, "server", false, "Run as server")
-	flag.StringVar(&flags.githubUsername, "github_username", "", "GitHub username")
-	flag.StringVar(&flags.githubToken, "github_token", "", "GitHub access token")
-	flag.StringVar(&flags.githubRepo, "github_repo", "", "GitHub repository")
+	flag.StringVar(&flags.GithubUsername, "Github_username", "", "GitHub username")
+	flag.StringVar(&flags.GithubToken, "Github_token", "", "GitHub access token")
+	flag.StringVar(&flags.GithubRepo, "Github_repo", "", "GitHub repository")
 	flag.BoolVar(&flags.testMode, "test_mode", false, "Used when testing, do not use in production")
 	flag.IntVar(&flags.Verbosity, "verbosity", 1, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
 	flag.StringVar(&flags.LogTypes, "log_types", "", "Set log output locations (console, file)")
 	flag.StringVar(&flags.LogFileLocation, "log_file_location", "/var/lib/assimilator/assimilator.log", "Set log file location")
 	flag.StringVar(&flags.RepoDir, "repo_dir", "", "Set repository directory")
-	flag.StringVar(&flags.serverIP, "server_ip", "0.0.0.0", "Set server IP")
-	flag.IntVar(&flags.serverPort, "server_port", 2390, "Set server port")
-	flag.StringVar(&flags.hostname, "hostname", "", "Set hostname of the agent...")
+	flag.StringVar(&flags.ServerIP, "server_ip", "0.0.0.0", "Set server IP")
+	flag.IntVar(&flags.ServerPort, "server_port", 2390, "Set server port")
+	flag.StringVar(&flags.Hostname, "Hostname", "", "Set Hostname of the agent...")
 	flag.BoolVar(&flags.ShowVersion, "version", false, "Show version information.")
 
 	flag.Parse() // Parse them once all are defined

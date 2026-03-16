@@ -15,7 +15,7 @@ import (
 
 type packageInfo struct {
 	sourceDir        string
-	cacheDir         string
+	CacheDir         string
 	packageName      string
 	packageTempPath  string
 	packagePermPath  string
@@ -38,9 +38,9 @@ var packagesMap PackagesMap
 
 func makePackages() {
 	repoDir := appConfig.RepoDir
-	cacheDir := appConfig.cacheDir
+	CacheDir := appConfig.CacheDir
 
-	err := os.MkdirAll(cacheDir, 0750)
+	err := os.MkdirAll(CacheDir, 0750)
 	if err != nil {
 		asslog.Unhandled("error creating /var/cache directory: ", err)
 	}
@@ -51,15 +51,15 @@ func makePackages() {
 
 	// Make packages for machine
 	packagesMap["machine"] = make(map[string]*packageInfo)
-	makePackagesFromPath(filepath.Join(repoDir, "machine"), filepath.Join(cacheDir, "machine"), "machine")
+	makePackagesFromPath(filepath.Join(repoDir, "machine"), filepath.Join(CacheDir, "machine"), "machine")
 
 	// Make packages for user
 	packagesMap["user"] = make(map[string]*packageInfo)
-	makePackagesFromPath(filepath.Join(repoDir, "user"), cacheDir, "user")
+	makePackagesFromPath(filepath.Join(repoDir, "user"), CacheDir, "user")
 
 }
 
-func makePackagesFromPath(sourceDir string, cacheDir string, category string) {
+func makePackagesFromPath(sourceDir string, CacheDir string, category string) {
 	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
 		asslog.Unhandled("error reading machine directory: ", err)
@@ -74,18 +74,18 @@ func makePackagesFromPath(sourceDir string, cacheDir string, category string) {
 		sourceDir := filepath.Join(sourceDir, entry.Name())
 		pkgInfo := &packageInfo{
 			sourceDir:        sourceDir,
-			cacheDir:         cacheDir,
+			CacheDir:         CacheDir,
 			packageName:      entry.Name(),
-			packageTempPath:  filepath.Join(cacheDir, entry.Name()+".tar.gz."+hostname),
-			packagePermPath:  filepath.Join(cacheDir, entry.Name()+".tar.gz"),
+			packageTempPath:  filepath.Join(CacheDir, entry.Name()+".tar.gz."+hostname),
+			packagePermPath:  filepath.Join(CacheDir, entry.Name()+".tar.gz"),
 			checksum:         "",
-			checksumTempPath: filepath.Join(cacheDir, entry.Name()+".tar.gz.sha256"+hostname),
-			checksumPermPath: filepath.Join(cacheDir, entry.Name()+".tar.gz.sha256"),
+			checksumTempPath: filepath.Join(CacheDir, entry.Name()+".tar.gz.sha256"+hostname),
+			checksumPermPath: filepath.Join(CacheDir, entry.Name()+".tar.gz.sha256"),
 			hostname:         hostname,
 		}
 
 		// 2. Create the cache directory
-		err := os.MkdirAll(pkgInfo.cacheDir, 0750)
+		err := os.MkdirAll(pkgInfo.CacheDir, 0750)
 		if err != nil {
 			asslog.Unhandled("error creating /var/cache directory: ", err)
 		}

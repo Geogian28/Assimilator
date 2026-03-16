@@ -27,7 +27,7 @@ type AgentData struct {
 var agentData *AgentData
 
 func pingServer(ctx context.Context) error {
-	address := agentData.appConfig.serverIP + ":" + fmt.Sprint(agentData.appConfig.serverPort)
+	address := agentData.appConfig.ServerIP + ":" + fmt.Sprint(agentData.appConfig.ServerPort)
 	Debug("Attempting to connect to server at ", address)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -39,7 +39,7 @@ func pingServer(ctx context.Context) error {
 	// Get the machine's config
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	req := &pb.GetSpecificConfigRequest{MachineName: agentData.appConfig.hostname}
+	req := &pb.GetSpecificConfigRequest{MachineName: agentData.appConfig.Hostname}
 	resp, err := client.GetSpecificConfig(ctx, req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -65,7 +65,7 @@ func pingServer(ctx context.Context) error {
 	Info("Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
 	Debug("Length of machine packages: ", len(resp.GetMachine().GetPackages()))
 	if len(resp.GetMachine().GetPackages()) == 0 {
-		Info("No machine packages to install. Double-check config.yaml for ", agentData.appConfig.hostname)
+		Info("No machine packages to install. Double-check config.yaml for ", agentData.appConfig.Hostname)
 		return nil
 	}
 	Info("Successfully got config for machine: ", req.MachineName)
@@ -101,14 +101,14 @@ func Agent(commandRunner CommandRunner) {
 	// selfupdate.CheckForUpdates(appConfig, commandRunner)
 
 	Info("Agent starting up...")
-	if appConfig.hostname == "" {
+	if appConfig.Hostname == "" {
 		if appConfig.machineInfo.Node.Hostname != "" {
-			appConfig.hostname = appConfig.machineInfo.Node.Hostname
+			appConfig.Hostname = appConfig.machineInfo.Node.Hostname
 		} else {
-			appConfig.hostname = "uh-oh"
+			appConfig.Hostname = "uh-oh"
 		}
 	}
-	Trace(appConfig.hostname)
+	Trace(appConfig.Hostname)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

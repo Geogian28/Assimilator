@@ -43,7 +43,7 @@ func main() {
 	Trace("Commit: ", commit)
 	Trace("Build Date: ", buildDate)
 
-	if appConfig.isServer {
+	if appConfig.IsServer {
 		asslog.Info("Running as server")
 		Server()
 	} else {
