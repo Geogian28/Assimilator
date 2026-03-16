@@ -364,8 +364,6 @@ func SetupAppConfig(flags *CliFlags) {
 
 	// Gather machine info
 	gatherMachineInfo(&appConfig)
-
-	return
 }
 
 type CliFlags struct {
