@@ -1,13 +1,43 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	pb "github.com/geogian28/Assimilator/proto"
 )
+
+type TicketStatusResponse struct {
+	Status   string `json:"status"`
+	TicketID int    `json:"ticket_id"`
+}
+
+func (a *AgentData) checkTormonStatus(packageName string) (string, int) {
+	client := &http.Client{Timeout: 5 * time.Second}
+	url := fmt.Sprintf("%s/api/status?hostname=%s&package_name=%s", appConfig.TormonAddress, appConfig.Hostname, packageName)
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return "none", 0
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "none", 0
+	}
+
+	var result TicketStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "none", 0
+	}
+
+	return result.Status, result.TicketID
+}
 
 func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 	if len(packages) == 0 {
@@ -25,6 +55,11 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 	}
 	for packageName, packageData := range packages {
 		Trace("Installing machine package: ", packageName)
+		ticketStatus, ticketID := a.checkTormonStatus(packageName)
+		if ticketStatus == "open" {
+			Info(fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon-dev/%d\n", packageName, ticketID))
+			continue
+		}
 		pkg := &packageInfo{
 			CacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
 			name:           packageName,
@@ -102,8 +137,16 @@ func (a *AgentData) installMachinePackage(pkg *packageInfo) error {
 	Trace("installCmd: ", installCmd)
 
 	//    Use sh -c to execute the compound command
-	stdout, stderr, err := a.commandRunner.Run("sh", "-c", installCmd)
+	stdoutBytes, stderrBytes, err := a.commandRunner.Run("sh", "-c", installCmd)
+	stdout := string(stdoutBytes)
+	stderr := string(stderrBytes)
+
 	if err != nil {
+		// Combine the OS error, stdout, and stderr into one highly readable string block
+		fullLog := fmt.Sprintf("[FATAL] Script exited with error: %v\n\n=== STDOUT ===\n%s\n=== STDERR ===\n%s", err, string(stdout), string(stderr))
+
+		// Fire it off to the Tormon dashboard
+		reportToTormon(pkg.name, fullLog)
 		Error("install script failed for ", pkg.name, ": ", err, "\n", stdout, "\n", stderr)
 		return fmt.Errorf("install script failed for %s: %s: %s", pkg.name, err, stderr)
 	}

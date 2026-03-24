@@ -52,6 +52,7 @@ type AppConfig struct {
 	buildDate       string                `toml:"-"`
 	machineInfo     sysinfo.SysInfo       `toml:"-"`
 	distro          string                `toml:"-"`
+	TormonAddress   string                `toml:"-" env:"ASSIMILATOR_TORMON_ADDRESS"`
 }
 
 var appConfig = AppConfig{
@@ -286,6 +287,9 @@ func ConfigFromFlags(flags *CliFlags) {
 	if userSetFlags["Hostname"] {
 		appConfig.Hostname = flags.Hostname
 	}
+	if userSetFlags["tormon_address"] {
+		appConfig.TormonAddress = flags.TormonAddress
+	}
 }
 
 func traceAppConfig() {
@@ -304,6 +308,7 @@ func traceAppConfig() {
 	Trace("Hostname: ", appConfig.Hostname)
 	Trace("repoDir: ", appConfig.RepoDir)
 	Trace("CacheDir: ", appConfig.CacheDir)
+	Trace("TormonAdress: ", appConfig.TormonAddress)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
@@ -381,6 +386,7 @@ type CliFlags struct {
 	ServerPort      int
 	Hostname        string
 	ShowVersion     bool
+	TormonAddress   string
 }
 
 func ParseFlags() *CliFlags {
@@ -400,6 +406,7 @@ func ParseFlags() *CliFlags {
 	flag.IntVar(&flags.ServerPort, "server_port", 2390, "Set server port")
 	flag.StringVar(&flags.Hostname, "Hostname", "", "Set Hostname of the agent...")
 	flag.BoolVar(&flags.ShowVersion, "version", false, "Show version information.")
+	flag.StringVar(&flags.TormonAddress, "tormon_address", "", "If set, sends failures to Tormon")
 
 	flag.Parse() // Parse them once all are defined
 	return flags
