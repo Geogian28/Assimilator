@@ -52,7 +52,7 @@ type AppConfig struct {
 	buildDate       string                `toml:"-"`
 	machineInfo     sysinfo.SysInfo       `toml:"-"`
 	distro          string                `toml:"-"`
-	TormonAddress   string                `toml:"-" env:"ASSIMILATOR_TORMON_ADDRESS"`
+	TormonAddress   string                `toml:"tormon_address" env:"ASSIMILATOR_TORMON_ADDRESS"`
 }
 
 var appConfig = AppConfig{
@@ -70,6 +70,7 @@ var appConfig = AppConfig{
 	ServerPort:      2390,
 	Hostname:        "",
 	CacheDir:        "/var/cache/assimilator/packages",
+	TormonAddress:   "",
 }
 
 type ConfigProfile struct {

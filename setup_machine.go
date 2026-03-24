@@ -57,7 +57,7 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 		Trace("Installing machine package: ", packageName)
 		ticketStatus, ticketID := a.checkTormonStatus(packageName)
 		if ticketStatus == "open" {
-			Info(fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon-dev/%d\n", packageName, ticketID))
+			Info(fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon/%d\n", packageName, ticketID))
 			continue
 		}
 		pkg := &packageInfo{
