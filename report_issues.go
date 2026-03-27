@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -32,10 +32,17 @@ func reportToTormon(packageName, errorMessage string) {
 	// Use a timeout so a downed monitoring server doesn't break your deployments
 	client := &http.Client{Timeout: 5 * time.Second}
 
-	// Point this to your actual Tormon service URL in K3s
-	fmt.Println("appConfig.TormonAddress=", appConfig.TormonAddress)
-	url := appConfig.TormonAddress + "/api/report"
-	Trace("Tormon URL: ", url)
+	url := appConfig.TormonAddress
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		url = "https://" + url + "/api/report"
+	} else {
+		url = url + "/api/report"
+	}
+
+	// Trace("Tormon URL: ", url)
+	// fmt.Println("appConfig.TormonAddress=", appConfig.TormonAddress)
+	// url := appConfig.TormonAddress + "/api/report"
+	// Trace("Tormon URL: ", url)
 
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
