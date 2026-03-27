@@ -19,9 +19,9 @@ import (
 )
 
 // var (
-// 	Version   string = "0.3.11"
-// 	Commit    string
-// 	BuildDate string
+// 	appversion   string = "0.3.11"
+// 	commit    string
+// 	buildDate string
 // )
 
 type DesiredState struct {
