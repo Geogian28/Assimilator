@@ -56,6 +56,7 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 	for packageName, packageData := range packages {
 		Trace("Installing machine package: ", packageName)
 		ticketStatus, ticketID := a.checkTormonStatus(packageName)
+		Trace("packageName : ", packageName, ", ticketStatus: ", ticketStatus, ", ticketID: ", ticketID)
 		var pendingStatus bool
 		switch ticketStatus {
 		case "open":
@@ -64,6 +65,8 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 		case "pending":
 			Info("Tormon asked to retry deployment.")
 			pendingStatus = true
+		case "none":
+			Error("Tormon ticket not found. Continuing anyways deployment of ", packageName)
 		}
 		pkg := &packageInfo{
 			CacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
@@ -96,17 +99,18 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 		}
 
 		// 3. Install package
-		err = a.installMachinePackage(pkg, pendingStatus)
+		err = a.installMachinePackage(pkg, pendingStatus, ticketStatus)
 		if err != nil {
 			Error("error installing machine package: ", err)
 			continue
 		}
+
 		Success("Machine package ", pkg.name, " was installed successfully!")
 	}
 	return nil
 }
 
-func (a *AgentData) installMachinePackage(pkg *packageInfo, pendingStatus bool) error {
+func (a *AgentData) installMachinePackage(pkg *packageInfo, pendingStatus bool, ticketStatus string) error {
 	// 1. Create a predictable temp directory using pkgName
 	//    We use /tmp/assimilator/<pkgName> (e.g. /tmp/assimilator/zsh)
 	extractDir := filepath.Join(os.TempDir(), "assimilator", pkg.name)
@@ -151,7 +155,9 @@ func (a *AgentData) installMachinePackage(pkg *packageInfo, pendingStatus bool) 
 		fullLog := fmt.Sprintf("[FATAL] Script exited with error: %v\n\n=== STDOUT ===\n%s\n=== STDERR ===\n%s", err, string(stdout), string(stderr))
 
 		// Fire it off to the Tormon dashboard
-		reportToTormon(pkg.name, "failure", fullLog)
+		if ticketStatus != "none" {
+			reportToTormon(pkg.name, "failure", fullLog)
+		}
 		Error("install script failed for ", pkg.name, ": ", err, "\n", stdout, "\n", stderr)
 		return fmt.Errorf("install script failed for %s: %s: %s", pkg.name, err, stderr)
 	}
