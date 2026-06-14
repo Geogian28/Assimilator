@@ -10,17 +10,19 @@ import (
 
 // FailureReport must perfectly match the JSON structure Tormon expects
 type FailureReport struct {
-	Hostname    string `json:"hostname"`
-	PackageName string `json:"package_name"`
-	Message     string `json:"message"`
+	Hostname      string `json:"hostname"`
+	PackageName   string `json:"package_name"`
+	InstallStatus string `json:"status"`
+	InstallLog    string `json:"message"`
 }
 
 // ReportFailureToTormon fires an alert to your dashboard
-func reportToTormon(packageName, errorMessage string) {
+func reportToTormon(packageName, installStatus string, installLog string) {
 	report := FailureReport{
-		Hostname:    appConfig.Hostname,
-		PackageName: packageName,
-		Message:     errorMessage,
+		Hostname:      appConfig.Hostname,
+		PackageName:   packageName,
+		InstallStatus: installStatus,
+		InstallLog:    installLog,
 	}
 
 	payload, err := json.Marshal(report)
