@@ -3,8 +3,6 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -12,25 +10,6 @@ import (
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
 )
-
-type packageInfo struct {
-	sourceDir        string
-	CacheDir         string
-	packageName      string
-	packageTempPath  string
-	packagePermPath  string
-	checksum         string
-	checksumTempPath string
-	checksumPermPath string
-	hostname         string
-	size             int64
-	name             string   // the name of the package, but excluding the .tar.gz extension
-	category         string   // the category of the package. Ex: machine or user
-	localChecksum    string   // the checksum of the local package file
-	serverChecksum   string   // the checksum of the server's package file
-	path             string   // the path to the local package including the .tar.gz extension
-	arguments        []string // Any arguments that need to be passed to the package installer
-}
 
 type PackagesMap map[string]map[string]*packageInfo
 
@@ -192,12 +171,10 @@ func makeTempChecksum(pkg *packageInfo) error {
 	defer file.Close()
 
 	// Calculate the SHA256 checksum
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return fmt.Errorf("failed to copy file content to hash: %w", err)
+	err = pkg.calculateChecksum()
+	if err != nil {
+		return fmt.Errorf("failed to calculate checksum: %w", err)
 	}
-	hashInBytes := hash.Sum(nil)
-	pkg.checksum = hex.EncodeToString(hashInBytes)
 
 	// Get the filesize while we're in here
 	fileStat, _ := file.Stat()

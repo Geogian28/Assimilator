@@ -21,7 +21,7 @@ func (a *AgentData) setupUser(username string, user *pb.UserConfig) error {
 			CacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
 			name:           packageName,
 			category:       "machine",
-			localChecksum:  "",
+			checksum:       "",
 			serverChecksum: packageData.Checksum,
 			path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
 		}

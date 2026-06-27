@@ -20,7 +20,7 @@ func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllCon
 	}
 	response := &pb.GetAllConfigsResponse{
 		Machines: toProtoMachineConfigMap(&s.desiredState.Machines),
-		Users:    toProtoUserConfigMap(&s.desiredState.Users),
+		// Users:    toProtoUserConfigMap(&s.desiredState.Users),
 	}
 	Info("Returning response to agent.")
 	return response, nil
@@ -43,9 +43,11 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 		Info("Returning response to ", req.MachineName, "'s agent.")
 		Trace("")
 		return &pb.GetSpecificConfigResponse{
-			Machine: toProtoMachineConfig(machine),
-			Version: toProtoServerVersion(&s.ServerVersion),
-			Users:   toProtoUserConfigMap(&s.desiredState.Users),
+			AppliedProfiles: machine.AppliedProfiles,
+			Packages:        toProtoPackageConfigMap(&machine.Packages),
+			ConfigOverrides: toProtoAppConfig(machine.Global),
+			Version:         toProtoServerVersion(&s.ServerVersion),
+			// Users:   toProtoUserConfigMap(&s.desiredState.Users),
 		}, nil
 	}
 	Debug("Cannot find a machine with name: ", req.MachineName)

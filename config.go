@@ -25,10 +25,9 @@ import (
 // )
 
 type DesiredState struct {
-	Global   AppConfig                `yaml:"global"`
-	Profiles map[string]ConfigProfile `yaml:"profiles"`
+	Profiles map[string]ProfileConfig `yaml:"profiles"`
 	Machines map[string]MachineConfig `yaml:"machines"`
-	Users    map[string]UserConfig    `yaml:"users"`
+	// Users    map[string]UserConfig    `yaml:"users"`
 }
 
 type AppConfig struct {
@@ -37,6 +36,7 @@ type AppConfig struct {
 	GithubUsername  string                `toml:"Github_username" env:"ASSIMILATOR_GITHUB_USERNAME"`
 	GithubToken     string                `toml:"Github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
 	GithubRepo      string                `toml:"Github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
+	GithubBranch    string                `toml:"Github_branch" env:"ASSIMILATOR_GITHUB_BRANCH"`
 	testMode        bool                  `toml:"-" env:"ASSIMILATOR_TEST_MODE"`
 	VerbosityLevel  int                   `toml:"verbosity_level" env:"ASSIMILATOR_VERBOSITY_LEVEL"`
 	LogTypes        string                `toml:"log_types" env:"ASSIMILATOR_LOG_TYPES"`
@@ -53,6 +53,7 @@ type AppConfig struct {
 	machineInfo     sysinfo.SysInfo       `toml:"-"`
 	distro          string                `toml:"-"`
 	TormonAddress   string                `toml:"tormon_address" env:"ASSIMILATOR_TORMON_ADDRESS"`
+	ConfigFilename  string                `toml:"-" env:"ASSIMILATOR_CONFIG_FILENAME"`
 }
 
 var appConfig = AppConfig{
@@ -61,6 +62,7 @@ var appConfig = AppConfig{
 	GithubUsername:  "",
 	GithubToken:     "",
 	GithubRepo:      "",
+	GithubBranch:    "master",
 	testMode:        false,
 	VerbosityLevel:  4,
 	LogTypes:        "console file",
@@ -71,44 +73,50 @@ var appConfig = AppConfig{
 	Hostname:        "",
 	CacheDir:        "/var/cache/assimilator/packages",
 	TormonAddress:   "",
+	ConfigFilename:  "",
 }
 
-type ConfigProfile struct {
-	MachinePackages map[string]PackageConfig            `yaml:"machines"`
-	UserPackages    map[string]map[string]PackageConfig `yaml:"users"`
+// type ConfigProfile struct {
+// 	MachinePackages map[string]PackageConfig `yaml:"machines"`
+// 	// UserPackages    map[string]map[string]PackageConfig `yaml:"users"`
+// }
+
+type ProfileConfig struct {
+	AppConfig AppConfig                `yaml:"app_config"`
+	Packages  map[string]PackageConfig `yaml:"packages"`
 }
 
 type MachineConfig struct {
+	Global          AppConfig                `yaml:"app_config"`
+	AppliedConfig   string                   `yaml:"applied_config"`
 	AppliedProfiles []string                 `yaml:"applied_profiles"`
 	Packages        map[string]PackageConfig `yaml:"packages"`
-	Global          AppConfig                `yaml:"global"`
 }
 
-type UserConfig struct {
-	AppliedProfiles []string                 `yaml:"applied_profiles"`
-	Packages        map[string]PackageConfig `yaml:"packages"`
-	ConfigOverrides AppConfig                `yaml:"config_overrides"`
-}
+// type UserConfig struct {
+// 	AppliedProfiles []string                 `yaml:"applied_profiles"`
+// 	Packages        map[string]PackageConfig `yaml:"packages"`
+// 	ConfigOverrides AppConfig                `yaml:"config_overrides"`
+// }
 
 type PackageConfig struct {
-	State     string   `yaml:"state"`
-	Version   string   `yaml:"version,omitempty"` // "omitempty" is good practice
-	Branch    string   `yaml:"branch,omitempty"`
-	Checksum  string   `yaml:"checksum,omitempty"`
-	Arguments []string `yaml:"arguments,omitempty"`
+	Action    PackageAction `yaml:"action"`
+	Version   string        `yaml:"version,omitempty"` // "omitempty" is good practice
+	Branch    string        `yaml:"branch,omitempty"`
+	Checksum  string        `yaml:"checksum,omitempty"`
+	Arguments []string      `yaml:"arguments,omitempty"`
+	RunAsUser []string      `yaml:"run_as_user,omitempty"`
 	// Requires map[string]Dependencies `yaml:"requires,omitempty"`
+}
+
+type PackageAction struct {
+	Action    string
+	RunAsUser string
 }
 
 type PackageMap struct {
 	Packages map[string]PackageConfig `yaml:"packages"`
 }
-
-type State string
-
-const (
-	StatePresent State = "present"
-	StateAbsent  State = "absent"
-)
 
 // This new struct will create the [config] table
 type TomlConfigWrapper struct {
@@ -129,28 +137,28 @@ func fileExists(filename string) bool {
 	return false
 }
 
-func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
-	var tempStr string
-	// Unmarshall the YAML value into a temporary string variable.
-	if err := unmarshal(&tempStr); err != nil {
-		return err
-	}
+// func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
+// 	var tempStr string
+// 	// Unmarshall the YAML value into a temporary string variable.
+// 	if err := unmarshal(&tempStr); err != nil {
+// 		return err
+// 	}
 
-	// Create a new DesiredState from the string.
-	state := State(tempStr)
+// 	// Create a new DesiredState from the string.
+// 	state := State(tempStr)
 
-	// Check if the value is one of our defined constants.
-	switch state {
-	case StatePresent, StateAbsent:
-		// If it's valid, update the poinwer receiver
-		*s = state
-		return nil
-	default:
-		// If it's not a valid state, return an error.
-		return fmt.Errorf("invalid package state: %q, must be one of [%q, %q]",
-			tempStr, StatePresent, StateAbsent)
-	}
-}
+// 	// Check if the value is one of our defined constants.
+// 	switch state {
+// 	case StatePresent, StateAbsent:
+// 		// If it's valid, update the poinwer receiver
+// 		*s = state
+// 		return nil
+// 	default:
+// 		// If it's not a valid state, return an error.
+// 		return fmt.Errorf("invalid package state: %q, must be one of [%q, %q]",
+// 			tempStr, StatePresent, StateAbsent)
+// 	}
+// }
 
 func ConfigFromFile() {
 	// 1. Ensure folder exists:
@@ -291,6 +299,9 @@ func ConfigFromFlags(flags *CliFlags) {
 	if userSetFlags["tormon_address"] {
 		appConfig.TormonAddress = flags.TormonAddress
 	}
+	if userSetFlags["config_filename"] {
+		appConfig.CacheDir = flags.ConfigFilename
+	}
 }
 
 func traceAppConfig() {
@@ -310,6 +321,7 @@ func traceAppConfig() {
 	Trace("repoDir: ", appConfig.RepoDir)
 	Trace("CacheDir: ", appConfig.CacheDir)
 	Trace("TormonAdress: ", appConfig.TormonAddress)
+	Trace("ConfigFilename: ", appConfig.ConfigFilename)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
@@ -353,7 +365,14 @@ func SetupAppConfig(flags *CliFlags) {
 			appConfig.ServerPort > 65535:
 			Fatal(1, "Server port must be between 1 and 65535.")
 		}
-	// Evaluate misc flags
+		// Evaluate misc flags
+		if appConfig.Hostname == "" {
+			var err error
+			appConfig.Hostname, err = os.Hostname()
+			if err != nil {
+				Fatal(1, "Failed to get hostname from os.Hostname(): ", err)
+			}
+		}
 	case appConfig.testMode && appConfig.RepoDir == "":
 		Trace("Test mode enabled, but repo directory not provided")
 		Trace(`Setting repodir to "/tmp/assimilator-repo"`)
@@ -362,6 +381,8 @@ func SetupAppConfig(flags *CliFlags) {
 		Fatal(1, "Repository directory not provided.")
 	case appConfig.VerbosityLevel < 0:
 		appConfig.VerbosityLevel = 0
+	case appConfig.CacheDir == "":
+		Fatal(1, "CacheDir is not set")
 	default:
 		Success("Configuration loaded successfully.")
 	}
@@ -378,6 +399,7 @@ type CliFlags struct {
 	GithubUsername  string
 	GithubToken     string
 	GithubRepo      string
+	GithubBranch    string
 	testMode        bool
 	Verbosity       int
 	LogTypes        string
@@ -388,6 +410,7 @@ type CliFlags struct {
 	Hostname        string
 	ShowVersion     bool
 	TormonAddress   string
+	ConfigFilename  string
 }
 
 func ParseFlags() *CliFlags {
@@ -398,6 +421,7 @@ func ParseFlags() *CliFlags {
 	flag.StringVar(&flags.GithubUsername, "Github_username", "", "GitHub username")
 	flag.StringVar(&flags.GithubToken, "Github_token", "", "GitHub access token")
 	flag.StringVar(&flags.GithubRepo, "Github_repo", "", "GitHub repository")
+	flag.StringVar(&flags.GithubBranch, "Github_branch", "master", "GitHub branch. Useful for dev environments. Defaults to 'master'")
 	flag.BoolVar(&flags.testMode, "test_mode", false, "Used when testing, do not use in production")
 	flag.IntVar(&flags.Verbosity, "verbosity", 1, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
 	flag.StringVar(&flags.LogTypes, "log_types", "", "Set log output locations (console, file)")
@@ -408,6 +432,7 @@ func ParseFlags() *CliFlags {
 	flag.StringVar(&flags.Hostname, "Hostname", "", "Set Hostname of the agent...")
 	flag.BoolVar(&flags.ShowVersion, "version", false, "Show version information.")
 	flag.StringVar(&flags.TormonAddress, "tormon_address", "", "If set, sends failures to Tormon")
+	flag.StringVar(&flags.ConfigFilename, "config_filename", "", "Set the config filename. Defaults to config.yaml")
 
 	flag.Parse() // Parse them once all are defined
 	return flags
@@ -481,9 +506,9 @@ func applyProfiles(desiredState *DesiredState) {
 				continue
 			}
 
-			if len(profile.MachinePackages) > 0 {
+			if len(profile.Packages) > 0 {
 				Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
-				maps.Copy(mergedPackages, profile.MachinePackages)
+				maps.Copy(mergedPackages, profile.Packages)
 			}
 		}
 
@@ -500,31 +525,31 @@ func applyProfiles(desiredState *DesiredState) {
 	// 2. USERS LOOP
 	// Take "applied_profiles" from users and apply the actual profiles to users
 	// -----------------------------------------------------------------------
-	for userName, userData := range desiredState.Users {
-		mergedPackages := make(map[string]PackageConfig)
+	// for userName, userData := range desiredState.Users {
+	// 	mergedPackages := make(map[string]PackageConfig)
 
-		for _, profileName := range userData.AppliedProfiles {
-			profile, ok := desiredState.Profiles[profileName]
-			if !ok {
-				Error("Profile not found: ", profileName)
-				continue
-			}
+	// 	for _, profileName := range userData.AppliedProfiles {
+	// 		profile, ok := desiredState.Profiles[profileName]
+	// 		if !ok {
+	// 			Error("Profile not found: ", profileName)
+	// 			continue
+	// 		}
 
-			if len(profile.UserPackages) > 0 {
-				Trace(fmt.Sprintf(`Copying packages from profile "%s" to user: %s`, profileName, userName))
-				maps.Copy(mergedPackages, profile.UserPackages[userName])
-			}
-		}
+	// 		if len(profile.UserPackages) > 0 {
+	// 			Trace(fmt.Sprintf(`Copying packages from profile "%s" to user: %s`, profileName, userName))
+	// 			maps.Copy(mergedPackages, profile.UserPackages[userName])
+	// 		}
+	// 	}
 
-		// !!! Potentially buggy !!!
-		if len(userData.Packages) > 0 {
-			Trace(fmt.Sprintf(`Applying specific overrides for user: %s`, userName))
-			maps.Copy(mergedPackages, userData.Packages)
-		}
+	// 	// !!! Potentially buggy !!!
+	// 	if len(userData.Packages) > 0 {
+	// 		Trace(fmt.Sprintf(`Applying specific overrides for user: %s`, userName))
+	// 		maps.Copy(mergedPackages, userData.Packages)
+	// 	}
 
-		userData.Packages = mergedPackages
-		desiredState.Users[userName] = userData
-	}
+	// 	userData.Packages = mergedPackages
+	// 	desiredState.Users[userName] = userData
+	// }
 }
 
 func gatherMachineInfo(appConfig *AppConfig) {

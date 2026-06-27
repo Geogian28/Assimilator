@@ -40,9 +40,12 @@ message GetSpecificConfigRequest {
 
 message GetSpecificConfigResponse {
     ServerVersion Version = 1;
-    
-    MachineConfig Machine = 2;
-    map<string, UserConfig> Users = 3;
+    // MachineConfig Machine = 2;
+    // map<string, UserConfig> Users = 3;
+    repeated string appliedProfiles = 4;
+    map<string, PackageConfig> packages = 5;
+    AppConfig config_overrides = 6;
+    string applied_config = 7;
 }
 
 // ========================================================
@@ -110,7 +113,7 @@ message MachineConfig
     repeated string appliedProfiles = 1;
     map<string, PackageConfig> packages = 2;
     AppConfig config_overrides = 3;
-    // map<string, ServiceConfig> services = 3;
+    string applied_config = 4;
 }
 
 message UserConfig
@@ -136,6 +139,9 @@ message PackageConfig
 
     // Any arguments that should be passed to the package during runtime
     repeated string arguments = 6;
+
+    // The user to run the package as
+    repeated string runasuser = 7;
 }
 
 message PackageMap

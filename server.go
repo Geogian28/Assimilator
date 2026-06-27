@@ -10,7 +10,8 @@ import (
 
 	// Import go-git
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
-	"github.com/go-git/go-git/v5"                    // Import go-git
+	"github.com/go-git/go-git/v5" // Import go-git
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport" // Import go-git
 	"google.golang.org/grpc"
 
@@ -41,10 +42,18 @@ type PackageDetails struct {
 
 // Clone the dotfiles repository
 func cloneRepo(repoDir string, auth *http.BasicAuth) error {
+	targetBranch := appConfig.GithubBranch
+	if targetBranch == "" {
+		targetBranch = "main"
+	}
+
 	cloneOptions := &git.CloneOptions{
-		URL:      fmt.Sprintf("https://Github.com/%s/%s.git", appConfig.GithubUsername, appConfig.GithubRepo),
-		Auth:     auth,
-		Progress: asslog.NewLogWriter(),
+		URL:           fmt.Sprintf("https://Github.com/%s/%s.git", appConfig.GithubUsername, appConfig.GithubRepo),
+		Auth:          auth,
+		Progress:      asslog.NewLogWriter(),
+		SingleBranch:  true,
+		ReferenceName: plumbing.NewBranchReferenceName(targetBranch),
+		Depth:         1,
 	}
 	Debug(cloneOptions)
 	_, err := git.PlainClone(repoDir, false, cloneOptions)

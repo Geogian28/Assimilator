@@ -154,12 +154,16 @@ func (x *GetSpecificConfigRequest) GetMachineName() string {
 }
 
 type GetSpecificConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Version       *ServerVersion         `protobuf:"bytes,1,opt,name=Version,proto3" json:"Version,omitempty"`
-	Machine       *MachineConfig         `protobuf:"bytes,2,opt,name=Machine,proto3" json:"Machine,omitempty"`
-	Users         map[string]*UserConfig `protobuf:"bytes,3,rep,name=Users,proto3" json:"Users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Version *ServerVersion         `protobuf:"bytes,1,opt,name=Version,proto3" json:"Version,omitempty"`
+	// MachineConfig Machine = 2;
+	// map<string, UserConfig> Users = 3;
+	AppliedProfiles []string                  `protobuf:"bytes,4,rep,name=appliedProfiles,proto3" json:"appliedProfiles,omitempty"`
+	Packages        map[string]*PackageConfig `protobuf:"bytes,5,rep,name=packages,proto3" json:"packages,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ConfigOverrides *AppConfig                `protobuf:"bytes,6,opt,name=config_overrides,json=configOverrides,proto3" json:"config_overrides,omitempty"`
+	AppliedConfig   string                    `protobuf:"bytes,7,opt,name=applied_config,json=appliedConfig,proto3" json:"applied_config,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetSpecificConfigResponse) Reset() {
@@ -199,18 +203,32 @@ func (x *GetSpecificConfigResponse) GetVersion() *ServerVersion {
 	return nil
 }
 
-func (x *GetSpecificConfigResponse) GetMachine() *MachineConfig {
+func (x *GetSpecificConfigResponse) GetAppliedProfiles() []string {
 	if x != nil {
-		return x.Machine
+		return x.AppliedProfiles
 	}
 	return nil
 }
 
-func (x *GetSpecificConfigResponse) GetUsers() map[string]*UserConfig {
+func (x *GetSpecificConfigResponse) GetPackages() map[string]*PackageConfig {
 	if x != nil {
-		return x.Users
+		return x.Packages
 	}
 	return nil
+}
+
+func (x *GetSpecificConfigResponse) GetConfigOverrides() *AppConfig {
+	if x != nil {
+		return x.ConfigOverrides
+	}
+	return nil
+}
+
+func (x *GetSpecificConfigResponse) GetAppliedConfig() string {
+	if x != nil {
+		return x.AppliedConfig
+	}
+	return ""
 }
 
 type PackageRequest struct {
@@ -614,7 +632,8 @@ type MachineConfig struct {
 	state           protoimpl.MessageState    `protogen:"open.v1"`
 	AppliedProfiles []string                  `protobuf:"bytes,1,rep,name=appliedProfiles,proto3" json:"appliedProfiles,omitempty"`
 	Packages        map[string]*PackageConfig `protobuf:"bytes,2,rep,name=packages,proto3" json:"packages,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ConfigOverrides *AppConfig                `protobuf:"bytes,3,opt,name=config_overrides,json=configOverrides,proto3" json:"config_overrides,omitempty"` // map<string, ServiceConfig> services = 3;
+	ConfigOverrides *AppConfig                `protobuf:"bytes,3,opt,name=config_overrides,json=configOverrides,proto3" json:"config_overrides,omitempty"`
+	AppliedConfig   string                    `protobuf:"bytes,4,opt,name=applied_config,json=appliedConfig,proto3" json:"applied_config,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -668,6 +687,13 @@ func (x *MachineConfig) GetConfigOverrides() *AppConfig {
 		return x.ConfigOverrides
 	}
 	return nil
+}
+
+func (x *MachineConfig) GetAppliedConfig() string {
+	if x != nil {
+		return x.AppliedConfig
+	}
+	return ""
 }
 
 type UserConfig struct {
@@ -733,7 +759,9 @@ type PackageConfig struct {
 	// The checksum of the package
 	Checksum string `protobuf:"bytes,5,opt,name=checksum,proto3" json:"checksum,omitempty"`
 	// Any arguments that should be passed to the package during runtime
-	Arguments     []string `protobuf:"bytes,6,rep,name=arguments,proto3" json:"arguments,omitempty"`
+	Arguments []string `protobuf:"bytes,6,rep,name=arguments,proto3" json:"arguments,omitempty"`
+	// The user to run the package as
+	Runasuser     []string `protobuf:"bytes,7,rep,name=runasuser,proto3" json:"runasuser,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -803,6 +831,13 @@ func (x *PackageConfig) GetArguments() []string {
 	return nil
 }
 
+func (x *PackageConfig) GetRunasuser() []string {
+	if x != nil {
+		return x.Runasuser
+	}
+	return nil
+}
+
 type PackageMap struct {
 	state         protoimpl.MessageState    `protogen:"open.v1"`
 	Packages      map[string]*PackageConfig `protobuf:"bytes,1,rep,name=packages,proto3" json:"packages,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -864,15 +899,16 @@ const file_assctl_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
 	"\x05value\x18\x02 \x01(\v2\x12.assctl.UserConfigR\x05value:\x028\x01\"<\n" +
 	"\x18GetSpecificConfigRequest\x12 \n" +
-	"\vMachineName\x18\x01 \x01(\tR\vMachineName\"\x8f\x02\n" +
+	"\vMachineName\x18\x01 \x01(\tR\vMachineName\"\xfc\x02\n" +
 	"\x19GetSpecificConfigResponse\x12/\n" +
-	"\aVersion\x18\x01 \x01(\v2\x15.assctl.ServerVersionR\aVersion\x12/\n" +
-	"\aMachine\x18\x02 \x01(\v2\x15.assctl.MachineConfigR\aMachine\x12B\n" +
-	"\x05Users\x18\x03 \x03(\v2,.assctl.GetSpecificConfigResponse.UsersEntryR\x05Users\x1aL\n" +
-	"\n" +
-	"UsersEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.assctl.UserConfigR\x05value:\x028\x01\"@\n" +
+	"\aVersion\x18\x01 \x01(\v2\x15.assctl.ServerVersionR\aVersion\x12(\n" +
+	"\x0fappliedProfiles\x18\x04 \x03(\tR\x0fappliedProfiles\x12K\n" +
+	"\bpackages\x18\x05 \x03(\v2/.assctl.GetSpecificConfigResponse.PackagesEntryR\bpackages\x12<\n" +
+	"\x10config_overrides\x18\x06 \x01(\v2\x11.assctl.AppConfigR\x0fconfigOverrides\x12%\n" +
+	"\x0eapplied_config\x18\a \x01(\tR\rappliedConfig\x1aR\n" +
+	"\rPackagesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.assctl.PackageConfigR\x05value:\x028\x01\"@\n" +
 	"\x0ePackageRequest\x12\x12\n" +
 	"\x04Name\x18\x01 \x01(\tR\x04Name\x12\x1a\n" +
 	"\bCategory\x18\x02 \x01(\tR\bCategory\"J\n" +
@@ -926,11 +962,12 @@ const file_assctl_proto_rawDesc = "" +
 	"\n" +
 	"UsersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.assctl.UserConfigR\x05value:\x028\x01\"\x8c\x02\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.assctl.UserConfigR\x05value:\x028\x01\"\xb3\x02\n" +
 	"\rMachineConfig\x12(\n" +
 	"\x0fappliedProfiles\x18\x01 \x03(\tR\x0fappliedProfiles\x12?\n" +
 	"\bpackages\x18\x02 \x03(\v2#.assctl.MachineConfig.PackagesEntryR\bpackages\x12<\n" +
-	"\x10config_overrides\x18\x03 \x01(\v2\x11.assctl.AppConfigR\x0fconfigOverrides\x1aR\n" +
+	"\x10config_overrides\x18\x03 \x01(\v2\x11.assctl.AppConfigR\x0fconfigOverrides\x12%\n" +
+	"\x0eapplied_config\x18\x04 \x01(\tR\rappliedConfig\x1aR\n" +
 	"\rPackagesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
 	"\x05value\x18\x02 \x01(\v2\x15.assctl.PackageConfigR\x05value:\x028\x01\"\xc8\x01\n" +
@@ -940,13 +977,14 @@ const file_assctl_proto_rawDesc = "" +
 	"\bpackages\x18\x02 \x03(\v2 .assctl.UserConfig.PackagesEntryR\bpackages\x1aR\n" +
 	"\rPackagesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.assctl.PackageConfigR\x05value:\x028\x01\"\xa5\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.assctl.PackageConfigR\x05value:\x028\x01\"\xc3\x01\n" +
 	"\rPackageConfig\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12\"\n" +
 	"\aversion\x18\x02 \x01(\tR\x11version,omitempty\x12 \n" +
 	"\x06branch\x18\x03 \x01(\tR\x10branch,omitempty\x12\x1a\n" +
 	"\bchecksum\x18\x05 \x01(\tR\bchecksum\x12\x1c\n" +
-	"\targuments\x18\x06 \x03(\tR\targuments\"\x9e\x01\n" +
+	"\targuments\x18\x06 \x03(\tR\targuments\x12\x1c\n" +
+	"\trunasuser\x18\a \x03(\tR\trunasuser\"\x9e\x01\n" +
 	"\n" +
 	"PackageMap\x12<\n" +
 	"\bpackages\x18\x01 \x03(\v2 .assctl.PackageMap.PackagesEntryR\bpackages\x1aR\n" +
@@ -989,7 +1027,7 @@ var file_assctl_proto_goTypes = []any{
 	(*PackageMap)(nil),                // 13: assctl.PackageMap
 	nil,                               // 14: assctl.GetAllConfigsResponse.MachinesEntry
 	nil,                               // 15: assctl.GetAllConfigsResponse.UsersEntry
-	nil,                               // 16: assctl.GetSpecificConfigResponse.UsersEntry
+	nil,                               // 16: assctl.GetSpecificConfigResponse.PackagesEntry
 	nil,                               // 17: assctl.DesiredState.ProfilesEntry
 	nil,                               // 18: assctl.DesiredState.MachinesEntry
 	nil,                               // 19: assctl.DesiredState.UsersEntry
@@ -1004,8 +1042,8 @@ var file_assctl_proto_depIdxs = []int32{
 	14, // 0: assctl.GetAllConfigsResponse.Machines:type_name -> assctl.GetAllConfigsResponse.MachinesEntry
 	15, // 1: assctl.GetAllConfigsResponse.Users:type_name -> assctl.GetAllConfigsResponse.UsersEntry
 	7,  // 2: assctl.GetSpecificConfigResponse.Version:type_name -> assctl.ServerVersion
-	10, // 3: assctl.GetSpecificConfigResponse.Machine:type_name -> assctl.MachineConfig
-	16, // 4: assctl.GetSpecificConfigResponse.Users:type_name -> assctl.GetSpecificConfigResponse.UsersEntry
+	16, // 3: assctl.GetSpecificConfigResponse.packages:type_name -> assctl.GetSpecificConfigResponse.PackagesEntry
+	8,  // 4: assctl.GetSpecificConfigResponse.config_overrides:type_name -> assctl.AppConfig
 	8,  // 5: assctl.DesiredState.global:type_name -> assctl.AppConfig
 	17, // 6: assctl.DesiredState.profiles:type_name -> assctl.DesiredState.ProfilesEntry
 	18, // 7: assctl.DesiredState.machines:type_name -> assctl.DesiredState.MachinesEntry
@@ -1019,7 +1057,7 @@ var file_assctl_proto_depIdxs = []int32{
 	25, // 15: assctl.PackageMap.packages:type_name -> assctl.PackageMap.PackagesEntry
 	10, // 16: assctl.GetAllConfigsResponse.MachinesEntry.value:type_name -> assctl.MachineConfig
 	11, // 17: assctl.GetAllConfigsResponse.UsersEntry.value:type_name -> assctl.UserConfig
-	11, // 18: assctl.GetSpecificConfigResponse.UsersEntry.value:type_name -> assctl.UserConfig
+	12, // 18: assctl.GetSpecificConfigResponse.PackagesEntry.value:type_name -> assctl.PackageConfig
 	9,  // 19: assctl.DesiredState.ProfilesEntry.value:type_name -> assctl.ConfigProfile
 	10, // 20: assctl.DesiredState.MachinesEntry.value:type_name -> assctl.MachineConfig
 	11, // 21: assctl.DesiredState.UsersEntry.value:type_name -> assctl.UserConfig

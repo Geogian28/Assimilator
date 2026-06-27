@@ -2,16 +2,32 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 
 	pb "github.com/geogian28/Assimilator/proto"
 )
+
+// A single, unified function handles the entire lifecycle
+func (a *AgentData) ProcessPackages(pkg *packageInfo) error {
+	pkg.ticketStatus, pkg.ticketID = a.checkTormonStatus(pkg.name)
+
+	if err := a.ensurePackage(pkg); err != nil {
+		return err
+	}
+	if err := a.extractPackage(pkg); err != nil {
+		return err
+	}
+	return a.executeInstallScript(pkg)
+}
 
 func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 1. Check if the folder exists
@@ -27,18 +43,17 @@ func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 2. Check if we have the file and if it matches the server
 	Debug("Checking if package file exists: ", pkg.path)
 	if a.fileExists(pkg.path) {
-		err := a.calculateSha256(pkg)
+		err := pkg.calculateChecksum()
 		if err != nil {
 			return err
 		}
-		if pkg.localChecksum == pkg.serverChecksum {
+		if pkg.checksum == pkg.serverChecksum {
 			Debug("Package ", pkg.name, " checksums match.")
 			return nil
 		}
 	}
 
-	// 3. If we are here, we either don't have it, or it's old.
-	// DOWNLOAD IT.
+	// 3. If we are here, we either don't have it or it's old. Download it
 	Debug("Downloading package: ", pkg.name)
 	err := a.downloadPackage(pkg)
 	if err != nil {
@@ -61,24 +76,6 @@ func (a *AgentData) fileExists(filename string) bool {
 	// might exist, but we can't access it.
 	// You may want to handle these cases differently based on your application needs.
 	return false
-}
-
-func (a *AgentData) calculateSha256(pkg *packageInfo) error {
-	// Open the file
-	file, err := os.Open(pkg.path)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Calculate the SHA256 checksum
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return fmt.Errorf("failed to copy file content to hash: %w", err)
-	}
-	hashInBytes := hash.Sum(nil)
-	pkg.localChecksum = hex.EncodeToString(hashInBytes)
-	return nil
 }
 
 func (a *AgentData) downloadPackage(pkg *packageInfo) error {
@@ -141,6 +138,8 @@ func (a *AgentData) downloadPackage(pkg *packageInfo) error {
 }
 
 func (a *AgentData) extractPackage(pkg *packageInfo) error {
+	// 1. Create a predictable temp directory using pkgName
+	//    We use /tmp/assimilator/<pkgName> (e.g. /tmp/assimilator/zsh)
 	extractDir := filepath.Join(os.TempDir(), "assimilator", pkg.category, pkg.name)
 
 	// 1. Clean up any previous run to ensure a fresh slate
@@ -155,5 +154,148 @@ func (a *AgentData) extractPackage(pkg *packageInfo) error {
 	if err != nil {
 		return fmt.Errorf("failed to extract %s: %w", pkg.name, err)
 	}
+	pkg.extractDir = extractDir
 	return nil
+}
+
+func (a *AgentData) executeInstallScript(pkg *packageInfo) error {
+	// 1. Ensure the script is executable
+	if err := os.Chmod(filepath.Join(pkg.extractDir, "install.sh"), 0755); err != nil {
+		return fmt.Errorf("failed to make script executable: %w", err)
+	}
+
+	// 2. Run the install script
+	// Join the arguments array into a space-separated string (e.g. "--unattended --force")
+	Trace("Arguments: ", pkg.arguments)
+	argsString := strings.Join(pkg.arguments, " ")
+	Trace("Args string: ", argsString)
+
+	// If the user didnt specify a runAsUser, default to root, then look it up
+	if pkg.runAsUser == "" {
+		pkg.runAsUser = "root"
+	}
+	userData, uid, gid, err := userLookup(pkg.runAsUser)
+
+	cmd := exec.Command("/bin/bash", pkg.extractDir)
+	cmd.Dir = pkg.extractDir
+	cmd.Env = append(
+		[]string{
+			fmt.Sprintf("HOME=%s", userData.HomeDir),
+			fmt.Sprintf("USER=%s", userData.Username),
+			fmt.Sprintf("ASSIMILATOR_HOME=%s", userData.HomeDir),
+			fmt.Sprintf("ASSIMILATOR_USER=%s", userData.Username),
+			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		},
+		pkg.env...,
+	)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uid,
+			Gid: gid,
+		},
+	}
+
+	// Only drop privileges if the target user is NOT root
+
+	err = cmd.Run()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// Retrieve the actual exit status code (e.g., 1, 127, 2)
+			code := exitErr.ExitCode()
+			fmt.Printf("Script failed with exit code: %d\n", code)
+		} else {
+			// The system couldn't even start the script
+			fmt.Printf("Failed to start script: %v\n", err)
+		}
+	} else {
+		Debug(string(output))
+	}
+	// stdoutBytes, stderrBytes, err := a.commandRunner.Run("sh", "-c", installCmd)
+	// stdout := string(stdoutBytes)
+	// stderr := string(stderrBytes)
+
+	// if err != nil {
+	// 	// Combine the OS error, stdout, and stderr into one highly readable string block
+	// 	fullLog := fmt.Sprintf("[FATAL] Script exited with error: %v\n\n=== STDOUT ===\n%s\n=== STDERR ===\n%s", err, string(stdout), string(stderr))
+
+	// 	// Fire it off to the Tormon dashboard
+	// 	if ticketStatus != "none" {
+	// 		reportToTormon(pkg.name, "failure", fullLog)
+	// 	}
+	// 	Error("install script failed for ", pkg.name, ": ", err, "\n", stdout, "\n", stderr)
+	// 	return fmt.Errorf("install script failed for %s: %s: %s", pkg.name, err, stderr)
+	// }
+	// if pendingStatus {
+	// 	fullLog := fmt.Sprintf("[SUCCESS] Script install succeeded!\n\n=== STDOUT ===\n%s", string(stdout))
+	// 	reportToTormon(pkg.name, "success", fullLog)
+	// }
+	return nil
+}
+
+// func (a *AgentData) installUserPackage(pkgName string, username string) error {
+// 	// // 1. Check if user exists and get their details
+// 	// targetUser, err := user.Lookup(username)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("user %s not found: %w", username, err)
+// 	// }
+// 	// uid, err := strconv.ParseUint(targetUser.Uid, 10, 32)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("failed to parse UID for %s: %w", username, err)
+// 	// }
+// 	// gid, err := strconv.ParseUint(targetUser.Gid, 10, 32)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("failed to parse GID for %s: %w", username, err)
+// 	// }
+
+// 	// 2. Set the extract variable
+// 	extractDir := filepath.Join(os.TempDir(), "assimilator", username, pkgName)
+
+// 	// 3. Prepare the command
+// 	scriptPath := filepath.Join(extractDir, "install.sh")
+// 	cmd := exec.Command("/bin/bash", scriptPath)
+
+// 	// 4. Prepare the environment
+// 	cmd.Env = []string{
+// 		fmt.Sprintf("HOME=%s", targetUser.HomeDir),
+// 		fmt.Sprintf("USER=%s", targetUser.Username),
+// 		fmt.Sprintf("ASSIMILATOR_HOME=%s", targetUser.HomeDir),
+// 		fmt.Sprintf("ASSIMILATOR_USER=%s", targetUser.Username),
+// 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", // Basic path
+// 	}
+
+// 	// 5. Set the working directory
+// 	cmd.Dir = extractDir
+
+// 	// 6. Set the user
+// 	cmd.SysProcAttr = &syscall.SysProcAttr{
+// 		Credential: &syscall.Credential{
+// 			Uid: uint32(uid),
+// 			Gid: uint32(gid),
+// 		},
+// 	}
+
+// 	// 7. Run
+// 	output, err := cmd.CombinedOutput()
+// 	if err != nil {
+// 		return fmt.Errorf("install failed for %s: %s", pkgName, string(output))
+// 	}
+
+// 	return nil
+// }
+
+func userLookup(username string) (*user.User, uint32, uint32, error) {
+	targetUser, err := user.Lookup(username)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("user %s not found: %w", username, err)
+	}
+	uid, err := strconv.ParseUint(targetUser.Uid, 10, 32)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("failed to parse UID for %s: %w", username, err)
+	}
+	gid, err := strconv.ParseUint(targetUser.Gid, 10, 32)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("failed to parse GID for %s: %w", username, err)
+	}
+	return targetUser, uint32(uid), uint32(gid), nil
 }

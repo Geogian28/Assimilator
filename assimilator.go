@@ -24,6 +24,11 @@ var (
 	Unhandled = asslog.Unhandled
 )
 
+// TODO
+//	- allow one-offs
+//		- assimilator install <package name>
+//	- allow not needing to be run as root
+
 func main() {
 	asslog.StartLogger()
 	defer asslog.Close()

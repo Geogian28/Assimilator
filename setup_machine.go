@@ -35,7 +35,7 @@ func (a *AgentData) checkTormonStatus(packageName string) (string, int) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "none", 0
 	}
-
+	Trace("packageName : ", packageName, ", ticketStatus: ", result.Status, ", ticketID: ", result.TicketID)
 	return result.Status, result.TicketID
 }
 
@@ -46,7 +46,7 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 	}
 
 	if a.appConfig.CacheDir == "" {
-		Fatal(1, "CacheDir is empty")
+		Fatal(1, "CacheDir is not set")
 	}
 
 	Debug("Listing machine packages:")
@@ -72,7 +72,7 @@ func (a *AgentData) setupMachine(packages map[string]*pb.PackageConfig) error {
 			CacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
 			name:           packageName,
 			category:       "machine",
-			localChecksum:  "",
+			checksum:       "",
 			serverChecksum: packageData.Checksum,
 			path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
 			arguments:      packageData.Arguments,
