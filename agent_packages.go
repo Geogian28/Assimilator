@@ -43,7 +43,8 @@ func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 2. Check if we have the file and if it matches the server
 	Debug("Checking if package file exists: ", pkg.path)
 	if a.fileExists(pkg.path) {
-		err := pkg.calculateChecksum()
+		var err error
+		pkg.checksum, err = calculateChecksum(pkg.path)
 		if err != nil {
 			return err
 		}
@@ -57,7 +58,7 @@ func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	Debug("Downloading package: ", pkg.name)
 	err := a.downloadPackage(pkg)
 	if err != nil {
-		Debug("Error downloading package: ", err)
+		Error("Error downloading package: ", err)
 		return fmt.Errorf("error downloading %s package: %s", pkg.name, err)
 	}
 	Debug("Downloaded package ", pkg.name, " successfully.")
@@ -108,12 +109,12 @@ func (a *AgentData) downloadPackage(pkg *packageInfo) error {
 	for {
 		chunk, err := stream.Recv()
 		if err == io.EOF {
-			Debug("Received EOF")
+			Trace("Received EOF")
 			// End of stream means success
 			break
 		}
 		if err != nil {
-			Debug("stream error while downloading", err)
+			Error("stream error while downloading", err)
 			return fmt.Errorf("stream error while downloading %s: %w", pkg.name, err)
 		}
 		Debug("no 'io.EOF' or stream errors")
@@ -160,7 +161,7 @@ func (a *AgentData) extractPackage(pkg *packageInfo) error {
 
 func (a *AgentData) executeInstallScript(pkg *packageInfo) error {
 	// 1. Ensure the script is executable
-	if err := os.Chmod(filepath.Join(pkg.extractDir, "install.sh"), 0755); err != nil {
+	if err := os.Chmod(filepath.Join(pkg.extractDir, fmt.Sprintf("%s.sh", pkg.action)), 0755); err != nil {
 		return fmt.Errorf("failed to make script executable: %w", err)
 	}
 
@@ -176,7 +177,7 @@ func (a *AgentData) executeInstallScript(pkg *packageInfo) error {
 	}
 	userData, uid, gid, err := userLookup(pkg.runAsUser)
 
-	cmd := exec.Command("/bin/bash", pkg.extractDir)
+	cmd := exec.Command("/bin/bash", pkg.extractDir+"/"+fmt.Sprintf("%s.sh", pkg.action), argsString)
 	cmd.Dir = pkg.extractDir
 	cmd.Env = append(
 		[]string{
@@ -196,21 +197,22 @@ func (a *AgentData) executeInstallScript(pkg *packageInfo) error {
 	}
 
 	// Only drop privileges if the target user is NOT root
-
-	err = cmd.Run()
+	Trace("Running script ", "/tmp/assimilator/"+pkg.category+"/"+pkg.name+"/"+fmt.Sprintf("%s.sh", pkg.action), " as user:", pkg.runAsUser)
+	// err = cmd.Run()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			// Retrieve the actual exit status code (e.g., 1, 127, 2)
 			code := exitErr.ExitCode()
-			fmt.Printf("Script failed with exit code: %d\n", code)
+			Error("Script failed with exit code:", code)
 		} else {
 			// The system couldn't even start the script
-			fmt.Printf("Failed to start script: %v\n", err)
+			Error("Failed to start script: %v\n", err)
 		}
 	} else {
-		Debug(string(output))
+		Success("Script ", "/tmp/assimilator/"+pkg.category+"/"+pkg.name+"/"+fmt.Sprintf("%s.sh", pkg.action), " ran successfully!")
 	}
+	Debug(string(output))
 	// stdoutBytes, stderrBytes, err := a.commandRunner.Run("sh", "-c", installCmd)
 	// stdout := string(stdoutBytes)
 	// stderr := string(stderrBytes)

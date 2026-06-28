@@ -27,7 +27,7 @@ message GetAllConfigsRequest {}
 
 message GetAllConfigsResponse {
     map<string, MachineConfig> Machines = 1;
-    map<string, UserConfig> Users = 2;
+    map<string, AppConfig> appconfig = 2;
 }
 
 // ========================================================
@@ -77,7 +77,6 @@ message DesiredState
     AppConfig global = 1;
     map<string, ConfigProfile> profiles   = 2;
     map<string, MachineConfig> machines   = 3;
-    map<string, UserConfig>    users      = 4;
 }
 
 message ServerVersion {
@@ -90,7 +89,7 @@ message AppConfig
 {
     bool isServer = 1;
     bool isAgent = 2;
-    bool mAAS = 3;
+    bool maas = 3;
     string githubUsername = 4;
     string githubToken = 5;
     string githubRepo = 6;
@@ -101,11 +100,8 @@ message AppConfig
 
 message ConfigProfile
 {
+    map<string, AppConfig>    appconfig = 1;
     map<string, MachineConfig> machines = 2;
-    map<string, UserConfig>    users = 3;
-    // map<string, PackageConfig> packages = 3;
-    // map<string, ServiceConfig> services = 4;
-    // map<string, Dotfiles>      dotfiles = 5;
 }
 
 message MachineConfig
@@ -116,41 +112,27 @@ message MachineConfig
     string applied_config = 4;
 }
 
-message UserConfig
-{
-    repeated string appliedProfiles = 1;
-    map<string, PackageConfig> packages = 2;
-}
-
 message PackageConfig
 {
-    // Wether the package is installed or uninstalled
-    string state = 1;
-
-    // The version of the package to install
-    string version = 2 [json_name = "version,omitempty"];
-
-    // The branch of the package to install such as prod or dev
-    string branch = 3  [json_name = "branch,omitempty"];
-    // map<string, Dependencies> requires = 4 [json_name = "requires,omitempty"];
-
+    // The list of packages
+    repeated PackageSteps package_steps = 1;
     // The checksum of the package
-    string checksum = 5;
+    string checksum = 2;
+}
+
+message PackageSteps
+{
+    // Wether the package is installed or uninstalled
+    string action = 1;
 
     // Any arguments that should be passed to the package during runtime
-    repeated string arguments = 6;
+    repeated string arguments = 2;
 
     // The user to run the package as
-    repeated string runasuser = 7;
+    string runasuser = 3;
 }
 
 message PackageMap
 {
     map<string, PackageConfig> packages = 1;
 }
-
-// message ServiceConfig
-// {
-//     bool state = 1;
-//     map<string, string> config = 2;
-// }

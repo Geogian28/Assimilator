@@ -30,23 +30,27 @@ type packageInfo struct {
 	runAsUser      string   // The user to run the package installer as
 	ticketStatus   string   // The status of the package in Tormon
 	ticketID       int      // The ID of the ticket in Tormon, if it exists
+	action         string   // The action to perform on the package
 }
 
 // Calculates the SHA256 checksum of the package
-func (pkg *packageInfo) calculateChecksum() error {
+func calculateChecksum(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("path is empty")
+	}
 	// Open the file
-	file, err := os.Open(pkg.path)
+	file, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
+		return "", fmt.Errorf("failed to open file at %s: %w", path, err)
 	}
 	defer file.Close()
 
 	// Calculate the SHA256 checksum
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
-		return fmt.Errorf("failed to copy file content to hash: %w", err)
+		return "", fmt.Errorf("failed to copy file content to hash: %w", err)
 	}
 	hashInBytes := hash.Sum(nil)
-	pkg.checksum = hex.EncodeToString(hashInBytes)
-	return nil
+
+	return hex.EncodeToString(hashInBytes), nil
 }

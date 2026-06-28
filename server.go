@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -55,7 +56,7 @@ func cloneRepo(repoDir string, auth *http.BasicAuth) error {
 		ReferenceName: plumbing.NewBranchReferenceName(targetBranch),
 		Depth:         1,
 	}
-	Debug(cloneOptions)
+	// Debug(cloneOptions)
 	_, err := git.PlainClone(repoDir, false, cloneOptions)
 	return err
 }
@@ -160,6 +161,37 @@ func cloneOrPullRepo() (string, error) {
 			return "", err
 		}
 	}
+	entries, err := os.ReadDir(repoDir)
+	if err != nil {
+		log.Fatalf("Failed to read directory: %v", err)
+	}
+
+	Info("Listing contents of '%s':\n", repoDir)
+	Info("---------------------------------")
+
+	// Loop through and print the names
+	for _, entry := range entries {
+		// You can check if it's a directory or a regular file
+		suffix := ""
+		if entry.IsDir() {
+			suffix = "/"
+		}
+
+		Info("%s%s\n", entry.Name(), suffix)
+	}
+
+	filePath := repoDir + "/config.yaml"
+	Info("Reading config file: ", filePath)
+
+	// Read the entire file into memory
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		Error("Error reading file: %v", err)
+	}
+
+	// os.ReadFile returns []byte, so we convert it to a string to print it
+	Info(string(content))
+
 	return repoDir, nil
 }
 

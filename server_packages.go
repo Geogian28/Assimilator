@@ -78,7 +78,7 @@ func makePackagesFromPath(sourceDir string, CacheDir string, category string) {
 		// 4. Make the checksum from the created package.
 		err = makeTempChecksum(pkgInfo)
 		if err != nil {
-			asslog.Unhandled("error making package: ", err)
+			asslog.Unhandled("failed to make ", pkgInfo.packageName, " package:", err)
 		}
 
 		// 5. Make the permanent package by moving the temporary package to the permanent location.
@@ -171,7 +171,7 @@ func makeTempChecksum(pkg *packageInfo) error {
 	defer file.Close()
 
 	// Calculate the SHA256 checksum
-	err = pkg.calculateChecksum()
+	pkg.checksum, err = calculateChecksum(pkg.packageTempPath)
 	if err != nil {
 		return fmt.Errorf("failed to calculate checksum: %w", err)
 	}
@@ -212,7 +212,10 @@ func syncChecksums(desiredState *DesiredState) {
 			if info, ok := packagesMap["machine"][pkgName]; ok {
 				Debug("Package ", pkgName, " found in repo")
 				// Update the checksum in the config
-				pkgConfig.Checksum = info.checksum
+				if len(pkgConfig) == 0 {
+					Fatal(1, "Package ", pkgName, " not found in config")
+				}
+				pkgConfig[0].Checksum = info.checksum
 				// CRITICAL: Reassign the struct back to the map (Go map semantics)
 				machineConfig.Packages[pkgName] = pkgConfig
 			} else {

@@ -25,23 +25,33 @@ func toProtoServerVersion(version *ServerVersion) *pb.ServerVersion {
 	}
 }
 
-func toProtoPackageConfigMap(packages *map[string]PackageConfig) map[string]*pb.PackageConfig {
+func toProtoPackageConfigMap(packages *map[string][]PackageStep) map[string]*pb.PackageConfig {
 	res := make(map[string]*pb.PackageConfig, len(*packages))
 	for packageName, packageConfig := range *packages {
-		res[packageName] = toProtoPackageConfig(&packageConfig)
+		res[packageName] = toProtoPackageConfig(packageConfig)
 	}
 	return res
 }
 
-func toProtoPackageConfig(packageConfig *PackageConfig) *pb.PackageConfig {
+func toProtoPackageConfig(packageConfig []PackageStep) *pb.PackageConfig {
+	PackageSteps := make([]*pb.PackageSteps, len(packageConfig))
+	for _, packageConfig := range packageConfig {
+		PackageSteps = append(PackageSteps, toProtoPackageSteps(&packageConfig))
+	}
 	return &pb.PackageConfig{
-		Version:   packageConfig.Version,
-		Branch:    packageConfig.Branch,
-		Checksum:  packageConfig.Checksum,
+		PackageSteps: PackageSteps,
+		Checksum:     packageConfig[0].Checksum,
+	}
+}
+
+func toProtoPackageSteps(packageConfig *PackageStep) *pb.PackageSteps {
+	if packageConfig.RunAsUser == "" {
+		packageConfig.RunAsUser = "root"
+	}
+	return &pb.PackageSteps{
+		Action:    packageConfig.Action,
 		Arguments: packageConfig.Arguments,
 		Runasuser: packageConfig.RunAsUser,
-		// Requires: toProtoDependenciesMap(&packageConfig.Requires),
-
 	}
 }
 

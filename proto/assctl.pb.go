@@ -60,7 +60,7 @@ func (*GetAllConfigsRequest) Descriptor() ([]byte, []int) {
 type GetAllConfigsResponse struct {
 	state         protoimpl.MessageState    `protogen:"open.v1"`
 	Machines      map[string]*MachineConfig `protobuf:"bytes,1,rep,name=Machines,proto3" json:"Machines,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Users         map[string]*UserConfig    `protobuf:"bytes,2,rep,name=Users,proto3" json:"Users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Appconfig     map[string]*AppConfig     `protobuf:"bytes,2,rep,name=appconfig,proto3" json:"appconfig,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,9 +102,9 @@ func (x *GetAllConfigsResponse) GetMachines() map[string]*MachineConfig {
 	return nil
 }
 
-func (x *GetAllConfigsResponse) GetUsers() map[string]*UserConfig {
+func (x *GetAllConfigsResponse) GetAppconfig() map[string]*AppConfig {
 	if x != nil {
-		return x.Users
+		return x.Appconfig
 	}
 	return nil
 }
@@ -345,7 +345,6 @@ type DesiredState struct {
 	Global        *AppConfig                `protobuf:"bytes,1,opt,name=global,proto3" json:"global,omitempty"`
 	Profiles      map[string]*ConfigProfile `protobuf:"bytes,2,rep,name=profiles,proto3" json:"profiles,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Machines      map[string]*MachineConfig `protobuf:"bytes,3,rep,name=machines,proto3" json:"machines,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Users         map[string]*UserConfig    `protobuf:"bytes,4,rep,name=users,proto3" json:"users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -397,13 +396,6 @@ func (x *DesiredState) GetProfiles() map[string]*ConfigProfile {
 func (x *DesiredState) GetMachines() map[string]*MachineConfig {
 	if x != nil {
 		return x.Machines
-	}
-	return nil
-}
-
-func (x *DesiredState) GetUsers() map[string]*UserConfig {
-	if x != nil {
-		return x.Users
 	}
 	return nil
 }
@@ -472,7 +464,7 @@ type AppConfig struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	IsServer       bool                   `protobuf:"varint,1,opt,name=isServer,proto3" json:"isServer,omitempty"`
 	IsAgent        bool                   `protobuf:"varint,2,opt,name=isAgent,proto3" json:"isAgent,omitempty"`
-	MAAS           bool                   `protobuf:"varint,3,opt,name=mAAS,proto3" json:"mAAS,omitempty"`
+	Maas           bool                   `protobuf:"varint,3,opt,name=maas,proto3" json:"maas,omitempty"`
 	GithubUsername string                 `protobuf:"bytes,4,opt,name=githubUsername,proto3" json:"githubUsername,omitempty"`
 	GithubToken    string                 `protobuf:"bytes,5,opt,name=githubToken,proto3" json:"githubToken,omitempty"`
 	GithubRepo     string                 `protobuf:"bytes,6,opt,name=githubRepo,proto3" json:"githubRepo,omitempty"`
@@ -527,9 +519,9 @@ func (x *AppConfig) GetIsAgent() bool {
 	return false
 }
 
-func (x *AppConfig) GetMAAS() bool {
+func (x *AppConfig) GetMaas() bool {
 	if x != nil {
-		return x.MAAS
+		return x.Maas
 	}
 	return false
 }
@@ -578,8 +570,8 @@ func (x *AppConfig) GetPackageMap() map[string]*PackageMap {
 
 type ConfigProfile struct {
 	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Appconfig     map[string]*AppConfig     `protobuf:"bytes,1,rep,name=appconfig,proto3" json:"appconfig,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Machines      map[string]*MachineConfig `protobuf:"bytes,2,rep,name=machines,proto3" json:"machines,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Users         map[string]*UserConfig    `protobuf:"bytes,3,rep,name=users,proto3" json:"users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -614,16 +606,16 @@ func (*ConfigProfile) Descriptor() ([]byte, []int) {
 	return file_assctl_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ConfigProfile) GetMachines() map[string]*MachineConfig {
+func (x *ConfigProfile) GetAppconfig() map[string]*AppConfig {
 	if x != nil {
-		return x.Machines
+		return x.Appconfig
 	}
 	return nil
 }
 
-func (x *ConfigProfile) GetUsers() map[string]*UserConfig {
+func (x *ConfigProfile) GetMachines() map[string]*MachineConfig {
 	if x != nil {
-		return x.Users
+		return x.Machines
 	}
 	return nil
 }
@@ -696,79 +688,19 @@ func (x *MachineConfig) GetAppliedConfig() string {
 	return ""
 }
 
-type UserConfig struct {
-	state           protoimpl.MessageState    `protogen:"open.v1"`
-	AppliedProfiles []string                  `protobuf:"bytes,1,rep,name=appliedProfiles,proto3" json:"appliedProfiles,omitempty"`
-	Packages        map[string]*PackageConfig `protobuf:"bytes,2,rep,name=packages,proto3" json:"packages,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *UserConfig) Reset() {
-	*x = UserConfig{}
-	mi := &file_assctl_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UserConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UserConfig) ProtoMessage() {}
-
-func (x *UserConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_assctl_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UserConfig.ProtoReflect.Descriptor instead.
-func (*UserConfig) Descriptor() ([]byte, []int) {
-	return file_assctl_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *UserConfig) GetAppliedProfiles() []string {
-	if x != nil {
-		return x.AppliedProfiles
-	}
-	return nil
-}
-
-func (x *UserConfig) GetPackages() map[string]*PackageConfig {
-	if x != nil {
-		return x.Packages
-	}
-	return nil
-}
-
 type PackageConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Wether the package is installed or uninstalled
-	State string `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
-	// The version of the package to install
-	Version string `protobuf:"bytes,2,opt,name=version,json=version,omitempty,proto3" json:"version,omitempty"`
-	// The branch of the package to install such as prod or dev
-	Branch string `protobuf:"bytes,3,opt,name=branch,json=branch,omitempty,proto3" json:"branch,omitempty"` // map<string, Dependencies> requires = 4 [json_name = "requires,omitempty"];
+	// The list of packages
+	PackageSteps []*PackageSteps `protobuf:"bytes,1,rep,name=package_steps,json=packageSteps,proto3" json:"package_steps,omitempty"`
 	// The checksum of the package
-	Checksum string `protobuf:"bytes,5,opt,name=checksum,proto3" json:"checksum,omitempty"`
-	// Any arguments that should be passed to the package during runtime
-	Arguments []string `protobuf:"bytes,6,rep,name=arguments,proto3" json:"arguments,omitempty"`
-	// The user to run the package as
-	Runasuser     []string `protobuf:"bytes,7,rep,name=runasuser,proto3" json:"runasuser,omitempty"`
+	Checksum      string `protobuf:"bytes,2,opt,name=checksum,proto3" json:"checksum,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PackageConfig) Reset() {
 	*x = PackageConfig{}
-	mi := &file_assctl_proto_msgTypes[12]
+	mi := &file_assctl_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -780,7 +712,7 @@ func (x *PackageConfig) String() string {
 func (*PackageConfig) ProtoMessage() {}
 
 func (x *PackageConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_assctl_proto_msgTypes[12]
+	mi := &file_assctl_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -793,28 +725,14 @@ func (x *PackageConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageConfig.ProtoReflect.Descriptor instead.
 func (*PackageConfig) Descriptor() ([]byte, []int) {
-	return file_assctl_proto_rawDescGZIP(), []int{12}
+	return file_assctl_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *PackageConfig) GetState() string {
+func (x *PackageConfig) GetPackageSteps() []*PackageSteps {
 	if x != nil {
-		return x.State
+		return x.PackageSteps
 	}
-	return ""
-}
-
-func (x *PackageConfig) GetVersion() string {
-	if x != nil {
-		return x.Version
-	}
-	return ""
-}
-
-func (x *PackageConfig) GetBranch() string {
-	if x != nil {
-		return x.Branch
-	}
-	return ""
+	return nil
 }
 
 func (x *PackageConfig) GetChecksum() string {
@@ -824,18 +742,67 @@ func (x *PackageConfig) GetChecksum() string {
 	return ""
 }
 
-func (x *PackageConfig) GetArguments() []string {
+type PackageSteps struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Wether the package is installed or uninstalled
+	Action string `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	// Any arguments that should be passed to the package during runtime
+	Arguments []string `protobuf:"bytes,2,rep,name=arguments,proto3" json:"arguments,omitempty"`
+	// The user to run the package as
+	Runasuser     string `protobuf:"bytes,3,opt,name=runasuser,proto3" json:"runasuser,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PackageSteps) Reset() {
+	*x = PackageSteps{}
+	mi := &file_assctl_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PackageSteps) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageSteps) ProtoMessage() {}
+
+func (x *PackageSteps) ProtoReflect() protoreflect.Message {
+	mi := &file_assctl_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageSteps.ProtoReflect.Descriptor instead.
+func (*PackageSteps) Descriptor() ([]byte, []int) {
+	return file_assctl_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PackageSteps) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *PackageSteps) GetArguments() []string {
 	if x != nil {
 		return x.Arguments
 	}
 	return nil
 }
 
-func (x *PackageConfig) GetRunasuser() []string {
+func (x *PackageSteps) GetRunasuser() string {
 	if x != nil {
 		return x.Runasuser
 	}
-	return nil
+	return ""
 }
 
 type PackageMap struct {
@@ -887,17 +854,16 @@ var File_assctl_proto protoreflect.FileDescriptor
 const file_assctl_proto_rawDesc = "" +
 	"\n" +
 	"\fassctl.proto\x12\x06assctl\"\x16\n" +
-	"\x14GetAllConfigsRequest\"\xc2\x02\n" +
+	"\x14GetAllConfigsRequest\"\xd1\x02\n" +
 	"\x15GetAllConfigsResponse\x12G\n" +
-	"\bMachines\x18\x01 \x03(\v2+.assctl.GetAllConfigsResponse.MachinesEntryR\bMachines\x12>\n" +
-	"\x05Users\x18\x02 \x03(\v2(.assctl.GetAllConfigsResponse.UsersEntryR\x05Users\x1aR\n" +
+	"\bMachines\x18\x01 \x03(\v2+.assctl.GetAllConfigsResponse.MachinesEntryR\bMachines\x12J\n" +
+	"\tappconfig\x18\x02 \x03(\v2,.assctl.GetAllConfigsResponse.AppconfigEntryR\tappconfig\x1aR\n" +
 	"\rMachinesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.assctl.MachineConfigR\x05value:\x028\x01\x1aL\n" +
-	"\n" +
-	"UsersEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.assctl.UserConfigR\x05value:\x028\x01\"<\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.assctl.MachineConfigR\x05value:\x028\x01\x1aO\n" +
+	"\x0eAppconfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12'\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.assctl.AppConfigR\x05value:\x028\x01\"<\n" +
 	"\x18GetSpecificConfigRequest\x12 \n" +
 	"\vMachineName\x18\x01 \x01(\tR\vMachineName\"\xfc\x02\n" +
 	"\x19GetSpecificConfigResponse\x12/\n" +
@@ -915,22 +881,17 @@ const file_assctl_proto_rawDesc = "" +
 	"\x0fPackageResponse\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\fR\acontent\x12\x1d\n" +
 	"\n" +
-	"total_size\x18\x02 \x01(\x03R\ttotalSize\"\xe6\x03\n" +
+	"total_size\x18\x02 \x01(\x03R\ttotalSize\"\xe1\x02\n" +
 	"\fDesiredState\x12)\n" +
 	"\x06global\x18\x01 \x01(\v2\x11.assctl.AppConfigR\x06global\x12>\n" +
 	"\bprofiles\x18\x02 \x03(\v2\".assctl.DesiredState.ProfilesEntryR\bprofiles\x12>\n" +
-	"\bmachines\x18\x03 \x03(\v2\".assctl.DesiredState.MachinesEntryR\bmachines\x125\n" +
-	"\x05users\x18\x04 \x03(\v2\x1f.assctl.DesiredState.UsersEntryR\x05users\x1aR\n" +
+	"\bmachines\x18\x03 \x03(\v2\".assctl.DesiredState.MachinesEntryR\bmachines\x1aR\n" +
 	"\rProfilesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
 	"\x05value\x18\x02 \x01(\v2\x15.assctl.ConfigProfileR\x05value:\x028\x01\x1aR\n" +
 	"\rMachinesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.assctl.MachineConfigR\x05value:\x028\x01\x1aL\n" +
-	"\n" +
-	"UsersEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.assctl.UserConfigR\x05value:\x028\x01\"`\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.assctl.MachineConfigR\x05value:\x028\x01\"`\n" +
 	"\rServerVersion\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x16\n" +
 	"\x06commit\x18\x02 \x01(\tR\x06commit\x12\x1d\n" +
@@ -939,7 +900,7 @@ const file_assctl_proto_rawDesc = "" +
 	"\tAppConfig\x12\x1a\n" +
 	"\bisServer\x18\x01 \x01(\bR\bisServer\x12\x18\n" +
 	"\aisAgent\x18\x02 \x01(\bR\aisAgent\x12\x12\n" +
-	"\x04mAAS\x18\x03 \x01(\bR\x04mAAS\x12&\n" +
+	"\x04maas\x18\x03 \x01(\bR\x04maas\x12&\n" +
 	"\x0egithubUsername\x18\x04 \x01(\tR\x0egithubUsername\x12 \n" +
 	"\vgithubToken\x18\x05 \x01(\tR\vgithubToken\x12\x1e\n" +
 	"\n" +
@@ -952,17 +913,16 @@ const file_assctl_proto_rawDesc = "" +
 	"packageMap\x1aQ\n" +
 	"\x0fPackageMapEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.assctl.PackageMapR\x05value:\x028\x01\"\xaa\x02\n" +
-	"\rConfigProfile\x12?\n" +
-	"\bmachines\x18\x02 \x03(\v2#.assctl.ConfigProfile.MachinesEntryR\bmachines\x126\n" +
-	"\x05users\x18\x03 \x03(\v2 .assctl.ConfigProfile.UsersEntryR\x05users\x1aR\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.assctl.PackageMapR\x05value:\x028\x01\"\xb9\x02\n" +
+	"\rConfigProfile\x12B\n" +
+	"\tappconfig\x18\x01 \x03(\v2$.assctl.ConfigProfile.AppconfigEntryR\tappconfig\x12?\n" +
+	"\bmachines\x18\x02 \x03(\v2#.assctl.ConfigProfile.MachinesEntryR\bmachines\x1aO\n" +
+	"\x0eAppconfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12'\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.assctl.AppConfigR\x05value:\x028\x01\x1aR\n" +
 	"\rMachinesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.assctl.MachineConfigR\x05value:\x028\x01\x1aL\n" +
-	"\n" +
-	"UsersEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.assctl.UserConfigR\x05value:\x028\x01\"\xb3\x02\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.assctl.MachineConfigR\x05value:\x028\x01\"\xb3\x02\n" +
 	"\rMachineConfig\x12(\n" +
 	"\x0fappliedProfiles\x18\x01 \x03(\tR\x0fappliedProfiles\x12?\n" +
 	"\bpackages\x18\x02 \x03(\v2#.assctl.MachineConfig.PackagesEntryR\bpackages\x12<\n" +
@@ -970,21 +930,14 @@ const file_assctl_proto_rawDesc = "" +
 	"\x0eapplied_config\x18\x04 \x01(\tR\rappliedConfig\x1aR\n" +
 	"\rPackagesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.assctl.PackageConfigR\x05value:\x028\x01\"\xc8\x01\n" +
-	"\n" +
-	"UserConfig\x12(\n" +
-	"\x0fappliedProfiles\x18\x01 \x03(\tR\x0fappliedProfiles\x12<\n" +
-	"\bpackages\x18\x02 \x03(\v2 .assctl.UserConfig.PackagesEntryR\bpackages\x1aR\n" +
-	"\rPackagesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.assctl.PackageConfigR\x05value:\x028\x01\"\xc3\x01\n" +
-	"\rPackageConfig\x12\x14\n" +
-	"\x05state\x18\x01 \x01(\tR\x05state\x12\"\n" +
-	"\aversion\x18\x02 \x01(\tR\x11version,omitempty\x12 \n" +
-	"\x06branch\x18\x03 \x01(\tR\x10branch,omitempty\x12\x1a\n" +
-	"\bchecksum\x18\x05 \x01(\tR\bchecksum\x12\x1c\n" +
-	"\targuments\x18\x06 \x03(\tR\targuments\x12\x1c\n" +
-	"\trunasuser\x18\a \x03(\tR\trunasuser\"\x9e\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.assctl.PackageConfigR\x05value:\x028\x01\"f\n" +
+	"\rPackageConfig\x129\n" +
+	"\rpackage_steps\x18\x01 \x03(\v2\x14.assctl.PackageStepsR\fpackageSteps\x12\x1a\n" +
+	"\bchecksum\x18\x02 \x01(\tR\bchecksum\"b\n" +
+	"\fPackageSteps\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action\x12\x1c\n" +
+	"\targuments\x18\x02 \x03(\tR\targuments\x12\x1c\n" +
+	"\trunasuser\x18\x03 \x01(\tR\trunasuser\"\x9e\x01\n" +
 	"\n" +
 	"PackageMap\x12<\n" +
 	"\bpackages\x18\x01 \x03(\v2 .assctl.PackageMap.PackagesEntryR\bpackages\x1aR\n" +
@@ -1009,7 +962,7 @@ func file_assctl_proto_rawDescGZIP() []byte {
 	return file_assctl_proto_rawDescData
 }
 
-var file_assctl_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_assctl_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_assctl_proto_goTypes = []any{
 	(*GetAllConfigsRequest)(nil),      // 0: assctl.GetAllConfigsRequest
 	(*GetAllConfigsResponse)(nil),     // 1: assctl.GetAllConfigsResponse
@@ -1022,62 +975,57 @@ var file_assctl_proto_goTypes = []any{
 	(*AppConfig)(nil),                 // 8: assctl.AppConfig
 	(*ConfigProfile)(nil),             // 9: assctl.ConfigProfile
 	(*MachineConfig)(nil),             // 10: assctl.MachineConfig
-	(*UserConfig)(nil),                // 11: assctl.UserConfig
-	(*PackageConfig)(nil),             // 12: assctl.PackageConfig
+	(*PackageConfig)(nil),             // 11: assctl.PackageConfig
+	(*PackageSteps)(nil),              // 12: assctl.PackageSteps
 	(*PackageMap)(nil),                // 13: assctl.PackageMap
 	nil,                               // 14: assctl.GetAllConfigsResponse.MachinesEntry
-	nil,                               // 15: assctl.GetAllConfigsResponse.UsersEntry
+	nil,                               // 15: assctl.GetAllConfigsResponse.AppconfigEntry
 	nil,                               // 16: assctl.GetSpecificConfigResponse.PackagesEntry
 	nil,                               // 17: assctl.DesiredState.ProfilesEntry
 	nil,                               // 18: assctl.DesiredState.MachinesEntry
-	nil,                               // 19: assctl.DesiredState.UsersEntry
-	nil,                               // 20: assctl.AppConfig.PackageMapEntry
+	nil,                               // 19: assctl.AppConfig.PackageMapEntry
+	nil,                               // 20: assctl.ConfigProfile.AppconfigEntry
 	nil,                               // 21: assctl.ConfigProfile.MachinesEntry
-	nil,                               // 22: assctl.ConfigProfile.UsersEntry
-	nil,                               // 23: assctl.MachineConfig.PackagesEntry
-	nil,                               // 24: assctl.UserConfig.PackagesEntry
-	nil,                               // 25: assctl.PackageMap.PackagesEntry
+	nil,                               // 22: assctl.MachineConfig.PackagesEntry
+	nil,                               // 23: assctl.PackageMap.PackagesEntry
 }
 var file_assctl_proto_depIdxs = []int32{
 	14, // 0: assctl.GetAllConfigsResponse.Machines:type_name -> assctl.GetAllConfigsResponse.MachinesEntry
-	15, // 1: assctl.GetAllConfigsResponse.Users:type_name -> assctl.GetAllConfigsResponse.UsersEntry
+	15, // 1: assctl.GetAllConfigsResponse.appconfig:type_name -> assctl.GetAllConfigsResponse.AppconfigEntry
 	7,  // 2: assctl.GetSpecificConfigResponse.Version:type_name -> assctl.ServerVersion
 	16, // 3: assctl.GetSpecificConfigResponse.packages:type_name -> assctl.GetSpecificConfigResponse.PackagesEntry
 	8,  // 4: assctl.GetSpecificConfigResponse.config_overrides:type_name -> assctl.AppConfig
 	8,  // 5: assctl.DesiredState.global:type_name -> assctl.AppConfig
 	17, // 6: assctl.DesiredState.profiles:type_name -> assctl.DesiredState.ProfilesEntry
 	18, // 7: assctl.DesiredState.machines:type_name -> assctl.DesiredState.MachinesEntry
-	19, // 8: assctl.DesiredState.users:type_name -> assctl.DesiredState.UsersEntry
-	20, // 9: assctl.AppConfig.packageMap:type_name -> assctl.AppConfig.PackageMapEntry
+	19, // 8: assctl.AppConfig.packageMap:type_name -> assctl.AppConfig.PackageMapEntry
+	20, // 9: assctl.ConfigProfile.appconfig:type_name -> assctl.ConfigProfile.AppconfigEntry
 	21, // 10: assctl.ConfigProfile.machines:type_name -> assctl.ConfigProfile.MachinesEntry
-	22, // 11: assctl.ConfigProfile.users:type_name -> assctl.ConfigProfile.UsersEntry
-	23, // 12: assctl.MachineConfig.packages:type_name -> assctl.MachineConfig.PackagesEntry
-	8,  // 13: assctl.MachineConfig.config_overrides:type_name -> assctl.AppConfig
-	24, // 14: assctl.UserConfig.packages:type_name -> assctl.UserConfig.PackagesEntry
-	25, // 15: assctl.PackageMap.packages:type_name -> assctl.PackageMap.PackagesEntry
-	10, // 16: assctl.GetAllConfigsResponse.MachinesEntry.value:type_name -> assctl.MachineConfig
-	11, // 17: assctl.GetAllConfigsResponse.UsersEntry.value:type_name -> assctl.UserConfig
-	12, // 18: assctl.GetSpecificConfigResponse.PackagesEntry.value:type_name -> assctl.PackageConfig
-	9,  // 19: assctl.DesiredState.ProfilesEntry.value:type_name -> assctl.ConfigProfile
-	10, // 20: assctl.DesiredState.MachinesEntry.value:type_name -> assctl.MachineConfig
-	11, // 21: assctl.DesiredState.UsersEntry.value:type_name -> assctl.UserConfig
-	13, // 22: assctl.AppConfig.PackageMapEntry.value:type_name -> assctl.PackageMap
-	10, // 23: assctl.ConfigProfile.MachinesEntry.value:type_name -> assctl.MachineConfig
-	11, // 24: assctl.ConfigProfile.UsersEntry.value:type_name -> assctl.UserConfig
-	12, // 25: assctl.MachineConfig.PackagesEntry.value:type_name -> assctl.PackageConfig
-	12, // 26: assctl.UserConfig.PackagesEntry.value:type_name -> assctl.PackageConfig
-	12, // 27: assctl.PackageMap.PackagesEntry.value:type_name -> assctl.PackageConfig
-	0,  // 28: assctl.Assimilator.GetAllConfigs:input_type -> assctl.GetAllConfigsRequest
-	2,  // 29: assctl.Assimilator.GetSpecificConfig:input_type -> assctl.GetSpecificConfigRequest
-	4,  // 30: assctl.Assimilator.DownloadPackage:input_type -> assctl.PackageRequest
-	1,  // 31: assctl.Assimilator.GetAllConfigs:output_type -> assctl.GetAllConfigsResponse
-	3,  // 32: assctl.Assimilator.GetSpecificConfig:output_type -> assctl.GetSpecificConfigResponse
-	5,  // 33: assctl.Assimilator.DownloadPackage:output_type -> assctl.PackageResponse
-	31, // [31:34] is the sub-list for method output_type
-	28, // [28:31] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	22, // 11: assctl.MachineConfig.packages:type_name -> assctl.MachineConfig.PackagesEntry
+	8,  // 12: assctl.MachineConfig.config_overrides:type_name -> assctl.AppConfig
+	12, // 13: assctl.PackageConfig.package_steps:type_name -> assctl.PackageSteps
+	23, // 14: assctl.PackageMap.packages:type_name -> assctl.PackageMap.PackagesEntry
+	10, // 15: assctl.GetAllConfigsResponse.MachinesEntry.value:type_name -> assctl.MachineConfig
+	8,  // 16: assctl.GetAllConfigsResponse.AppconfigEntry.value:type_name -> assctl.AppConfig
+	11, // 17: assctl.GetSpecificConfigResponse.PackagesEntry.value:type_name -> assctl.PackageConfig
+	9,  // 18: assctl.DesiredState.ProfilesEntry.value:type_name -> assctl.ConfigProfile
+	10, // 19: assctl.DesiredState.MachinesEntry.value:type_name -> assctl.MachineConfig
+	13, // 20: assctl.AppConfig.PackageMapEntry.value:type_name -> assctl.PackageMap
+	8,  // 21: assctl.ConfigProfile.AppconfigEntry.value:type_name -> assctl.AppConfig
+	10, // 22: assctl.ConfigProfile.MachinesEntry.value:type_name -> assctl.MachineConfig
+	11, // 23: assctl.MachineConfig.PackagesEntry.value:type_name -> assctl.PackageConfig
+	11, // 24: assctl.PackageMap.PackagesEntry.value:type_name -> assctl.PackageConfig
+	0,  // 25: assctl.Assimilator.GetAllConfigs:input_type -> assctl.GetAllConfigsRequest
+	2,  // 26: assctl.Assimilator.GetSpecificConfig:input_type -> assctl.GetSpecificConfigRequest
+	4,  // 27: assctl.Assimilator.DownloadPackage:input_type -> assctl.PackageRequest
+	1,  // 28: assctl.Assimilator.GetAllConfigs:output_type -> assctl.GetAllConfigsResponse
+	3,  // 29: assctl.Assimilator.GetSpecificConfig:output_type -> assctl.GetSpecificConfigResponse
+	5,  // 30: assctl.Assimilator.DownloadPackage:output_type -> assctl.PackageResponse
+	28, // [28:31] is the sub-list for method output_type
+	25, // [25:28] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_assctl_proto_init() }
@@ -1091,7 +1039,7 @@ func file_assctl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_assctl_proto_rawDesc), len(file_assctl_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

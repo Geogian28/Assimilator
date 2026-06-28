@@ -8,6 +8,7 @@ import (
 	"log"
 	"maps"
 	"os"
+	"os/user"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
@@ -54,6 +55,7 @@ type AppConfig struct {
 	distro          string                `toml:"-"`
 	TormonAddress   string                `toml:"tormon_address" env:"ASSIMILATOR_TORMON_ADDRESS"`
 	ConfigFilename  string                `toml:"-" env:"ASSIMILATOR_CONFIG_FILENAME"`
+	RunAsUser       string                `toml:"-" env:"ASSIMILATOR_RUN_AS_USER"`
 }
 
 var appConfig = AppConfig{
@@ -74,6 +76,7 @@ var appConfig = AppConfig{
 	CacheDir:        "/var/cache/assimilator/packages",
 	TormonAddress:   "",
 	ConfigFilename:  "",
+	RunAsUser:       "root",
 }
 
 // type ConfigProfile struct {
@@ -83,14 +86,14 @@ var appConfig = AppConfig{
 
 type ProfileConfig struct {
 	AppConfig AppConfig                `yaml:"app_config"`
-	Packages  map[string]PackageConfig `yaml:"packages"`
+	Packages  map[string][]PackageStep `yaml:"packages"`
 }
 
 type MachineConfig struct {
 	Global          AppConfig                `yaml:"app_config"`
 	AppliedConfig   string                   `yaml:"applied_config"`
 	AppliedProfiles []string                 `yaml:"applied_profiles"`
-	Packages        map[string]PackageConfig `yaml:"packages"`
+	Packages        map[string][]PackageStep `yaml:"packages"`
 }
 
 // type UserConfig struct {
@@ -99,23 +102,15 @@ type MachineConfig struct {
 // 	ConfigOverrides AppConfig                `yaml:"config_overrides"`
 // }
 
-type PackageConfig struct {
-	Action    PackageAction `yaml:"action"`
-	Version   string        `yaml:"version,omitempty"` // "omitempty" is good practice
-	Branch    string        `yaml:"branch,omitempty"`
-	Checksum  string        `yaml:"checksum,omitempty"`
-	Arguments []string      `yaml:"arguments,omitempty"`
-	RunAsUser []string      `yaml:"run_as_user,omitempty"`
-	// Requires map[string]Dependencies `yaml:"requires,omitempty"`
-}
-
-type PackageAction struct {
-	Action    string
-	RunAsUser string
+type PackageStep struct {
+	Checksum  string   `yaml:"checksum,omitempty"`
+	Action    string   `yaml:"action"`
+	Arguments []string `yaml:"arguments,omitempty"`
+	RunAsUser string   `yaml:"runasuser,omitempty"`
 }
 
 type PackageMap struct {
-	Packages map[string]PackageConfig `yaml:"packages"`
+	Packages map[string][]PackageStep `yaml:"packages"`
 }
 
 // This new struct will create the [config] table
@@ -302,6 +297,9 @@ func ConfigFromFlags(flags *CliFlags) {
 	if userSetFlags["config_filename"] {
 		appConfig.CacheDir = flags.ConfigFilename
 	}
+	if userSetFlags["run_as_user"] {
+		appConfig.RunAsUser = flags.RunAsUser
+	}
 }
 
 func traceAppConfig() {
@@ -322,6 +320,7 @@ func traceAppConfig() {
 	Trace("CacheDir: ", appConfig.CacheDir)
 	Trace("TormonAdress: ", appConfig.TormonAddress)
 	Trace("ConfigFilename: ", appConfig.ConfigFilename)
+	Trace("RunAsUser: ", appConfig.RunAsUser)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
@@ -373,6 +372,14 @@ func SetupAppConfig(flags *CliFlags) {
 				Fatal(1, "Failed to get hostname from os.Hostname(): ", err)
 			}
 		}
+		if appConfig.RunAsUser == "" {
+			curentUser, err := user.Current()
+			if err != nil {
+				Fatal(1, "Failed to get current user from user.Current(): ", err)
+			}
+			appConfig.RunAsUser = curentUser.Name
+		}
+
 	case appConfig.testMode && appConfig.RepoDir == "":
 		Trace("Test mode enabled, but repo directory not provided")
 		Trace(`Setting repodir to "/tmp/assimilator-repo"`)
@@ -411,6 +418,7 @@ type CliFlags struct {
 	ShowVersion     bool
 	TormonAddress   string
 	ConfigFilename  string
+	RunAsUser       string
 }
 
 func ParseFlags() *CliFlags {
@@ -495,10 +503,10 @@ func applyProfiles(desiredState *DesiredState) {
 	// 1. MACHINES LOOP
 	// Take "applied_profiles" from machines and apply the actual profiles to machines
 	// -----------------------------------------------------------------------
-	for machineName, machineData := range desiredState.Machines {
-		mergedPackages := make(map[string]PackageConfig)
+	for machineName, configData := range desiredState.Machines {
+		mergedPackages := make(map[string][]PackageStep)
 
-		for _, profileName := range machineData.AppliedProfiles {
+		for _, profileName := range configData.AppliedProfiles {
 			profile, ok := desiredState.Profiles[profileName]
 
 			if !ok {
@@ -512,13 +520,13 @@ func applyProfiles(desiredState *DesiredState) {
 			}
 		}
 
-		if len(machineData.Packages) > 0 {
+		if len(configData.Packages) > 0 {
 			Trace(fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
-			maps.Copy(mergedPackages, machineData.Packages)
+			maps.Copy(mergedPackages, configData.Packages)
 		}
 
-		machineData.Packages = mergedPackages
-		desiredState.Machines[machineName] = machineData
+		configData.Packages = mergedPackages
+		desiredState.Machines[machineName] = configData
 	}
 
 	// -----------------------------------------------------------------------
