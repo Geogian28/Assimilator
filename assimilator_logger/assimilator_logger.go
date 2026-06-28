@@ -315,7 +315,7 @@ func (l *AssLogger) Error(message string) {
 		level:       LevelError,
 		message:     message,
 		color:       Lred,
-		flatPrefix:  "[ Error  ] ",
+		flatPrefix:  "[Error  ] ",
 		emojiPrefix: "[❌ Error ] ",
 	}
 }
