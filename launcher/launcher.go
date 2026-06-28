@@ -28,10 +28,13 @@ func parseDistro(runner CommandRunner, reader io.Reader) (DistroManager, error) 
 		if strings.HasPrefix(line, "ID=") || strings.HasPrefix(line, "ID_LIKE=") {
 			switch {
 			case strings.Contains(line, "ubuntu") || strings.Contains(line, "debian"):
+				fmt.Println("Detected Ubuntu/Debian")
 				return newDebianManager(runner), nil
 			case strings.Contains(line, "fedora"):
+				fmt.Println("Detected Fedora")
 				return newFedoraManager(runner), nil
 			case strings.Contains(line, "arch"):
+				fmt.Println("Detected Arch")
 				return newArchManager(runner), nil
 			}
 		}
@@ -59,13 +62,14 @@ func getAssimilatorVersion(runner CommandRunner) (string, error) {
 	return assimilatorVersion, nil
 }
 
-func updateAssimilator(runner CommandRunner) {
+func installOrUpdateAssimilator(runner CommandRunner) {
 	log.Println("Checking for updates")
 
 	// Detect distro
 	distro, err := detectDistro(runner)
 	if err != nil {
-		log.Fatal("Unable to detect distro.")
+		log.Fatal("Error detecting distro: ", err)
+		return
 	}
 
 	// Add the assimilator repo - not implemented
@@ -112,14 +116,13 @@ func main() {
 	// 	if arg == "--test_mode" {
 	// 		runAssimilator()
 	// 	}
-
 	// }
 
 	// Create the command runner
 	commandRunner := &LiveCommandRunner{}
-	// Add the assimilator repo
+
 	fmt.Println("Updating assimilator")
-	updateAssimilator(commandRunner)
+	installOrUpdateAssimilator(commandRunner)
 
 	// Run assimilator itself
 	fmt.Println("Running assimilator")
