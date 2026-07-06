@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"maps"
 	"os"
 	"os/user"
@@ -207,32 +205,8 @@ func ConfigFromFile() {
 		Error("Failed to unmarshal config file: ", err)
 	} else {
 		Debug("Loaded config from file.")
-
-		// 3. Update the main config.
-		//    This now contains [Defaults] + [File Overrides]
 		appConfig = wrapper.Config
 	}
-
-	// var wrapper TomlConfigWrapper
-	// err = toml.Unmarshal(configFile, &wrapper)
-	// if err != nil {
-	// 	Error("Failed to unmarshal config file: ", err)
-	// } else {
-	// 	Debug("Loaded config from file.")
-	// 	// 1. Temporarily store the compile-time values
-	// 	// Copy the loaded config back into your main appConfig
-	// 	tempVersion := appConfig.Version
-	// 	tempCommit := appConfig.Commit
-	// 	tempBuildDate := appConfig.BuildDate
-
-	// 	// 2. Copy the loaded config back into your main appConfig (this overwrites everything)
-	// 	*appConfig = wrapper.Config
-
-	// 	// 3. Restore the compile-time values
-	// 	appConfig.Version = tempVersion
-	// 	appConfig.Commit = tempCommit
-	// 	appConfig.BuildDate = tempBuildDate
-	// }
 }
 
 func ConfigFromEnv() {
@@ -395,9 +369,6 @@ func SetupAppConfig(flags *CliFlags) {
 	}
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
-
-	// Gather machine info
-	gatherMachineInfo(&appConfig)
 }
 
 type CliFlags struct {
@@ -499,10 +470,6 @@ func applyProfiles(desiredState *DesiredState) {
 	allProfileNames := strings.Join(ProfileNames, ", ")
 	Debug("Available profiles: ", allProfileNames)
 
-	// -----------------------------------------------------------------------
-	// 1. MACHINES LOOP
-	// Take "applied_profiles" from machines and apply the actual profiles to machines
-	// -----------------------------------------------------------------------
 	for machineName, configData := range desiredState.Machines {
 		mergedPackages := make(map[string][]PackageStep)
 
@@ -528,68 +495,4 @@ func applyProfiles(desiredState *DesiredState) {
 		configData.Packages = mergedPackages
 		desiredState.Machines[machineName] = configData
 	}
-
-	// -----------------------------------------------------------------------
-	// 2. USERS LOOP
-	// Take "applied_profiles" from users and apply the actual profiles to users
-	// -----------------------------------------------------------------------
-	// for userName, userData := range desiredState.Users {
-	// 	mergedPackages := make(map[string]PackageConfig)
-
-	// 	for _, profileName := range userData.AppliedProfiles {
-	// 		profile, ok := desiredState.Profiles[profileName]
-	// 		if !ok {
-	// 			Error("Profile not found: ", profileName)
-	// 			continue
-	// 		}
-
-	// 		if len(profile.UserPackages) > 0 {
-	// 			Trace(fmt.Sprintf(`Copying packages from profile "%s" to user: %s`, profileName, userName))
-	// 			maps.Copy(mergedPackages, profile.UserPackages[userName])
-	// 		}
-	// 	}
-
-	// 	// !!! Potentially buggy !!!
-	// 	if len(userData.Packages) > 0 {
-	// 		Trace(fmt.Sprintf(`Applying specific overrides for user: %s`, userName))
-	// 		maps.Copy(mergedPackages, userData.Packages)
-	// 	}
-
-	// 	userData.Packages = mergedPackages
-	// 	desiredState.Users[userName] = userData
-	// }
-}
-
-func gatherMachineInfo(appConfig *AppConfig) {
-	var si sysinfo.SysInfo
-	si.GetSysInfo()
-	appConfig.machineInfo = si
-	fileText, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		log.Fatal("Unable to determine OS: ", err)
-	}
-	scanner := bufio.NewScanner(strings.NewReader(string(fileText)))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "ID=") || strings.HasPrefix(line, "ID_LIKE=") {
-			idLike := strings.Split(line, "=")[1]
-			if strings.Contains(idLike, "ubuntu") {
-				appConfig.distro = "debian"
-				return
-			}
-			if strings.Contains(idLike, "debian") {
-				appConfig.distro = "debian"
-				return
-			}
-			if strings.Contains(idLike, "fedora") {
-				appConfig.distro = "fedora"
-				return
-			}
-			if strings.Contains(idLike, "arch") {
-				appConfig.distro = "arch"
-				return
-			}
-		}
-	}
-	log.Fatal("Unable to determine OS: ", err)
 }
