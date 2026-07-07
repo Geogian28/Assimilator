@@ -274,7 +274,7 @@ func Agent(commandRunner CommandRunner) {
 		agentData.assimilationCheck(ctx)
 		if appConfig.RunAsUser != "" && appConfig.RunAsUser != "root" {
 			Info("Everything is updated. Exiting...")
-			os.Exit(0)
+			return
 		}
 		for {
 			select {
