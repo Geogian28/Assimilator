@@ -27,20 +27,21 @@ func toProtoServerVersion(version *ServerVersion) *pb.ServerVersion {
 
 func toProtoPackageConfigMap(packages *map[string][]PackageStep) map[string]*pb.PackageConfig {
 	res := make(map[string]*pb.PackageConfig, len(*packages))
-	for packageName, packageConfig := range *packages {
-		res[packageName] = toProtoPackageConfig(packageConfig)
+	for packageName, packageSteps := range *packages {
+		res[packageName] = toProtoPackageConfig(packageSteps)
 	}
 	return res
 }
 
-func toProtoPackageConfig(packageConfig []PackageStep) *pb.PackageConfig {
-	PackageSteps := make([]*pb.PackageSteps, len(packageConfig))
-	for _, packageConfig := range packageConfig {
-		PackageSteps = append(PackageSteps, toProtoPackageSteps(&packageConfig))
+func toProtoPackageConfig(packageSteps []PackageStep) *pb.PackageConfig {
+	pbPackageSteps := make([]*pb.PackageSteps, len(packageSteps))
+
+	for i, packageStep := range packageSteps {
+		pbPackageSteps[i] = toProtoPackageSteps(&packageStep)
 	}
 	return &pb.PackageConfig{
-		PackageSteps: PackageSteps,
-		Checksum:     packageConfig[0].Checksum,
+		PackageSteps: pbPackageSteps,
+		Checksum:     packageSteps[0].Checksum,
 	}
 }
 
