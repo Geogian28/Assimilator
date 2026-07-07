@@ -272,7 +272,10 @@ func Agent(commandRunner CommandRunner) {
 		Debug("Agent loop started.")
 		// Run the first assimilation check
 		agentData.assimilationCheck(ctx)
-
+		if appConfig.RunAsUser != "" && appConfig.RunAsUser != "root" {
+			Info("Everything is updated. Exiting...")
+			os.Exit(0)
+		}
 		for {
 			select {
 			case <-done:
