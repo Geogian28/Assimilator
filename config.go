@@ -353,6 +353,10 @@ func SetupAppConfig(flags *CliFlags) {
 			}
 			appConfig.RunAsUser = curentUser.Name
 		}
+		if appConfig.RunAsUser != "root" && appConfig.LogFileLocation == "/var/log/assimilator.log" {
+			userHomeDir, _ := os.UserHomeDir()
+			appConfig.LogFileLocation = userHomeDir + "/.cache/assimilator/assimilator.log"
+		}
 
 	case appConfig.testMode && appConfig.RepoDir == "":
 		Trace("Test mode enabled, but repo directory not provided")
@@ -369,6 +373,7 @@ func SetupAppConfig(flags *CliFlags) {
 	}
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
+	asslog.SetLogFileLocation(appConfig.LogFileLocation)
 }
 
 type CliFlags struct {

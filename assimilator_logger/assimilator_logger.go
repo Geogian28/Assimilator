@@ -81,6 +81,10 @@ func SetLogTypes(logTypes map[string]bool) {
 	}
 }
 
+func SetLogFileLocation(logFileLocation string) {
+	globalLogger.logFileUpdates <- logFileLocation
+}
+
 type LogWriter struct {
 }
 
@@ -100,11 +104,13 @@ func NewLogWriter() *LogWriter {
 type AssLogger struct {
 	msgBuffer        chan LogEntry
 	verbosityUpdates chan int // Channel to receive verbosity level updates
-	logTypesUpdates  chan map[string]bool
 	wg               sync.WaitGroup
 	closeSync        sync.Once
 	verbosityLevel   LogLevel // Local verbosity level for the logger instance
+	logTypesUpdates  chan map[string]bool
 	logTypes         map[string]bool
+	logFileUpdates   chan string
+	logFileLocation  string
 }
 
 func NewAssLogger() *AssLogger {
@@ -114,6 +120,8 @@ func NewAssLogger() *AssLogger {
 		verbosityLevel:   LevelInfo,
 		logTypesUpdates:  make(chan map[string]bool, 1),
 		logTypes:         map[string]bool{"console": true},
+		logFileUpdates:   make(chan string, 1),
+		logFileLocation:  "/var/log/assimilator.log",
 	}
 }
 
