@@ -9,24 +9,28 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"syscall"
+
+	// "syscall"
 
 	pb "github.com/geogian28/Assimilator/proto"
 )
 
 // A single, unified function handles the entire lifecycle
 func (a *AgentData) ProcessPackages(pkg *packageInfo) error {
-	pkg.ticketStatus, pkg.ticketID = a.checkTormonStatus(pkg.name)
-
 	if err := a.ensurePackage(pkg); err != nil {
 		return err
 	}
+	Trace("Successfully ensured ", pkg.name)
 	if err := a.extractPackage(pkg); err != nil {
 		return err
 	}
-	return a.executeInstallScript(pkg)
+	Trace("Successfully extracted ", pkg.name)
+	if err := a.executePackageScript(pkg); err != nil {
+		return err
+	}
+	Trace("Successfully excuted script for", pkg.name)
+	return nil
 }
 
 func (a *AgentData) ensurePackage(pkg *packageInfo) error {
@@ -159,46 +163,37 @@ func (a *AgentData) extractPackage(pkg *packageInfo) error {
 	return nil
 }
 
-func (a *AgentData) executeInstallScript(pkg *packageInfo) error {
+func (a *AgentData) executePackageScript(pkg *packageInfo) error {
+	Trace("Executing install script for ", pkg.name)
 	// 1. Ensure the script is executable
 	if err := os.Chmod(filepath.Join(pkg.extractDir, fmt.Sprintf("%s.sh", pkg.action)), 0755); err != nil {
 		return fmt.Errorf("failed to make script executable: %w", err)
 	}
-
 	// 2. Run the install script
 	// Join the arguments array into a space-separated string (e.g. "--unattended --force")
 	Trace("Arguments: ", pkg.arguments)
 	argsString := strings.Join(pkg.arguments, " ")
 	Trace("Args string: ", argsString)
-
-	// If the user didnt specify a runAsUser, default to root, then look it up
+	// If the package didnt specify a runAsUser, default to root, then look it up
 	if pkg.runAsUser == "" {
-		pkg.runAsUser = "root"
+		Error("Package ", pkg.name, " did not specify a runAsUser. Exiting to expose error instead of applying bandaid.")
 	}
-	userData, uid, gid, err := userLookup(pkg.runAsUser)
-
-	cmd := exec.Command("/bin/bash", pkg.extractDir+"/"+fmt.Sprintf("%s.sh", pkg.action), argsString)
+	currentUser, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("user.Current() error: %v", err)
+	}
+	Error(currentUser.Username)
+	commandToRun := pkg.extractDir + "/" + fmt.Sprintf("%s.sh", pkg.action)
+	cmd := exec.Command("/bin/bash", commandToRun, argsString)
 	cmd.Dir = pkg.extractDir
-	cmd.Env = append(
-		[]string{
-			fmt.Sprintf("HOME=%s", userData.HomeDir),
-			fmt.Sprintf("USER=%s", userData.Username),
-			fmt.Sprintf("ASSIMILATOR_HOME=%s", userData.HomeDir),
-			fmt.Sprintf("ASSIMILATOR_USER=%s", userData.Username),
-			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		},
-		pkg.env...,
-	)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{
-			Uid: uid,
-			Gid: gid,
-		},
-	}
+	cmd.Env = append(cmd.Env, pkg.env...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("USER=%s", currentUser.Username))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", currentUser.HomeDir))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ASSIMILATOR_HOME=%s", currentUser.HomeDir))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ASSIMILATOR_USER=%s", currentUser.Username))
+	cmd.Env = append(cmd.Env, "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 
-	// Only drop privileges if the target user is NOT root
-	Trace("Running script ", "/tmp/assimilator/"+pkg.category+"/"+pkg.name+"/"+fmt.Sprintf("%s.sh", pkg.action), " as user:", pkg.runAsUser)
-	// err = cmd.Run()
+	Trace("Running script ", commandToRun, " as user: ", pkg.runAsUser)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -213,91 +208,5 @@ func (a *AgentData) executeInstallScript(pkg *packageInfo) error {
 		Success("Script ", "/tmp/assimilator/"+pkg.category+"/"+pkg.name+"/"+fmt.Sprintf("%s.sh", pkg.action), " ran successfully!")
 	}
 	Debug(string(output))
-	// stdoutBytes, stderrBytes, err := a.commandRunner.Run("sh", "-c", installCmd)
-	// stdout := string(stdoutBytes)
-	// stderr := string(stderrBytes)
-
-	// if err != nil {
-	// 	// Combine the OS error, stdout, and stderr into one highly readable string block
-	// 	fullLog := fmt.Sprintf("[FATAL] Script exited with error: %v\n\n=== STDOUT ===\n%s\n=== STDERR ===\n%s", err, string(stdout), string(stderr))
-
-	// 	// Fire it off to the Tormon dashboard
-	// 	if ticketStatus != "none" {
-	// 		reportToTormon(pkg.name, "failure", fullLog)
-	// 	}
-	// 	Error("install script failed for ", pkg.name, ": ", err, "\n", stdout, "\n", stderr)
-	// 	return fmt.Errorf("install script failed for %s: %s: %s", pkg.name, err, stderr)
-	// }
-	// if pendingStatus {
-	// 	fullLog := fmt.Sprintf("[SUCCESS] Script install succeeded!\n\n=== STDOUT ===\n%s", string(stdout))
-	// 	reportToTormon(pkg.name, "success", fullLog)
-	// }
 	return nil
-}
-
-// func (a *AgentData) installUserPackage(pkgName string, username string) error {
-// 	// // 1. Check if user exists and get their details
-// 	// targetUser, err := user.Lookup(username)
-// 	// if err != nil {
-// 	// 	return fmt.Errorf("user %s not found: %w", username, err)
-// 	// }
-// 	// uid, err := strconv.ParseUint(targetUser.Uid, 10, 32)
-// 	// if err != nil {
-// 	// 	return fmt.Errorf("failed to parse UID for %s: %w", username, err)
-// 	// }
-// 	// gid, err := strconv.ParseUint(targetUser.Gid, 10, 32)
-// 	// if err != nil {
-// 	// 	return fmt.Errorf("failed to parse GID for %s: %w", username, err)
-// 	// }
-
-// 	// 2. Set the extract variable
-// 	extractDir := filepath.Join(os.TempDir(), "assimilator", username, pkgName)
-
-// 	// 3. Prepare the command
-// 	scriptPath := filepath.Join(extractDir, "install.sh")
-// 	cmd := exec.Command("/bin/bash", scriptPath)
-
-// 	// 4. Prepare the environment
-// 	cmd.Env = []string{
-// 		fmt.Sprintf("HOME=%s", targetUser.HomeDir),
-// 		fmt.Sprintf("USER=%s", targetUser.Username),
-// 		fmt.Sprintf("ASSIMILATOR_HOME=%s", targetUser.HomeDir),
-// 		fmt.Sprintf("ASSIMILATOR_USER=%s", targetUser.Username),
-// 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", // Basic path
-// 	}
-
-// 	// 5. Set the working directory
-// 	cmd.Dir = extractDir
-
-// 	// 6. Set the user
-// 	cmd.SysProcAttr = &syscall.SysProcAttr{
-// 		Credential: &syscall.Credential{
-// 			Uid: uint32(uid),
-// 			Gid: uint32(gid),
-// 		},
-// 	}
-
-// 	// 7. Run
-// 	output, err := cmd.CombinedOutput()
-// 	if err != nil {
-// 		return fmt.Errorf("install failed for %s: %s", pkgName, string(output))
-// 	}
-
-// 	return nil
-// }
-
-func userLookup(username string) (*user.User, uint32, uint32, error) {
-	targetUser, err := user.Lookup(username)
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("user %s not found: %w", username, err)
-	}
-	uid, err := strconv.ParseUint(targetUser.Uid, 10, 32)
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("failed to parse UID for %s: %w", username, err)
-	}
-	gid, err := strconv.ParseUint(targetUser.Gid, 10, 32)
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("failed to parse GID for %s: %w", username, err)
-	}
-	return targetUser, uint32(uid), uint32(gid), nil
 }

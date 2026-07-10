@@ -13,7 +13,6 @@ import (
 	"time"
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
-	//assctl "github.com/geogian28/Assimilator/proto"
 	pb "github.com/geogian28/Assimilator/proto"
 	"github.com/hashicorp/go-version"
 	"google.golang.org/grpc"
@@ -29,47 +28,6 @@ type AgentData struct {
 }
 
 var agentData *AgentData
-
-// // Check the server for updates
-// func (a *AgentData) assimilationCheck(ctx context.Context) {
-// 	machineConfig, err := getPackageInfoFromServer(ctx)
-// 	if err == nil {
-// 		if len(machineConfig.GetPackages()) == 0 {
-// 			Error("No packages to install. Double-check config.yaml for ", agentData.appConfig.Hostname)
-// 			return
-// 		}
-
-// 		// lists the packages to the logger
-// 		go listPackages(machineConfig.GetPackages())
-// 		// machineConfig.GetPackages()
-// 		// processes the packages
-// 		for packageName, packageConfig := range machineConfig.GetPackages() {
-// 			for _, packageStep := range packageConfig.PackageSteps {
-// 				if packageStep.Runasuser == appConfig.RunAsUser {
-// 					agentData.ProcessPackages(a.convertToPackageInfo(packageName, packageStep, packageConfig.Checksum))
-// 				}
-// 			}
-// 		}
-// 		return
-// 	}
-
-// 	errorStatus, ok := status.FromError(err)
-// 	if !ok {
-// 		Warning("failed to ping server: ", err)
-// 		return
-// 	}
-
-// 	switch errorStatus.Code() {
-// 	case codes.Unavailable:
-// 		Warning("Assimilator server is unavailable (retrying at the next tick):\n      ", err.Error())
-// 	case codes.NotFound:
-// 		Error("Assimilator server could not find this machine's config:\n      ", err.Error())
-// 	case codes.Canceled:
-// 		Trace("Assimilator server request was canceled:\n      ", err.Error())
-// 	default:
-// 		Error("Assimilator server returned an unexpected error:\n      ", err.Error())
-// 	}
-// }
 
 // Check the server for updates
 func (a *AgentData) assimilationCheck(ctx context.Context) {
@@ -98,8 +56,21 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 		// processes the packages
 		for packageName, packageConfig := range machineConfig.GetPackages() {
 			for _, packageStep := range packageConfig.PackageSteps {
+				Trace(packageName, "'s packageStep.Runasuser: ", packageStep.Runasuser)
+				Trace(packageName, "'s appConfig.RunAsUser: ", appConfig.RunAsUser)
 				if packageStep.Runasuser == appConfig.RunAsUser {
-					a.ProcessPackages(a.convertToPackageInfo(packageName, packageStep, packageConfig.Checksum))
+					Debug(packageName, "'s packageStep.Runasuser: ", packageStep.Runasuser)
+					Debug(packageName, "'s appConfig.RunAsUser: ", appConfig.RunAsUser)
+					Info("Processing package: ", packageName)
+					err := a.ProcessPackages(a.convertToPackageInfo(packageName, packageStep, packageConfig.Checksum))
+					if err != nil {
+						Error("Error processing package: ", err)
+					} else {
+						Info("Successfully processed package: ", packageName)
+					}
+				} else {
+					Trace(packageName, "'s packageStep.Runasuser: ", packageStep.Runasuser)
+					Trace(packageName, "'s appConfig.RunAsUser: ", appConfig.RunAsUser)
 				}
 			}
 		}
@@ -168,7 +139,6 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (*pb.GetSpecif
 func (a *AgentData) convertToPackageInfo(packageName string, packageData *pb.PackageSteps, checksum string) *packageInfo {
 	ticketStatus, ticketID := a.checkTormonStatus(packageName)
 	Trace("packageName : ", packageName, ", ticketStatus: ", ticketStatus, ", ticketID: ", ticketID)
-	// var pendingStatus bool
 	switch ticketStatus {
 	case "open":
 		Info(fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon/%d\n", packageName, ticketID))
@@ -273,8 +243,8 @@ func Agent(commandRunner CommandRunner) {
 		// Run the first assimilation check
 		agentData.assimilationCheck(ctx)
 		if appConfig.RunAsUser != "" && appConfig.RunAsUser != "root" {
-			Info("Everything is updated. Exiting...")
-			return
+			Info("Everything is updated. Running next loop...")
+			// return
 		}
 		for {
 			select {
@@ -295,6 +265,9 @@ func Agent(commandRunner CommandRunner) {
 }
 
 func (a *AgentData) checkTormonStatus(packageName string) (string, int) {
+	if appConfig.TormonAddress == "" {
+		return "none", 0
+	}
 	client := &http.Client{Timeout: 5 * time.Second}
 	url := fmt.Sprintf("%s/api/status?hostname=%s&package_name=%s", appConfig.TormonAddress, appConfig.Hostname, packageName)
 

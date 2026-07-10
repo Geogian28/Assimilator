@@ -62,7 +62,7 @@ var appConfig = AppConfig{
 	GithubUsername:  "",
 	GithubToken:     "",
 	GithubRepo:      "",
-	GithubBranch:    "master",
+	GithubBranch:    "main",
 	testMode:        false,
 	VerbosityLevel:  4,
 	LogTypes:        "console file",
@@ -405,7 +405,7 @@ func ParseFlags() *CliFlags {
 	flag.StringVar(&flags.GithubUsername, "Github_username", "", "GitHub username")
 	flag.StringVar(&flags.GithubToken, "Github_token", "", "GitHub access token")
 	flag.StringVar(&flags.GithubRepo, "Github_repo", "", "GitHub repository")
-	flag.StringVar(&flags.GithubBranch, "Github_branch", "master", "GitHub branch. Useful for dev environments. Defaults to 'master'")
+	flag.StringVar(&flags.GithubBranch, "Github_branch", "main", "GitHub branch. Useful for dev environments. Defaults to 'main'")
 	flag.BoolVar(&flags.testMode, "test_mode", false, "Used when testing, do not use in production")
 	flag.IntVar(&flags.Verbosity, "verbosity", 1, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
 	flag.StringVar(&flags.LogTypes, "log_types", "", "Set log output locations (console, file)")
