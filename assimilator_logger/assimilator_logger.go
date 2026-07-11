@@ -223,6 +223,9 @@ func consoleLog(entry LogEntry) {
 }
 
 func fileLog(entry LogEntry) {
+	if globalLogger.logFileLocation == "" {
+		return
+	}
 	if logFile == nil {
 		var err error
 		logFile, err = os.OpenFile(globalLogger.logFileLocation, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
