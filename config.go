@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"maps"
 	"os"
 	"os/user"
 	"strings"
@@ -472,32 +471,44 @@ func applyProfiles(desiredState *DesiredState) {
 	for profileName := range desiredState.Profiles {
 		ProfileNames = append(ProfileNames, profileName)
 	}
-	allProfileNames := strings.Join(ProfileNames, ", ")
-	Debug("Available profiles: ", allProfileNames)
+	Debug("Available profiles: ", strings.Join(ProfileNames, ", "))
 
-	for machineName, configData := range desiredState.Machines {
+	for machineName, machineConfig := range desiredState.Machines {
 		mergedPackages := make(map[string][]PackageStep)
 
-		for _, profileName := range configData.AppliedProfiles {
+		for _, profileName := range machineConfig.AppliedProfiles {
 			profile, ok := desiredState.Profiles[profileName]
-
 			if !ok {
-				Error("Profile not found: ", profileName)
+				Error("Cannot apply profile: ", profileName, " to machine: ", machineName, ": profile not found: ")
 				continue
 			}
 
-			if len(profile.Packages) > 0 {
-				Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
-				maps.Copy(mergedPackages, profile.Packages)
+			Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
+			combinePackageSteps(mergedPackages, profile.Packages)
+			// maps.Copy(machineConfig.Packages, profile.Packages)
+		}
+
+		Trace(fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
+		combinePackageSteps(mergedPackages, machineConfig.Packages)
+		verifyPackages(mergedPackages)
+
+		machineConfig.Packages = mergedPackages
+		desiredState.Machines[machineName] = machineConfig
+	}
+}
+
+func combinePackageSteps(target, source map[string][]PackageStep) {
+	for pkgName, pkgSteps := range source {
+		target[pkgName] = append(target[pkgName], pkgSteps...)
+	}
+}
+
+func verifyPackages(packages map[string][]PackageStep) {
+	for pkgName, pkgSteps := range packages {
+		for i, pkgStep := range pkgSteps {
+			if pkgStep.RunAsUser == "" {
+				packages[pkgName][i].RunAsUser = "root"
 			}
 		}
-
-		if len(configData.Packages) > 0 {
-			Trace(fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
-			maps.Copy(mergedPackages, configData.Packages)
-		}
-
-		configData.Packages = mergedPackages
-		desiredState.Machines[machineName] = configData
 	}
 }
