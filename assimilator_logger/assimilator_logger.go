@@ -121,7 +121,7 @@ func NewAssLogger() *AssLogger {
 		logTypesUpdates:  make(chan map[string]bool, 1),
 		logTypes:         map[string]bool{"console": true},
 		logFileUpdates:   make(chan string, 1),
-		logFileLocation:  "/var/log/assimilator.log",
+		logFileLocation:  "",
 	}
 }
 
