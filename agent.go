@@ -195,18 +195,34 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 	return nil
 }
 
-func listenForShutdown(ticker *time.Ticker, done chan bool, cancel context.CancelFunc) {
-	shutdownSignal := make(chan os.Signal, 1)
-	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
+func (a *AgentData) checkTormonStatus(packageName string) (string, int) {
+	if appConfig.TormonAddress == "" {
+		return "none", 0
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	url := fmt.Sprintf("%s/api/status?hostname=%s&package_name=%s", appConfig.TormonAddress, appConfig.Hostname, packageName)
 
-	// This line blocks the goroutine until a signal arrives
-	<-shutdownSignal
+	resp, err := client.Get(url)
+	if err != nil {
+		return "none", 0
+	}
+	defer resp.Body.Close()
 
-	// Signal received, now clean up.
-	asslog.Debug("Shutdown signal received, telling agent loop to stop...")
-	ticker.Stop()
-	cancel()
-	done <- true
+	if resp.StatusCode != http.StatusOK {
+		return "none", 0
+	}
+
+	var result TicketStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "none", 0
+	}
+	Trace("packageName : ", packageName, ", ticketStatus: ", result.Status, ", ticketID: ", result.TicketID)
+	return result.Status, result.TicketID
+}
+
+type TicketStatusResponse struct {
+	Status   string `json:"status"`
+	TicketID int    `json:"ticket_id"`
 }
 
 func Agent(commandRunner CommandRunner) {
@@ -251,37 +267,16 @@ func Agent(commandRunner CommandRunner) {
 		}
 	}(ctx)
 
-	listenForShutdown(ticker, done, cancel)
+	shutdownSignal := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
+
+	// This line blocks the goroutine until a signal arrives
+	<-shutdownSignal
+
+	// Signal received, now clean up.
+	Debug("Shutdown signal received, telling agent loop to stop...")
+	ticker.Stop()
+	cancel()
+	done <- true
 	Debug("Agent shutting down...")
-	// return nil
-}
-
-func (a *AgentData) checkTormonStatus(packageName string) (string, int) {
-	if appConfig.TormonAddress == "" {
-		return "none", 0
-	}
-	client := &http.Client{Timeout: 5 * time.Second}
-	url := fmt.Sprintf("%s/api/status?hostname=%s&package_name=%s", appConfig.TormonAddress, appConfig.Hostname, packageName)
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return "none", 0
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "none", 0
-	}
-
-	var result TicketStatusResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "none", 0
-	}
-	Trace("packageName : ", packageName, ", ticketStatus: ", result.Status, ", ticketID: ", result.TicketID)
-	return result.Status, result.TicketID
-}
-
-type TicketStatusResponse struct {
-	Status   string `json:"status"`
-	TicketID int    `json:"ticket_id"`
 }
