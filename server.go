@@ -8,12 +8,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	// Import go-git
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
 	"github.com/go-git/go-git/v5" // Import go-git
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport" // Import go-git
+	"github.com/go-git/go-git/v5/storage/memory"
 	"google.golang.org/grpc"
 
 	// For basic HTTP auth if needed
@@ -195,6 +198,59 @@ func cloneOrPullRepo() (string, error) {
 	return repoDir, nil
 }
 
+func isUpdateAvailable(repoDir string) (bool, error) {
+	Info("Checking for updates...")
+	// 1. Open your local repo and get it's HEAD has to compare
+	r, err := git.PlainOpen(repoDir)
+	if err != nil {
+		return false, fmt.Errorf("error opening local repo: %s", err)
+	}
+	localHeadRef, err := r.Head()
+	if err != nil {
+		return false, fmt.Errorf("error getting local repo HEAD: %s", err)
+	}
+	localHash := localHeadRef.Hash().String()
+
+	// 2. Setup Authentication
+	auth := &http.BasicAuth{ // Use BasicAuth for PAT
+		Username: appConfig.GithubUsername,
+		Password: appConfig.GithubToken,
+	}
+
+	// 3. Create an ephemeral remote (no local disk cloning required)
+	remoteRepo := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{fmt.Sprintf("https://Github.com/%s/%s.git", appConfig.GithubUsername, appConfig.GithubRepo)},
+	})
+
+	// 4. List remote references (this hits the network but doesn't download files))
+	refs, err := remoteRepo.List(&git.ListOptions{
+		Auth: auth,
+	})
+	if err != nil {
+		return false, fmt.Errorf("error listing remote refs: %s", err)
+	}
+
+	// 5. Find the remote HEAD hash
+	Info("Remote repository refs:")
+	var remoteHash string
+	for _, ref := range refs {
+		if ref.Name().String() == "refs/heads/"+appConfig.GithubBranch {
+			remoteHash = ref.Hash().String()
+			break
+		}
+	}
+
+	// 6. Compare the hashes
+	Trace("Local repository HEAD hash: ", localHash)
+	Trace("Remote repository HEAD hash: ", remoteHash)
+	if remoteHash != localHash {
+		Trace("Update available!")
+		return true, nil
+	}
+	return false, nil
+}
+
 // Start the server
 func Server() {
 	// Clone or pull the remote repository to the local one
@@ -251,10 +307,44 @@ func Server() {
 			asslog.Unhandled("Failed to serve: ", err)
 		}
 	}()
+
+	var updateInterval time.Duration = 10
+	ticker := time.NewTicker(updateInterval * time.Second)
+	done := make(chan bool)
+	go func(ticker *time.Ticker) {
+		var attempts int = 0
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				updateAvailable, err := isUpdateAvailable(repoDir)
+
+				if err != nil {
+					Error("error checking for updates: ", err)
+					attempts++
+					if attempts >= 3 {
+						Fatal(1, "Update check failed 3 times. Shutting down...")
+					}
+					continue
+				}
+
+				attempts = 0
+
+				if updateAvailable {
+					Info("Update available. Shutting down...")
+					sigChan <- os.Interrupt
+					return
+				}
+
+			}
+			defer ticker.Stop()
+		}
+	}(ticker)
 	// Wait for a signal
 	<-sigChan
-	Info("\nReceived interrup signal. Gracefully stopping gRPC server...")
-
+	Info("Received interrup signal. Gracefully stopping gRPC server...")
+	close(done)
 	// Graceful shutdown for gRPC server
 	s.GracefulStop()
 	Info("gRPC server stopped.")
