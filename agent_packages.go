@@ -142,17 +142,24 @@ func (a *AgentData) downloadPackage(pkg *packageInfo) error {
 }
 
 func (a *AgentData) extractPackage(pkg *packageInfo) error {
-	// 1. Create a predictable temp directory using pkgName
-	//    We use /tmp/assimilator/<pkgName> (e.g. /tmp/assimilator/zsh)
-	extractDir := filepath.Join(os.TempDir(), "assimilator", appConfig.RunAsUser, pkg.name)
+	// 0. Create a predictable temp directory using pkgName
+	//    We use /tmp/assimilator/<user>/<pkgName> (e.g. /tmp/assimilator/zsh)
+	tempPath := filepath.Join(os.TempDir(), "assimilator")
+	if err := os.MkdirAll(tempPath, 0776); err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	if err := os.Chmod(tempPath, 0776); err != nil {
+		return fmt.Errorf("failed to chmod temp dir: %w", err)
+	}
 
-	// 1. Clean up any previous run to ensure a fresh slate
+	extractDir := filepath.Join(os.TempDir(), "assimilator", appConfig.RunAsUser, pkg.name)
+	// 0. Clean up any previous run to ensure a fresh slate
 	os.RemoveAll(extractDir)
-	if err := os.MkdirAll(extractDir, 0755); err != nil {
+	if err := os.MkdirAll(extractDir, 0754); err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 
-	// 2. Extract the tarball INTO that directory
+	// 1. Extract the tarball INTO that directory
 	//    -C tells tar to change directory before extracting
 	_, _, err := a.commandRunner.Run("tar", "-xzf", pkg.path, "-C", extractDir)
 	if err != nil {
@@ -194,6 +201,7 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 
 	Trace("Running script ", commandToRun, " as user: ", pkg.runAsUser)
 	output, err := cmd.CombinedOutput()
+	Debug("\n", string(output))
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			code := exitErr.ExitCode()
@@ -205,6 +213,5 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 	} else {
 		Success("Script ", commandToRun, " ran successfully!")
 	}
-	Debug(string(output))
 	return nil
 }
