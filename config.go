@@ -176,11 +176,9 @@ func ConfigFromFile() {
 }
 
 func ConfigFromEnv() {
-	fmt.Println(appConfig.IsServer)
 	if err := env.Parse(&appConfig); err != nil {
 		Error("Failed to parse environment variables: ", err)
 	}
-	fmt.Println(appConfig.IsServer)
 }
 
 func ConfigFromFlags(flags *CliFlags) {
