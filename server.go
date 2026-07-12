@@ -199,7 +199,7 @@ func cloneOrPullRepo() (string, error) {
 }
 
 func isUpdateAvailable(repoDir string) (bool, error) {
-	Info("Checking for updates...")
+	Trace("Checking for updates...")
 	// 1. Open your local repo and get it's HEAD has to compare
 	r, err := git.PlainOpen(repoDir)
 	if err != nil {
@@ -224,15 +224,12 @@ func isUpdateAvailable(repoDir string) (bool, error) {
 	})
 
 	// 4. List remote references (this hits the network but doesn't download files))
-	refs, err := remoteRepo.List(&git.ListOptions{
-		Auth: auth,
-	})
+	refs, err := remoteRepo.List(&git.ListOptions{Auth: auth})
 	if err != nil {
 		return false, fmt.Errorf("error listing remote refs: %s", err)
 	}
 
 	// 5. Find the remote HEAD hash
-	Info("Remote repository refs:")
 	var remoteHash string
 	for _, ref := range refs {
 		if ref.Name().String() == "refs/heads/"+appConfig.GithubBranch {
