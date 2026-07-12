@@ -11,17 +11,17 @@ import (
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
 )
 
-type PackagesMap map[string]map[string]*packageInfo
+type PackagesMap map[string]*packageInfo
 
 var packagesMap PackagesMap
 
 func makePackages() {
 	repoDir := appConfig.RepoDir
-	CacheDir := appConfig.CacheDir
+	cacheDir := appConfig.CacheDir
 
-	err := os.MkdirAll(CacheDir, 0750)
+	err := os.MkdirAll(cacheDir, 0750)
 	if err != nil {
-		asslog.Unhandled("error creating /var/cache directory: ", err)
+		asslog.Unhandled("error creating ", cacheDir, ": ", err)
 	}
 	Info("Making packages from repository: ", repoDir)
 
@@ -29,21 +29,17 @@ func makePackages() {
 	packagesMap = make(PackagesMap)
 
 	// Make packages for machine
-	packagesMap["machine"] = make(map[string]*packageInfo)
-	makePackagesFromPath(filepath.Join(repoDir, "machine"), filepath.Join(CacheDir, "machine"), "machine")
-
-	// Make packages for user
-	packagesMap["user"] = make(map[string]*packageInfo)
-	makePackagesFromPath(filepath.Join(repoDir, "user"), CacheDir, "user")
-
+	makePackagesFromPath(repoDir, cacheDir)
 }
 
-func makePackagesFromPath(sourceDir string, CacheDir string, category string) {
+func makePackagesFromPath(sourceDir string, cacheDir string) {
 	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
-		asslog.Unhandled("error reading machine directory: ", err)
+		if os.IsNotExist(err) {
+			Error("Directory does not exist: ", sourceDir)
+		}
+		asslog.Unhandled("error reading directory: ", err)
 	}
-	hostname, _ := os.Hostname()
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -53,26 +49,26 @@ func makePackagesFromPath(sourceDir string, CacheDir string, category string) {
 		sourceDir := filepath.Join(sourceDir, entry.Name())
 		pkgInfo := &packageInfo{
 			sourceDir:        sourceDir,
-			CacheDir:         CacheDir,
+			cacheDir:         cacheDir,
 			packageName:      entry.Name(),
-			packageTempPath:  filepath.Join(CacheDir, entry.Name()+".tar.gz."+hostname),
-			packagePermPath:  filepath.Join(CacheDir, entry.Name()+".tar.gz"),
+			packageTempPath:  filepath.Join(cacheDir, entry.Name()+".tar.gz."+appConfig.Hostname),
+			packagePermPath:  filepath.Join(cacheDir, entry.Name()+".tar.gz"),
 			checksum:         "",
-			checksumTempPath: filepath.Join(CacheDir, entry.Name()+".tar.gz.sha256"+hostname),
-			checksumPermPath: filepath.Join(CacheDir, entry.Name()+".tar.gz.sha256"),
-			hostname:         hostname,
+			checksumTempPath: filepath.Join(cacheDir, entry.Name()+".tar.gz.sha256"+appConfig.Hostname),
+			checksumPermPath: filepath.Join(cacheDir, entry.Name()+".tar.gz.sha256"),
+			hostname:         appConfig.Hostname,
 		}
 
 		// 2. Create the cache directory
-		err := os.MkdirAll(pkgInfo.CacheDir, 0750)
+		err := os.MkdirAll(pkgInfo.cacheDir, 0750)
 		if err != nil {
-			asslog.Unhandled("error creating /var/cache directory: ", err)
+			asslog.Unhandled("error creating ", pkgInfo.packageName, " directory: ", err)
 		}
 
 		// 3. Make the temporary package. This will be moved to the permanent location later.
 		err = makeTempPackage(pkgInfo)
 		if err != nil {
-			asslog.Unhandled("error making package: ", err)
+			asslog.Unhandled("error making ", pkgInfo.packageName, " package: ", err)
 		}
 
 		// 4. Make the checksum from the created package.
@@ -85,7 +81,7 @@ func makePackagesFromPath(sourceDir string, CacheDir string, category string) {
 		makeTempFilesPermanent(pkgInfo)
 
 		// 6. Add the package to the map so it can be found and referenced later
-		packagesMap[category][pkgInfo.packageName] = pkgInfo
+		packagesMap[pkgInfo.packageName] = pkgInfo
 	}
 }
 
@@ -209,7 +205,7 @@ func syncChecksums(desiredState *DesiredState) {
 		for pkgName, pkgConfig := range machineConfig.Packages {
 			Trace("syncing checksum for machineConfig.Packages[", pkgName, "]")
 			// Look up the package in our generated map
-			if info, ok := packagesMap["machine"][pkgName]; ok {
+			if info, ok := packagesMap[pkgName]; ok {
 				Debug("Package ", pkgName, " found in repo")
 				// Update the checksum in the config
 				if len(pkgConfig) == 0 {
@@ -225,14 +221,4 @@ func syncChecksums(desiredState *DesiredState) {
 			}
 		}
 	}
-
-	// 2. Sync User Packages
-	// for _, userConfig := range DesiredState.Users {
-	// 	for pkgName, pkgConfig := range userConfig.Packages {
-	// 		if info, ok := packagesMap["user"][pkgName]; ok {
-	// 			pkgConfig.Checksum = info.checksum
-	// 			userConfig.Packages[pkgName] = pkgConfig
-	// 		}
-	// 	}
-	// }
 }

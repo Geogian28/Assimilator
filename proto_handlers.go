@@ -54,41 +54,25 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 	return nil, status.Errorf(codes.NotFound, "cannot find a machine with name: %v", req.MachineName)
 }
 
-// func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream pb.Assimilator_DownloadPackageServer) error {
-// 	Info("Client requested ", req.Category, " package: ", req.Name)
-// 	if s.PackageDir == "" {
-// 		return status.Error(codes.Internal, "Server repository directory is not configured")
-// 	}
-
-// 	// 1. Find the package
-// 	filepath := packagesMap[req.Category][req.Name].packagePermPath
-
-// 	// 2. Upload the package
-// 	err := stream.Send(&assctl.PackageResponse{
-// 		TotalSize: int64(len(filepath)),
-// 		Content:   []byte(filepath),
-// 	})
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return nil
-// }
-
 func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream pb.Assimilator_DownloadPackageServer) error {
-	Info("Client requested ", req.Category, " package: ", req.Name)
+	Info("Client requested package: ", req.Name)
 	if s.PackageDir == "" {
 		return status.Error(codes.Internal, "Server repository directory is not configured")
 	}
 
 	// 1. Validate that the package exists in our map
-	catMap, ok := packagesMap[req.Category]
+	// catMap, ok := packagesMap[req.Category]
+	// if !ok {
+	// 	return status.Errorf(codes.NotFound, "category %s not found", req.Category)
+	// }
+	// pkgInfo, ok := catMap[req.Name]
+	// if !ok {
+	// 	return status.Errorf(codes.NotFound, "package %s not found in category %s", req.Name, req.Category)
+	// }
+
+	pkgInfo, ok := packagesMap[req.Name]
 	if !ok {
-		return status.Errorf(codes.NotFound, "category %s not found", req.Category)
-	}
-	pkgInfo, ok := catMap[req.Name]
-	if !ok {
-		return status.Errorf(codes.NotFound, "package %s not found in category %s", req.Name, req.Category)
+		return status.Errorf(codes.NotFound, "package %s not found", req.Name)
 	}
 
 	// 2. Open the file

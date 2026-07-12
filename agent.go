@@ -150,14 +150,14 @@ func (a *AgentData) convertToPackageInfo(packageName string, packageData *pb.Pac
 		Error("Tormon ticket not found. Continuing anyways deployment of ", packageName)
 	}
 	pkg := &packageInfo{
-		CacheDir:       filepath.Join(a.appConfig.CacheDir, "machine"),
+		cacheDir:       a.appConfig.CacheDir,
 		name:           packageName,
 		checksum:       "",
 		serverChecksum: checksum,
-		path:           filepath.Join(a.appConfig.CacheDir, "machine", packageName+".tar.gz"),
+		path:           filepath.Join(a.appConfig.CacheDir, packageName+".tar.gz"),
 		arguments:      packageData.Arguments,
-		action:         packageData.Action,
-		category:       "machine",
+		action:         packageData.GetAction(),
+		runAsUser:      packageData.GetRunasuser(),
 	}
 	Trace("packageData.Arguments: ", packageData.Arguments) //packageData.Arguments =
 	Trace("pkg.arguments: ", pkg.arguments)
@@ -215,17 +215,7 @@ func Agent(commandRunner CommandRunner) {
 		commandRunner: commandRunner,
 	}
 
-	// First, check for updates
-	// selfupdate.CheckForUpdates(appConfig, commandRunner)
-
 	Info("Agent starting up...")
-	if appConfig.Hostname == "" {
-		if appConfig.machineInfo.Node.Hostname != "" {
-			appConfig.Hostname = appConfig.machineInfo.Node.Hostname
-		} else {
-			appConfig.Hostname = "uh-oh"
-		}
-	}
 	Trace(appConfig.Hostname)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -237,15 +227,17 @@ func Agent(commandRunner CommandRunner) {
 	// Create a "done" channel to signal when we want to stop the pinger
 	done := make(chan bool)
 
+	// Run the first assimilation check
+	agentData.assimilationCheck(ctx)
+	if appConfig.RunAsUser != "" && appConfig.RunAsUser != "root" {
+		Info("Everything is updated. Shutting down.")
+		ctx.Done()
+		return
+	}
+
 	// Start a goutine to run that check again at the specified interval
 	go func(ctx context.Context) {
 		Debug("Agent loop started.")
-		// Run the first assimilation check
-		agentData.assimilationCheck(ctx)
-		if appConfig.RunAsUser != "" && appConfig.RunAsUser != "root" {
-			Info("Everything is updated. Running next loop...")
-			// return
-		}
 		for {
 			select {
 			case <-done:

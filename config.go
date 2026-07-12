@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
 	toml "github.com/pelletier/go-toml/v2"
-	"github.com/zcalusic/sysinfo"
 	"gopkg.in/yaml.v3" // Import the YAML library
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
@@ -44,15 +44,15 @@ type AppConfig struct {
 	ServerPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
 	Hostname        string                `toml:"Hostname" env:"ASSIMILATOR_HOSTNAME"`
 	packageMap      map[string]PackageMap `toml:"-" yaml:"package_map"`
-	CacheDir        string                `toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
+	CacheDir        string                //`toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
 	version         string                `toml:"-"`
 	commit          string                `toml:"-"`
 	buildDate       string                `toml:"-"`
-	machineInfo     sysinfo.SysInfo       `toml:"-"`
 	distro          string                `toml:"-"`
 	TormonAddress   string                `toml:"tormon_address" env:"ASSIMILATOR_TORMON_ADDRESS"`
 	ConfigFilename  string                `toml:"-" env:"ASSIMILATOR_CONFIG_FILENAME"`
 	RunAsUser       string                `toml:"-" env:"ASSIMILATOR_RUN_AS_USER"`
+	CurrentUser     string
 }
 
 var appConfig = AppConfig{
@@ -64,22 +64,18 @@ var appConfig = AppConfig{
 	GithubBranch:    "main",
 	testMode:        false,
 	VerbosityLevel:  4,
-	LogTypes:        "console file",
-	LogFileLocation: "/var/log/assimilator.log",
+	LogTypes:        "console",
+	LogFileLocation: logFileLocation(),
 	RepoDir:         "",
 	ServerIP:        "0.0.0.0",
 	ServerPort:      2390,
 	Hostname:        "",
-	CacheDir:        "/var/cache/assimilator/packages",
+	CacheDir:        userCacheDir(),
 	TormonAddress:   "",
 	ConfigFilename:  "",
-	RunAsUser:       "root",
+	CurrentUser:     runningUser(),
+	RunAsUser:       runningUser(),
 }
-
-// type ConfigProfile struct {
-// 	MachinePackages map[string]PackageConfig `yaml:"machines"`
-// 	// UserPackages    map[string]map[string]PackageConfig `yaml:"users"`
-// }
 
 type ProfileConfig struct {
 	AppConfig AppConfig                `yaml:"app_config"`
@@ -92,12 +88,6 @@ type MachineConfig struct {
 	AppliedProfiles []string                 `yaml:"applied_profiles"`
 	Packages        map[string][]PackageStep `yaml:"packages"`
 }
-
-// type UserConfig struct {
-// 	AppliedProfiles []string                 `yaml:"applied_profiles"`
-// 	Packages        map[string]PackageConfig `yaml:"packages"`
-// 	ConfigOverrides AppConfig                `yaml:"config_overrides"`
-// }
 
 type PackageStep struct {
 	Checksum  string   `yaml:"checksum,omitempty"`
@@ -128,29 +118,6 @@ func fileExists(filename string) bool {
 	// You may want to handle these cases differently based on your application needs.
 	return false
 }
-
-// func (s *State) UnmarshalYAML(unmarshal func(any) error) error {
-// 	var tempStr string
-// 	// Unmarshall the YAML value into a temporary string variable.
-// 	if err := unmarshal(&tempStr); err != nil {
-// 		return err
-// 	}
-
-// 	// Create a new DesiredState from the string.
-// 	state := State(tempStr)
-
-// 	// Check if the value is one of our defined constants.
-// 	switch state {
-// 	case StatePresent, StateAbsent:
-// 		// If it's valid, update the poinwer receiver
-// 		*s = state
-// 		return nil
-// 	default:
-// 		// If it's not a valid state, return an error.
-// 		return fmt.Errorf("invalid package state: %q, must be one of [%q, %q]",
-// 			tempStr, StatePresent, StateAbsent)
-// 	}
-// }
 
 func ConfigFromFile() {
 	// 1. Ensure folder exists:
@@ -289,7 +256,6 @@ func traceAppConfig() {
 	Trace("ServerIP: ", appConfig.ServerIP)
 	Trace("ServerPort: ", appConfig.ServerPort)
 	Trace("Hostname: ", appConfig.Hostname)
-	Trace("repoDir: ", appConfig.RepoDir)
 	Trace("CacheDir: ", appConfig.CacheDir)
 	Trace("TormonAdress: ", appConfig.TormonAddress)
 	Trace("ConfigFilename: ", appConfig.ConfigFilename)
@@ -313,7 +279,8 @@ func SetupAppConfig(flags *CliFlags) {
 
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
-		Fatal(1, "Neither server nor agent flags provided.")
+		Info(1, "Neither server nor agent flags provided. Assuming Agent")
+		appConfig.IsAgent = true
 	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
 	// Evaluate server flags
@@ -346,11 +313,7 @@ func SetupAppConfig(flags *CliFlags) {
 			}
 		}
 		if appConfig.RunAsUser == "" {
-			curentUser, err := user.Current()
-			if err != nil {
-				Fatal(1, "Failed to get current user from user.Current(): ", err)
-			}
-			appConfig.RunAsUser = curentUser.Name
+			appConfig.RunAsUser = appConfig.CurrentUser
 		}
 		if appConfig.RunAsUser != "root" && appConfig.LogFileLocation == "/var/log/assimilator.log" {
 			userHomeDir, _ := os.UserHomeDir()
@@ -511,4 +474,35 @@ func verifyPackages(packages map[string][]PackageStep) {
 			}
 		}
 	}
+}
+
+func runningUser() string {
+	runningUser, err := user.Current()
+	if err != nil {
+		Error("Failed to get current user: ", err)
+		os.Exit(1)
+	}
+	return runningUser.Username
+}
+
+func userCacheDir() string {
+	baseCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		Error("Failed to get user cache directory: ", err)
+		os.Exit(1)
+	}
+	return filepath.Join(baseCacheDir, "assimilator")
+}
+
+func logFileLocation() string {
+	user, err := user.Current()
+	if err != nil {
+		Error("Failed to get current user: ", err)
+		os.Exit(1)
+	}
+	if user.Username == "root" {
+		return "/var/log/assimilator.log"
+	}
+
+	return filepath.Join(user.HomeDir, ".local/state/assimilator.log")
 }

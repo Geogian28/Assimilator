@@ -10,7 +10,7 @@ import (
 
 type packageInfo struct {
 	sourceDir        string
-	CacheDir         string
+	cacheDir         string
 	packageName      string
 	packageTempPath  string
 	packagePermPath  string
@@ -20,7 +20,6 @@ type packageInfo struct {
 	hostname         string
 	size             int64
 	name             string // the name of the package, but excluding the .tar.gz extension
-	category         string // the category of the package. Ex: machine or user
 	// localChecksum    string   // the checksum of the local package file
 	serverChecksum string   // the checksum of the server's package file
 	path           string   // the path to the local package including the .tar.gz extension

@@ -36,9 +36,9 @@ func (a *AgentData) ProcessPackages(pkg *packageInfo) error {
 func (a *AgentData) ensurePackage(pkg *packageInfo) error {
 	// 1. Check if the folder exists
 
-	Debug("Checking if package folder exists: ", pkg.CacheDir)
-	if !a.fileExists(pkg.CacheDir) {
-		err := os.MkdirAll(pkg.CacheDir, 0755)
+	Debug("Checking if package folder exists: ", pkg.cacheDir)
+	if !a.fileExists(pkg.cacheDir) {
+		err := os.MkdirAll(pkg.cacheDir, 0755)
 		if err != nil {
 			return fmt.Errorf("failed to create cache folder: %w", err)
 		}
@@ -86,8 +86,7 @@ func (a *AgentData) fileExists(filename string) bool {
 func (a *AgentData) downloadPackage(pkg *packageInfo) error {
 	// 1. Initiate the request
 	req := &pb.PackageRequest{
-		Name:     pkg.name,
-		Category: pkg.category,
+		Name: pkg.name,
 	}
 
 	// 2. Open the stream
@@ -145,7 +144,7 @@ func (a *AgentData) downloadPackage(pkg *packageInfo) error {
 func (a *AgentData) extractPackage(pkg *packageInfo) error {
 	// 1. Create a predictable temp directory using pkgName
 	//    We use /tmp/assimilator/<pkgName> (e.g. /tmp/assimilator/zsh)
-	extractDir := filepath.Join(os.TempDir(), "assimilator", pkg.category, pkg.name)
+	extractDir := filepath.Join(os.TempDir(), "assimilator", appConfig.RunAsUser, pkg.name)
 
 	// 1. Clean up any previous run to ensure a fresh slate
 	os.RemoveAll(extractDir)
@@ -182,7 +181,7 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 	if err != nil {
 		return fmt.Errorf("user.Current() error: %v", err)
 	}
-	Error(currentUser.Username)
+
 	commandToRun := pkg.extractDir + "/" + fmt.Sprintf("%s.sh", pkg.action)
 	cmd := exec.Command("/bin/bash", commandToRun, argsString)
 	cmd.Dir = pkg.extractDir
@@ -197,7 +196,6 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			// Retrieve the actual exit status code (e.g., 1, 127, 2)
 			code := exitErr.ExitCode()
 			Error("Script failed with exit code:", code)
 		} else {
@@ -205,7 +203,7 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 			Error("Failed to start script: %v\n", err)
 		}
 	} else {
-		Success("Script ", "/tmp/assimilator/"+pkg.category+"/"+pkg.name+"/"+fmt.Sprintf("%s.sh", pkg.action), " ran successfully!")
+		Success("Script ", commandToRun, " ran successfully!")
 	}
 	Debug(string(output))
 	return nil

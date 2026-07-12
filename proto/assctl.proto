@@ -54,7 +54,7 @@ message GetSpecificConfigResponse {
 
 message PackageRequest {
     string Name = 1;
-    string Category = 2;
+    // string Category = 2;
 }
 
 message PackageResponse {
