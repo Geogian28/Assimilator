@@ -145,11 +145,13 @@ func (a *AgentData) extractPackage(pkg *packageInfo) error {
 	// 0. Create a predictable temp directory using pkgName
 	//    We use /tmp/assimilator/<user>/<pkgName> (e.g. /tmp/assimilator/zsh)
 	tempPath := filepath.Join(os.TempDir(), "assimilator")
-	if err := os.MkdirAll(tempPath, 0776); err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	if err := os.Chmod(tempPath, 0776); err != nil {
-		return fmt.Errorf("failed to chmod temp dir: %w", err)
+	if _, err := os.Stat(tempPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(tempPath, 0776); err != nil {
+			return fmt.Errorf("failed to create temp dir: %w", err)
+		}
+		if err := os.Chmod(tempPath, 0776); err != nil {
+			return fmt.Errorf("failed to chmod temp dir: %w", err)
+		}
 	}
 
 	extractDir := filepath.Join(os.TempDir(), "assimilator", appConfig.RunAsUser, pkg.name)
