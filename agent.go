@@ -146,6 +146,8 @@ func (a *AgentData) convertToPackageInfo(packageName string, packageData *pb.Pac
 	case "pending":
 		Info("Tormon asked to retry deployment.")
 		// pendingStatus = true
+	case "notset":
+		break
 	case "none":
 		Error("Tormon ticket not found. Continuing anyways deployment of ", packageName)
 	}
@@ -197,7 +199,7 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 
 func (a *AgentData) checkTormonStatus(packageName string) (string, int) {
 	if appConfig.TormonAddress == "" {
-		return "none", 0
+		return "notset", 0
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
 	url := fmt.Sprintf("%s/api/status?hostname=%s&package_name=%s", appConfig.TormonAddress, appConfig.Hostname, packageName)
