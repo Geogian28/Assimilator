@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strings"
 
 	// "syscall"
 
@@ -180,11 +179,9 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 	// 2. Run the install script
 	// Join the arguments array into a space-separated string (e.g. "--unattended --force")
 	Trace("Arguments: ", pkg.arguments)
-	argsString := strings.Join(pkg.arguments, " ")
-	Trace("Args string: ", argsString)
 	// If the package didnt specify a runAsUser, default to root, then look it up
 	if pkg.runAsUser == "" {
-		Error("Package ", pkg.name, " did not specify a runAsUser. Exiting to expose error instead of applying bandaid.")
+		return fmt.Errorf("package %s did not specify a runAsUser. Exiting to expose error instead of applying bandaid", pkg.name)
 	}
 	currentUser, err := user.Current()
 	if err != nil {
@@ -192,14 +189,17 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 	}
 
 	commandToRun := pkg.extractDir + "/" + fmt.Sprintf("%s.sh", pkg.action)
-	cmd := exec.Command("/bin/bash", commandToRun, argsString)
+	cmd := exec.Command(commandToRun, pkg.arguments...)
 	cmd.Dir = pkg.extractDir
+	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, pkg.env...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("USER=%s", currentUser.Username))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", currentUser.HomeDir))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("ASSIMILATOR_HOME=%s", currentUser.HomeDir))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("ASSIMILATOR_USER=%s", currentUser.Username))
-	cmd.Env = append(cmd.Env, "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+	cmd.Env = append(cmd.Env,
+		fmt.Sprintf("USER=%s", currentUser.Username),
+		fmt.Sprintf("HOME=%s", currentUser.HomeDir),
+		fmt.Sprintf("ASSIMILATOR_HOME=%s", currentUser.HomeDir),
+		fmt.Sprintf("ASSIMILATOR_USER=%s", currentUser.Username),
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	)
 
 	Trace("Running script ", commandToRun, " as user: ", pkg.runAsUser)
 	output, err := cmd.CombinedOutput()
@@ -207,10 +207,10 @@ func (a *AgentData) executePackageScript(pkg *packageInfo) error {
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			code := exitErr.ExitCode()
-			Error("Script failed with exit code:", code)
+			return fmt.Errorf("Script failed with exit code: %v", code)
 		} else {
 			// The system couldn't even start the script
-			Error("Failed to start script: %v\n", err)
+			return fmt.Errorf("Failed to start script: %v\n", err)
 		}
 	} else {
 		Success("Script ", commandToRun, " ran successfully!")

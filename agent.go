@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"syscall"
 	"time"
 
@@ -50,8 +51,15 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 			Error("No packages to install. Double-check config.yaml for ", a.appConfig.Hostname)
 			return
 		}
+		length := 0
+		receivedPackages := machineConfig.GetPackages()
+		for _, packageConfig := range receivedPackages {
+			length += len(packageConfig.PackageSteps)
+		}
+		namesSorted := make([]string, 0, len(machineConfig.GetPackages()))
+		sort.Strings(namesSorted)
 
-		go listPackages(machineConfig.GetPackages())
+		go listPackages(namesSorted, machineConfig.GetPackages())
 
 		// processes the packages
 		for packageName, packageConfig := range machineConfig.GetPackages() {
@@ -65,8 +73,6 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 					err := a.ProcessPackages(a.convertToPackageInfo(packageName, packageStep, packageConfig.Checksum))
 					if err != nil {
 						Error("Error processing package: ", err)
-					} else {
-						Info("Successfully processed package: ", packageName)
 					}
 				} else {
 					Trace(packageName, "'s packageStep.Runasuser: ", packageStep.Runasuser)
@@ -95,17 +101,27 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	}
 }
 
-func listPackages(packages map[string]*pb.PackageConfig) {
+func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
 	length := 0
 	for _, packageConfig := range packages {
 		length += len(packageConfig.PackageSteps)
 	}
+
 	Debug("There are ", length, " package configs across ,"+fmt.Sprint(len(packages))+" packages.")
 	Debug("Listing packages applied to this machine:")
-	for packageName, packageconfig := range packages {
-		Debug("   - ", packageName)
-		for _, packageData := range packageconfig.PackageSteps {
-			Debug("      - ", packageData.Action)
+	// for packageName, packageconfig := range packages {
+	for _, packageName := range namesSorted {
+		Debug(" - ", packageName)
+		for _, packageData := range packages[packageName].PackageSteps {
+			if len(packageData.Arguments) >= 0 {
+				Debug("   - ", packageData.Action, "as user ", packageData.Runasuser, " with arguments:")
+				for _, argument := range packageData.Arguments {
+					Debug("     - ", argument)
+				}
+				continue
+			}
+
+			Debug("   - ", packageData.Action, "as user ", packageData.Runasuser)
 		}
 	}
 }
