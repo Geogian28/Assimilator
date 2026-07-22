@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -502,5 +503,10 @@ func logFileLocation() string {
 		return "/var/log/assimilator.log"
 	}
 
+	mkdir := exec.Command("mkdir", "-p", filepath.Join(user.HomeDir, ".local/state"))
+	if err := mkdir.Run(); err != nil {
+		Error("Failed to create log directory: ", err)
+		os.Exit(1)
+	}
 	return filepath.Join(user.HomeDir, ".local/state/assimilator.log")
 }
