@@ -12,22 +12,10 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	toml "github.com/pelletier/go-toml/v2"
-	"gopkg.in/yaml.v3" // Import the YAML library
 
+	// Import the YAML library
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
 )
-
-// var (
-// 	appversion   string = "0.3.11"
-// 	commit    string
-// 	buildDate string
-// )
-
-type DesiredState struct {
-	Profiles map[string]ProfileConfig `yaml:"profiles"`
-	Machines map[string]MachineConfig `yaml:"machines"`
-	// Users    map[string]UserConfig    `yaml:"users"`
-}
 
 type AppConfig struct {
 	IsServer        bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
@@ -36,14 +24,13 @@ type AppConfig struct {
 	GithubToken     string                `toml:"Github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
 	GithubRepo      string                `toml:"Github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
 	GithubBranch    string                `toml:"Github_branch" env:"ASSIMILATOR_GITHUB_BRANCH"`
-	testMode        bool                  `toml:"-" env:"ASSIMILATOR_TEST_MODE"`
 	VerbosityLevel  int                   `toml:"verbosity_level" env:"ASSIMILATOR_VERBOSITY_LEVEL"`
 	LogTypes        string                `toml:"log_types" env:"ASSIMILATOR_LOG_TYPES"`
 	LogFileLocation string                `toml:"log_file_location" env:"ASSIMILATOR_LOG_FILE_LOCATION"`
 	RepoDir         string                `toml:"repo_dir" env:"ASSIMILATOR_REPO_DIR"`
 	ServerIP        string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
 	ServerPort      int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
-	Hostname        string                `toml:"Hostname" env:"ASSIMILATOR_HOSTNAME"`
+	Hostname        string                `toml:"-" env:"ASSIMILATOR_HOSTNAME"`
 	packageMap      map[string]PackageMap `toml:"-" yaml:"package_map"`
 	CacheDir        string                //`toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
 	version         string                `toml:"-"`
@@ -57,25 +44,24 @@ type AppConfig struct {
 }
 
 var appConfig = AppConfig{
-	IsAgent:         false,
-	IsServer:        false,
+	// IsAgent:         true,
+	// IsServer:        false,
 	GithubUsername:  "",
 	GithubToken:     "",
 	GithubRepo:      "",
-	GithubBranch:    "main",
-	testMode:        false,
-	VerbosityLevel:  4,
-	LogTypes:        "console",
+	VerbosityLevel:  3,
+	LogTypes:        "console file",
 	LogFileLocation: logFileLocation(),
-	RepoDir:         "",
 	ServerIP:        "0.0.0.0",
 	ServerPort:      2390,
-	Hostname:        "",
 	CacheDir:        userCacheDir(),
-	TormonAddress:   "",
-	ConfigFilename:  "",
 	CurrentUser:     runningUser(),
 	RunAsUser:       runningUser(),
+}
+
+type DesiredState struct {
+	Profiles map[string]ProfileConfig `yaml:"profiles"`
+	Machines map[string]MachineConfig `yaml:"machines"`
 }
 
 type ProfileConfig struct {
@@ -99,6 +85,27 @@ type PackageStep struct {
 
 type PackageMap struct {
 	Packages map[string][]PackageStep `yaml:"packages"`
+}
+
+type CliFlags struct {
+	Agent           bool
+	Server          bool
+	GithubUsername  string
+	GithubToken     string
+	GithubRepo      string
+	GithubBranch    string
+	Verbosity       int
+	LogTypes        string
+	LogFileLocation string
+	RepoDir         string
+	CacheDir        string
+	ServerIP        string
+	ServerPort      int
+	Hostname        string
+	ShowVersion     bool
+	TormonAddress   string
+	ConfigFilename  string
+	RunAsUser       string
 }
 
 // This new struct will create the [config] table
@@ -170,20 +177,35 @@ func ConfigFromFile() {
 	err = toml.Unmarshal(configFile, &wrapper)
 	if err != nil {
 		Error("Failed to unmarshal config file: ", err)
-	} else {
-		Debug("Loaded config from file.")
-		appConfig = wrapper.Config
+		return
 	}
+	Debug("Loaded config from file.")
+	if wrapper.Config.IsServer && wrapper.Config.IsAgent {
+		Fatal(1, "Both 'server' and 'agent' enabled in config file. Cannot run as both agent and server.")
+		return
+	}
+	if wrapper.Config.IsServer {
+		appConfig.IsAgent = false
+	}
+	if wrapper.Config.IsAgent {
+		appConfig.IsServer = false
+	}
+	appConfig = wrapper.Config
 }
 
 func ConfigFromEnv() {
+	serverEnv := strings.ToLower(os.Getenv("ASSIMILATOR_IS_SERVER"))
+	agentEnv := strings.ToLower(os.Getenv("ASSIMILATOR_IS_AGENT"))
+	if agentEnv == "true" && serverEnv == "true" {
+		Fatal(1, "Both 'server' and 'agent' enabled in environment variables. Cannot run as both agent and server.")
+		return
+	}
 	if err := env.Parse(&appConfig); err != nil {
 		Error("Failed to parse environment variables: ", err)
 	}
 }
 
 func ConfigFromFlags(flags *CliFlags) {
-
 	// Create a map to know which flags were set by the user.
 	userSetFlags := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) {
@@ -191,10 +213,19 @@ func ConfigFromFlags(flags *CliFlags) {
 	})
 
 	// Now, conditionally update the config
-	if userSetFlags["server"] {
-		appConfig.IsServer = flags.Server
+	if flags.Server && flags.Agent {
+		Fatal(1, "Cannot run as both agent and server.")
+		return
 	}
-	if userSetFlags["agent"] {
+	if userSetFlags["server"] {
+		if flags.Server {
+			appConfig.IsAgent = false
+		}
+		appConfig.IsServer = flags.Server
+	} else if userSetFlags["agent"] {
+		if flags.Agent {
+			appConfig.IsServer = false
+		}
 		appConfig.IsAgent = flags.Agent
 	}
 	if userSetFlags["Github_username"] {
@@ -206,8 +237,8 @@ func ConfigFromFlags(flags *CliFlags) {
 	if userSetFlags["Github_repo"] {
 		appConfig.GithubRepo = flags.GithubRepo
 	}
-	if userSetFlags["test_mode"] {
-		appConfig.testMode = flags.testMode
+	if userSetFlags["Github_branch"] {
+		appConfig.GithubBranch = flags.GithubBranch
 	}
 	if userSetFlags["verbosity"] {
 		appConfig.VerbosityLevel = flags.Verbosity
@@ -220,6 +251,9 @@ func ConfigFromFlags(flags *CliFlags) {
 	}
 	if userSetFlags["repo_dir"] {
 		appConfig.RepoDir = flags.RepoDir
+	}
+	if userSetFlags["cache_dir"] {
+		appConfig.CacheDir = flags.CacheDir
 	}
 	if userSetFlags["server_ip"] {
 		appConfig.ServerIP = flags.ServerIP
@@ -247,7 +281,6 @@ func traceAppConfig() {
 	Trace("GithubUsername: ", appConfig.GithubUsername)
 	Trace("GithubToken: ", appConfig.GithubToken)
 	Trace("GithubRepo: ", appConfig.GithubRepo)
-	Trace("testMode: ", appConfig.testMode)
 	Trace("verbosity: ", appConfig.VerbosityLevel)
 	Trace("logTypes: ", appConfig.LogTypes)
 	Trace("logFileLocation: ", appConfig.LogFileLocation)
@@ -282,6 +315,7 @@ func SetupAppConfig(flags *CliFlags) {
 		appConfig.IsAgent = true
 	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
+
 	// Evaluate server flags
 	case appConfig.IsServer:
 		switch {
@@ -292,6 +326,7 @@ func SetupAppConfig(flags *CliFlags) {
 		case appConfig.GithubToken == "":
 			Fatal(1, "GitHub token not provided.")
 		}
+
 	// Evaluate agent flags
 	case appConfig.IsAgent:
 		switch {
@@ -311,66 +346,40 @@ func SetupAppConfig(flags *CliFlags) {
 				Fatal(1, "Failed to get hostname from os.Hostname(): ", err)
 			}
 		}
-		if appConfig.RunAsUser == "" {
-			appConfig.RunAsUser = appConfig.CurrentUser
-		}
-		if appConfig.RunAsUser != "root" && appConfig.LogFileLocation == "/var/log/assimilator.log" {
-			userHomeDir, _ := os.UserHomeDir()
-			appConfig.LogFileLocation = userHomeDir + "/.cache/assimilator/assimilator.log"
-		}
 
-	case appConfig.testMode && appConfig.RepoDir == "":
-		Trace("Test mode enabled, but repo directory not provided")
-		Trace(`Setting repodir to "/tmp/assimilator-repo"`)
-		appConfig.RepoDir = "/tmp/assimilator-repo"
-	case !appConfig.testMode && appConfig.RepoDir == "":
+	case appConfig.RepoDir == "":
 		Fatal(1, "Repository directory not provided.")
 	case appConfig.VerbosityLevel < 0:
 		appConfig.VerbosityLevel = 0
 	case appConfig.CacheDir == "":
 		Fatal(1, "CacheDir is not set")
-	default:
-		Success("Configuration loaded successfully.")
 	}
+
+	if appConfig.GithubBranch == "" {
+		appConfig.GithubBranch = "main"
+	}
+	if appConfig.RunAsUser == "" {
+		appConfig.RunAsUser = appConfig.CurrentUser
+	}
+
+	Success("Configuration loaded successfully.")
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 	asslog.SetLogFileLocation(appConfig.LogFileLocation)
 }
 
-type CliFlags struct {
-	Agent           bool
-	Server          bool
-	GithubUsername  string
-	GithubToken     string
-	GithubRepo      string
-	GithubBranch    string
-	testMode        bool
-	Verbosity       int
-	LogTypes        string
-	LogFileLocation string
-	RepoDir         string
-	ServerIP        string
-	ServerPort      int
-	Hostname        string
-	ShowVersion     bool
-	TormonAddress   string
-	ConfigFilename  string
-	RunAsUser       string
-}
-
 func ParseFlags() *CliFlags {
 	flags := &CliFlags{}
 
-	flag.BoolVar(&flags.Agent, "agent", true, "Run as agent")
+	flag.BoolVar(&flags.Agent, "agent", false, "Run as agent")
 	flag.BoolVar(&flags.Server, "server", false, "Run as server")
 	flag.StringVar(&flags.GithubUsername, "Github_username", "", "GitHub username")
 	flag.StringVar(&flags.GithubToken, "Github_token", "", "GitHub access token")
 	flag.StringVar(&flags.GithubRepo, "Github_repo", "", "GitHub repository")
 	flag.StringVar(&flags.GithubBranch, "Github_branch", "main", "GitHub branch. Useful for dev environments. Defaults to 'main'")
-	flag.BoolVar(&flags.testMode, "test_mode", false, "Used when testing, do not use in production")
 	flag.IntVar(&flags.Verbosity, "verbosity", 1, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
 	flag.StringVar(&flags.LogTypes, "log_types", "", "Set log output locations (console, file)")
-	flag.StringVar(&flags.LogFileLocation, "log_file_location", "/var/lib/assimilator/assimilator.log", "Set log file location")
+	flag.StringVar(&flags.LogFileLocation, "log_file_location", logFileLocation(), "Set log file location. Root defaults to '/var/log/assimilator.log' and non-root defaults to '~/.local/state/assimilator.log'")
 	flag.StringVar(&flags.RepoDir, "repo_dir", "", "Set repository directory")
 	flag.StringVar(&flags.ServerIP, "server_ip", "0.0.0.0", "Set server IP")
 	flag.IntVar(&flags.ServerPort, "server_port", 2390, "Set server port")
@@ -410,71 +419,6 @@ func logTypes(logTypesPtr string) map[string]bool {
 	return logTypesMap
 }
 
-// LoadDesiredState reads the YAML file from the given path and unmarshals it into the AppConfig struct.
-func LoadDesiredState(filePath string) (*DesiredState, error) {
-	Trace("Reading config file: ", filePath)
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file '%s': %w", filePath, err)
-	}
-	var desiredState DesiredState
-	err = yaml.Unmarshal(data, &desiredState)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal YAML from '%s': %w", filePath, err)
-	}
-
-	// Apply profiles to machines and users
-	applyProfiles(&desiredState)
-	return &desiredState, nil
-}
-
-func applyProfiles(desiredState *DesiredState) {
-	var ProfileNames []string
-	for profileName := range desiredState.Profiles {
-		ProfileNames = append(ProfileNames, profileName)
-	}
-	Debug("Available profiles: ", strings.Join(ProfileNames, ", "))
-
-	for machineName, machineConfig := range desiredState.Machines {
-		mergedPackages := make(map[string][]PackageStep)
-
-		for _, profileName := range machineConfig.AppliedProfiles {
-			profile, ok := desiredState.Profiles[profileName]
-			if !ok {
-				Error("Cannot apply profile: ", profileName, " to machine: ", machineName, ": profile not found: ")
-				continue
-			}
-
-			Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
-			combinePackageSteps(mergedPackages, profile.Packages)
-			// maps.Copy(machineConfig.Packages, profile.Packages)
-		}
-
-		Trace(fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
-		combinePackageSteps(mergedPackages, machineConfig.Packages)
-		verifyPackages(mergedPackages)
-
-		machineConfig.Packages = mergedPackages
-		desiredState.Machines[machineName] = machineConfig
-	}
-}
-
-func combinePackageSteps(target, source map[string][]PackageStep) {
-	for pkgName, pkgSteps := range source {
-		target[pkgName] = append(target[pkgName], pkgSteps...)
-	}
-}
-
-func verifyPackages(packages map[string][]PackageStep) {
-	for pkgName, pkgSteps := range packages {
-		for i, pkgStep := range pkgSteps {
-			if pkgStep.RunAsUser == "" {
-				packages[pkgName][i].RunAsUser = "root"
-			}
-		}
-	}
-}
-
 func runningUser() string {
 	runningUser, err := user.Current()
 	if err != nil {
@@ -485,6 +429,14 @@ func runningUser() string {
 }
 
 func userCacheDir() string {
+	user, err := user.Current()
+	if err != nil {
+		Error("Failed to get current user: ", err)
+		os.Exit(1)
+	}
+	if user.Username == "root" {
+		return "/var/cache/assimilator"
+	}
 	baseCacheDir, err := os.UserCacheDir()
 	if err != nil {
 		Error("Failed to get user cache directory: ", err)

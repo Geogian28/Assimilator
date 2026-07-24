@@ -156,14 +156,14 @@ func (a *AgentData) convertToPackageInfo(packageName string, packageData *pb.Pac
 	ticketStatus, ticketID := a.checkTormonStatus(packageName)
 	Trace("packageName : ", packageName, ", ticketStatus: ", ticketStatus, ", ticketID: ", ticketID)
 	switch ticketStatus {
+	case "notset":
+		break
 	case "open":
 		Info(fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon/%d\n", packageName, ticketID))
 		return nil
 	case "pending":
 		Info("Tormon asked to retry deployment.")
 		// pendingStatus = true
-	case "notset":
-		break
 	case "none":
 		Error("Tormon ticket not found. Continuing anyways deployment of ", packageName)
 	}

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type packageInfo struct {
@@ -52,4 +55,69 @@ func calculateChecksum(path string) (string, error) {
 	hashInBytes := hash.Sum(nil)
 
 	return hex.EncodeToString(hashInBytes), nil
+}
+
+// LoadDesiredState reads the YAML file from the given path and unmarshals it into the AppConfig struct.
+func LoadDesiredState(filePath string) (*DesiredState, error) {
+	Trace("Reading config file: ", filePath)
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file '%s': %w", filePath, err)
+	}
+	var desiredState DesiredState
+	err = yaml.Unmarshal(data, &desiredState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal YAML from '%s': %w", filePath, err)
+	}
+
+	// Apply profiles to machines and users
+	applyProfiles(&desiredState)
+	return &desiredState, nil
+}
+
+func applyProfiles(desiredState *DesiredState) {
+	var ProfileNames []string
+	for profileName := range desiredState.Profiles {
+		ProfileNames = append(ProfileNames, profileName)
+	}
+	Debug("Available profiles: ", strings.Join(ProfileNames, ", "))
+
+	for machineName, machineConfig := range desiredState.Machines {
+		mergedPackages := make(map[string][]PackageStep)
+
+		for _, profileName := range machineConfig.AppliedProfiles {
+			profile, ok := desiredState.Profiles[profileName]
+			if !ok {
+				Error("Cannot apply profile: ", profileName, " to machine: ", machineName, ": profile not found: ")
+				continue
+			}
+
+			Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
+			combinePackageSteps(mergedPackages, profile.Packages)
+			// maps.Copy(machineConfig.Packages, profile.Packages)
+		}
+
+		Trace(fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
+		combinePackageSteps(mergedPackages, machineConfig.Packages)
+		verifyPackages(mergedPackages)
+
+		machineConfig.Packages = mergedPackages
+		desiredState.Machines[machineName] = machineConfig
+	}
+}
+
+func combinePackageSteps(target, source map[string][]PackageStep) {
+	for pkgName, pkgSteps := range source {
+		target[pkgName] = append(target[pkgName], pkgSteps...)
+	}
+}
+
+func verifyPackages(packages map[string][]PackageStep) {
+	for pkgName, pkgSteps := range packages {
+		for i, pkgStep := range pkgSteps {
+			if pkgStep.RunAsUser == "" {
+				packages[pkgName][i].RunAsUser = "root"
+			}
+		}
+	}
 }

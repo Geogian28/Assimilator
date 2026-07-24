@@ -12,7 +12,6 @@ func toProtoAppConfig(ac AppConfig) *pb.AppConfig {
 		GithubUsername: ac.GithubUsername,        // Maps to string GithubUsername = 4
 		GithubToken:    ac.GithubToken,           // Maps to string GithubToken = 5
 		GithubRepo:     ac.GithubRepo,            // Maps to string GithubRepo = 6
-		TestMode:       ac.testMode,              // Maps to bool testMode = 7
 		VerbosityLevel: int32(ac.VerbosityLevel), // Maps to int32 verbosityLevel = 8
 	}
 }
