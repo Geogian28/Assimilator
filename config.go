@@ -43,8 +43,8 @@ type AppConfig struct {
 	RunAsUser             string                `toml:"-" env:"ASSIMILATOR_RUN_AS_USER"`
 	CurrentUser           string                `toml:"-"`
 	RunOnce               bool                  `toml:"-"`
-	PackageUpdateInterval int64                 `toml:"-" env:"ASSIMILATOR_PACKAGE_UPDATE_INTERVAL"`
-	UpdateCheckInterval   int64                 `toml:"-" env:"ASSIMILATOR_UPDATE_CHECK_INTERVAL"`
+	PackageUpdateInterval int64                 `toml:"package_update_interval" env:"ASSIMILATOR_PACKAGE_UPDATE_INTERVAL"`
+	UpdateCheckInterval   int64                 `toml:"update_check_interval" env:"ASSIMILATOR_UPDATE_CHECK_INTERVAL"`
 }
 
 var appConfig = AppConfig{
@@ -62,7 +62,7 @@ var appConfig = AppConfig{
 	CurrentUser:           runningUser(),
 	RunAsUser:             runningUser(),
 	RunOnce:               false,
-	PackageUpdateInterval: 0,
+	PackageUpdateInterval: 600,
 	UpdateCheckInterval:   60,
 }
 
