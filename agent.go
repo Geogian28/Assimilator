@@ -9,11 +9,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
+	"slices"
 	"syscall"
 	"time"
 
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
+	assctl "github.com/geogian28/Assimilator/proto"
 	pb "github.com/geogian28/Assimilator/proto"
 	"github.com/hashicorp/go-version"
 	"google.golang.org/grpc"
@@ -23,9 +24,10 @@ import (
 )
 
 type AgentData struct {
-	appConfig     *AppConfig
-	client        pb.AssimilatorClient
-	commandRunner CommandRunner
+	appConfig      *AppConfig
+	client         pb.AssimilatorClient
+	commandRunner  CommandRunner
+	failureReports map[string]string
 }
 
 var agentData *AgentData
@@ -46,59 +48,93 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 
 	// 3. Fetch the config
 	machineConfig, err := a.getPackageInfoFromServer(ctx)
-	if err == nil {
-		if len(machineConfig.GetPackages()) == 0 {
-			Error("No packages to install. Double-check config.yaml for ", a.appConfig.Hostname)
-			return
-		}
-		length := 0
-		receivedPackages := machineConfig.GetPackages()
-		for _, packageConfig := range receivedPackages {
-			length += len(packageConfig.PackageSteps)
-		}
-		namesSorted := make([]string, 0, len(machineConfig.GetPackages()))
-		sort.Strings(namesSorted)
+	if err != nil {
+		Error("error getting package info from server: ", err)
+		return
+	}
 
-		go listPackages(namesSorted, machineConfig.GetPackages())
+	// 4. Filter packages by user then sort them, and list them
+	filteredNames, filteredPackages := PackagesForUser(machineConfig)
+	listPackages(filteredNames, machineConfig)
 
-		// processes the packages
-		for packageName, packageConfig := range machineConfig.GetPackages() {
-			for _, packageStep := range packageConfig.PackageSteps {
-				Trace(packageName, "'s packageStep.Runasuser: ", packageStep.Runasuser)
-				Trace(packageName, "'s appConfig.RunAsUser: ", appConfig.RunAsUser)
-				if packageStep.Runasuser == appConfig.RunAsUser {
-					Debug(packageName, "'s packageStep.Runasuser: ", packageStep.Runasuser)
-					Debug(packageName, "'s appConfig.RunAsUser: ", appConfig.RunAsUser)
-					Info("Processing package: ", packageName)
-					err := a.ProcessPackages(a.convertToPackageInfo(packageName, packageStep, packageConfig.Checksum))
-					if err != nil {
-						Error("Error processing package: ", err)
-					}
-				} else {
-					Trace(packageName, "'s packageStep.Runasuser: ", packageStep.Runasuser)
-					Trace(packageName, "'s appConfig.RunAsUser: ", appConfig.RunAsUser)
-				}
+	// 5. Processes the packages
+	for _, packageName := range filteredNames {
+		err := filteredPackages[packageName].ProcessPackage(a)
+		if err != nil {
+			Error("Error processing package: ", err)
+		}
+	}
+	a.failureReports = make(map[string]string, len(machineConfig))
+
+	Info("Finished processing all packages.")
+	printReports(filteredNames, a.failureReports)
+}
+
+func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[string]*packageInfo) {
+	sortedNames := make([]string, 0, len(packages))
+	filteredPackages := make(map[string]*packageInfo, len(packages))
+	for packageName, packageConfig := range packages {
+		for _, packageStep := range packageConfig.PackageSteps {
+			if packageStep.Runasuser == appConfig.RunAsUser || packageStep.Runasuser == "_all" {
+				Debug(packageName, "'s packageStep and appConfig 'RunAsUser' match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
+				sortedNames = append(sortedNames, packageName)
+				filteredPackages[packageName] = convertToPackageInfo(
+					packageName,
+					packageStep,
+					packageConfig.Checksum,
+				)
+			} else {
+				Trace(packageName, "'s packageStep and appConfig 'RunAsUser' dont match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
 			}
 		}
+	}
+	slices.Sort(sortedNames)
+	if sortedNames == nil {
+		Error("No packages found for user: ", appConfig.RunAsUser)
+		os.Exit(1)
+	}
+	return sortedNames, filteredPackages
+}
+
+func printReports(namesSorted []string, failureReports map[string]string) {
+	if len(failureReports) == 0 {
+		Info("All packages installed successfully.")
 		return
 	}
 
-	errorStatus, ok := status.FromError(err)
-	if !ok {
-		Warning("failed to ping server: ", err)
-		return
+	for name, report := range failureReports {
+		Info("Package: ", name)
+		Info(report)
+		Info()
 	}
 
-	switch errorStatus.Code() {
-	case codes.Unavailable:
-		Warning("Assimilator server is unavailable (retrying at the next tick):\n      ", err.Error())
-	case codes.NotFound:
-		Error("Assimilator server could not find this machine's config:\n      ", err.Error())
-	case codes.Canceled:
-		Trace("Assimilator server request was canceled:\n      ", err.Error())
-	default:
-		Error("Assimilator server returned an unexpected error:\n      ", err.Error())
+	successfulReports := []string{}
+	failedReports := []string{}
+	Trace("namesSorted length: ", len(namesSorted))
+	for _, packageName := range namesSorted {
+		Trace("packageName: ", packageName)
+		if _, ok := failureReports[packageName]; ok {
+			failedReports = append(failedReports, packageName)
+		} else {
+			successfulReports = append(successfulReports, packageName)
+		}
 	}
+	var report string
+	if len(successfulReports) > 0 {
+		report += fmt.Sprintln("# These packages succeeded:")
+		for _, packageName := range successfulReports {
+			report += fmt.Sprintln("  - ", packageName)
+		}
+	} else {
+		report += fmt.Sprintln("# No packages succeeded...")
+	}
+
+	report += fmt.Sprintln("\n# These packages failed:")
+	for _, packageName := range failedReports {
+		report += fmt.Sprintln("  - ", packageName)
+		report += fmt.Sprintln(failureReports[packageName])
+	}
+	Info("Results:\n", report, "\n")
 }
 
 func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
@@ -114,22 +150,21 @@ func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
 		Debug(" - ", packageName)
 		for _, packageData := range packages[packageName].PackageSteps {
 			if len(packageData.Arguments) >= 0 {
-				Debug("   - ", packageData.Action, "as user ", packageData.Runasuser, " with arguments:")
+				Debug("   - ", packageData.Action, " as user ", packageData.Runasuser, " with arguments:")
 				for _, argument := range packageData.Arguments {
 					Debug("     - ", argument)
 				}
 				continue
 			}
 
-			Debug("   - ", packageData.Action, "as user ", packageData.Runasuser)
+			Debug("   - ", packageData.Action, " as user ", packageData.Runasuser)
 		}
 	}
 }
 
 // Get the machine config from the server
-func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (*pb.GetSpecificConfigResponse, error) {
+func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*assctl.PackageConfig, error) {
 	Debug("Attempting to fetch config from server...")
-
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
@@ -140,6 +175,20 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (*pb.GetSpecif
 			asslog.Trace("pingServer was canceled by shutdown signal.")
 			return nil, err
 		}
+		errorStatus, ok := status.FromError(err)
+		if !ok {
+			Warning("failed to ping server: ", err)
+		}
+		switch errorStatus.Code() {
+		case codes.Unavailable:
+			Warning("assimilator server is unavailable (retrying at the next tick):\n      ", err.Error())
+		case codes.NotFound:
+			Error("assimilator server could not find this machine's config:\n      ", err.Error())
+		case codes.Canceled:
+			Trace("assimilator server request was canceled:\n      ", err.Error())
+		default:
+			Error("assimilator server returned an unexpected error:\n      ", err.Error())
+		}
 		return nil, err
 	}
 
@@ -149,11 +198,15 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (*pb.GetSpecif
 	}
 
 	Info("Successfully got config for machine: ", a.appConfig.Hostname)
-	return resp, nil
+	if len(resp.GetPackages()) == 0 {
+		Error("No packages to install. Double-check config.yaml for ", a.appConfig.Hostname)
+		return nil, err
+	}
+	return resp.GetPackages(), nil
 }
 
-func (a *AgentData) convertToPackageInfo(packageName string, packageData *pb.PackageSteps, checksum string) *packageInfo {
-	ticketStatus, ticketID := a.checkTormonStatus(packageName)
+func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, checksum string) *packageInfo {
+	ticketStatus, ticketID := checkTormonStatus(packageName)
 	Trace("packageName : ", packageName, ", ticketStatus: ", ticketStatus, ", ticketID: ", ticketID)
 	switch ticketStatus {
 	case "notset":
@@ -167,20 +220,23 @@ func (a *AgentData) convertToPackageInfo(packageName string, packageData *pb.Pac
 	case "none":
 		Error("Tormon ticket not found. Continuing anyways deployment of ", packageName)
 	}
+	packageCacheDir := filepath.Join(appConfig.CacheDir, packageName)
 	pkg := &packageInfo{
-		cacheDir:       a.appConfig.CacheDir,
+		cacheDir:       packageCacheDir,
 		name:           packageName,
 		checksum:       "",
 		serverChecksum: checksum,
-		path:           filepath.Join(a.appConfig.CacheDir, packageName+".tar.gz"),
+		path:           filepath.Join(packageCacheDir, packageName+".tar.gz"),
 		arguments:      packageData.Arguments,
 		action:         packageData.GetAction(),
 		runAsUser:      packageData.GetRunasuser(),
+		updateInterval: appConfig.PackageUpdateInterval,
 	}
 	Trace("packageData.Arguments: ", packageData.Arguments) //packageData.Arguments =
 	Trace("pkg.arguments: ", pkg.arguments)
 	return pkg
 }
+
 func getMachineConfig(ctx context.Context, conn *grpc.ClientConn) (*pb.GetSpecificConfigResponse, error) {
 	client := pb.NewAssimilatorClient(conn)
 	agentData.client = client
@@ -213,7 +269,7 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 	return nil
 }
 
-func (a *AgentData) checkTormonStatus(packageName string) (string, int) {
+func checkTormonStatus(packageName string) (string, int) {
 	if appConfig.TormonAddress == "" {
 		return "notset", 0
 	}
@@ -256,14 +312,15 @@ func Agent(commandRunner CommandRunner) {
 	defer cancel()
 
 	// Start the ticker which activates the agent subroutines
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(time.Duration(appConfig.UpdateCheckInterval) * time.Second)
 
 	// Create a "done" channel to signal when we want to stop the pinger
 	done := make(chan bool)
 
 	// Run the first assimilation check
 	agentData.assimilationCheck(ctx)
-	if appConfig.RunAsUser != "" && appConfig.RunAsUser != "root" {
+	// if (appConfig.RunAsUser != "" && appConfig.RunAsUser != "root") || appConfig.RunOnce {
+	if appConfig.RunOnce {
 		Info("Everything is updated. Shutting down.")
 		ctx.Done()
 		return
@@ -280,7 +337,8 @@ func Agent(commandRunner CommandRunner) {
 				Trace("tick! ", time.Now())
 				ticker.Stop()
 				agentData.assimilationCheck(ctx)
-				ticker = time.NewTicker(60 * time.Second)
+				ticker = time.NewTicker(time.Duration(appConfig.UpdateCheckInterval) * time.Second)
+				Info("Waiting ", time.Duration(appConfig.UpdateCheckInterval)*time.Second, " seconds before next check.")
 			}
 		}
 	}(ctx)
