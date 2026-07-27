@@ -65,7 +65,7 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 		p := filteredPackages[packageName]
 		err := p.ProcessPackage(a)
 		if err != nil {
-			a.failureReports[packageName] = fmt.Sprintf("error processing %s package's %s action: %s ", packageName, p.action, err)
+			a.failureReports[p.action+" "+packageName] = fmt.Sprintf("error processing %s package's %s action: %s ", packageName, p.action, err)
 			Error("error processing package: ", err)
 		}
 	}
@@ -122,21 +122,20 @@ func printReports(namesSorted []string, failureReports map[string]string) {
 	}
 	var builder strings.Builder
 	var report string
-	if len(successfulReports) > 0 {
-		fmt.Fprintln(&builder, fmt.Sprintln("# These package actions succeeded:"))
-		for _, packageName := range successfulReports {
-			fmt.Fprintln(&builder, "  - ", packageName)
-		}
-	} else {
-		fmt.Fprintln(&builder, fmt.Sprintln("# No package actions succeeded..."))
+	// if len(successfulReports) > 0 {
+	// 	fmt.Fprintln(&builder, fmt.Sprintln("# These package actions succeeded:"))
+	// 	for _, packageName := range successfulReports {
+	// 		fmt.Fprintln(&builder, "  - ", packageName)
+	// 	}
+	// } else {
+	// 	fmt.Fprintln(&builder, fmt.Sprintln("# No package actions succeeded..."))
+	// }
+	fmt.Fprintln(&builder, "\n# These package actions failed:")
+	for packageName, report := range failureReports {
+		fmt.Fprintln(&builder, "  - ", packageName)
+		fmt.Fprintln(&builder, report)
 	}
-	if len(failedReports) >= 0 {
-		fmt.Fprintln(&builder, fmt.Sprintln("\n# These package actions failed:"))
-		for _, packageName := range failedReports {
-			fmt.Fprintln(&builder, fmt.Sprintln("  - ", packageName))
-			fmt.Fprintln(&builder, fmt.Sprintln(failureReports[packageName]))
-		}
-	}
+	report = builder.String()
 	Info("Results:\n", report, "\n")
 }
 

@@ -358,18 +358,20 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 
 	Trace("Running script ", commandToRun, " as user: ", p.runAsUser)
 	output, err := cmd.CombinedOutput()
-	Debug("\n", string(output))
 
 	if err != nil {
 		a.failureReports[p.name] = string(output)
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			code := exitErr.ExitCode()
-			return fmt.Errorf("Script failed with exit code: %v", code)
+			Info("\n", string(output))
+			Error(fmt.Errorf("Script failed with exit code: %v", code))
+			return fmt.Errorf("Script failed with exit code: %v. Output: %v", code, string(output))
 		} else {
 			// The system couldn't even start the script
 			return fmt.Errorf("Failed to start script: %v\n", err)
 		}
 	}
+	Debug("\n", string(output))
 	Trace("Script ", commandToRun, " ran successfully!")
 
 	// 3. Update the last run time on disk
