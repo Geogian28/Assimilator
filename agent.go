@@ -97,10 +97,6 @@ func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[strin
 }
 
 func printReports(namesSorted []string, failureReports map[string]string) {
-	if len(failureReports) == 0 {
-		Info("All packages installed successfully.")
-		return
-	}
 
 	for name, report := range failureReports {
 		Info("Package: ", name)
@@ -128,11 +124,12 @@ func printReports(namesSorted []string, failureReports map[string]string) {
 	} else {
 		report += fmt.Sprintln("# No packages succeeded...")
 	}
-
-	report += fmt.Sprintln("\n# These packages failed:")
-	for _, packageName := range failedReports {
-		report += fmt.Sprintln("  - ", packageName)
-		report += fmt.Sprintln(failureReports[packageName])
+	if len(failedReports) >= 0 {
+		report += fmt.Sprintln("\n# These packages failed:")
+		for _, packageName := range failedReports {
+			report += fmt.Sprintln("  - ", packageName)
+			report += fmt.Sprintln(failureReports[packageName])
+		}
 	}
 	Info("Results:\n", report, "\n")
 }

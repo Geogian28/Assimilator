@@ -393,13 +393,16 @@ func SetupAppConfig(flags *CliFlags) {
 				Fatal(1, "Failed to get hostname from os.Hostname(): ", err)
 			}
 		}
+		if appConfig.CurrentUser != "root" {
+			appConfig.CacheDir = userCacheDir()
+		}
 
 	case appConfig.RepoDir == "":
 		Fatal(1, "Repository directory not provided.")
 	case appConfig.VerbosityLevel < 0:
 		appConfig.VerbosityLevel = 0
 	case appConfig.CacheDir == "":
-		Fatal(1, "CacheDir is not set")
+		appConfig.CacheDir = userCacheDir()
 	}
 
 	if appConfig.GithubBranch == "" {

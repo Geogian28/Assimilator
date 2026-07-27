@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strconv"
+	"strings"
 	"time"
 
 	pb "github.com/geogian28/Assimilator/proto"
@@ -29,18 +30,18 @@ type packageInfo struct {
 	size             int64
 	name             string // the name of the package, but excluding the .tar.gz extension
 	// localChecksum    string   // the checksum of the local package file
-	serverChecksum string   // the checksum of the server's package file
-	path           string   // the path to the local package including the .tar.gz extension
-	extractDir     string   // the directory to extract the package into
-	arguments      []string // Any arguments that need to be passed to the package installer
-	env            []string // Any environment variables that need to be set
-	runAsUser      string   // The user to run the package installer as
-	ticketStatus   string   // The status of the package in Tormon
-	ticketID       int      // The ID of the ticket in Tormon, if it exists
-	action         string   // The action to perform on the package
-	lastRunTime    int64    // The last time the package was run
-	updated        bool     // Whether the package has been updated
-	updateInterval int64    // The interval at which the package should be updated
+	serverChecksum string    // the checksum of the server's package file
+	path           string    // the path to the local package including the .tar.gz extension
+	extractDir     string    // the directory to extract the package into
+	arguments      []string  // Any arguments that need to be passed to the package installer
+	env            []string  // Any environment variables that need to be set
+	runAsUser      string    // The user to run the package installer as
+	ticketStatus   string    // The status of the package in Tormon
+	ticketID       int       // The ID of the ticket in Tormon, if it exists
+	action         string    // The action to perform on the package
+	lastRunTime    time.Time // The last time the package was run
+	updated        bool      // Whether the package has been updated
+	updateInterval int64     // The interval at which the package should be updated
 }
 
 // Calculates the SHA256 checksum of the package
@@ -74,7 +75,11 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 	Trace("Successfully ensured ", p.name)
 
 	p.checkLastRunTime()
-	if p.updated || p.lastRunTime <= time.Now().Unix()-p.updateInterval {
+	Info(p.printTimeSinceLastRun())
+	// Check if no updates exist AND we are still within the cooldown window
+	if !p.updated && time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second {
+
+		Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
 		return nil
 	}
 
@@ -118,7 +123,7 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 	Debug("Downloading package: ", p.name)
 	err := p.downloadPackage(a)
 	if err != nil {
-		Error("Error downloading package: ", err)
+		a.failureReports[p.name] = fmt.Sprintf("error downloading %s package: %s", p.name, err)
 		return fmt.Errorf("error downloading %s package: %s", p.name, err)
 	}
 	p.updated = true
@@ -126,43 +131,99 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 	return nil
 }
 
-// func fileExists(filename string) bool {
-// 	info, err := os.Stat(filename)
-// 	if err == nil {
-// 		return !info.IsDir()
-// 	}
-// 	if errors.Is(err, os.ErrNotExist) {
-// 		return false
-// 	}
-// 	// For other errors (e.g., permission denied), the file
-// 	// might exist, but we can't access it.
-// 	// You may want to handle these cases differently based on your application needs.
-// 	return false
-// }
-
 func (p *packageInfo) checkLastRunTime() {
-	if !fileExists(filepath.Join(p.cacheDir, "lastRunTime.txt")) {
-		p.lastRunTime = 0
-		return
-	}
+	lastRunPath := filepath.Join(p.cacheDir, "lastRunTime.txt")
 
-	if appConfig.RunOnce {
-		p.lastRunTime = 0
+	if !fileExists(lastRunPath) || appConfig.RunOnce {
+		p.lastRunTime = time.Time{}
 		return
 	}
 
 	content, err := os.ReadFile(filepath.Join(p.cacheDir, "lastRunTime.txt"))
 	if err != nil {
 		Error("error opening lastRunTime.txt: ", err)
-		p.lastRunTime = 0
+		p.lastRunTime = time.Time{}
 		return
 	}
 
-	p.lastRunTime, err = strconv.ParseInt(string(content), 10, 64)
+	cleanContent := strings.TrimSpace(string(content))
+	p.lastRunTime, err = time.Parse(time.RFC3339, string(cleanContent))
 	if err != nil {
 		Error("error parsing lastRunTime.txt: ", err)
-		p.lastRunTime = 0
+		p.lastRunTime = time.Time{}
 	}
+}
+
+// FormatLastRun Returns a human-readable relative time string.
+// - < 1 minute: exact seconds
+// - 1m to 5m: minutes and seconds
+// - 5m to 3h: rounded to nearest minute
+// - 3h to 3d: rounded to nearest hour
+// - > 3d: rounded to nearest day
+func (p *packageInfo) printTimeSinceLastRun() string {
+	if p.lastRunTime.IsZero() {
+		return fmt.Sprintf("Last run time for %s is never", p.name)
+	}
+
+	elapsed := time.Since(p.lastRunTime)
+
+	// Guard against potential future clock skew
+	if elapsed < 0 {
+		return fmt.Sprintf("Last run time for %s is in the future", p.name)
+	}
+
+	// 1. Under 1 minute: Exact seconds
+	if elapsed < time.Minute {
+		secs := int(elapsed.Seconds())
+		if secs == 1 {
+			return fmt.Sprintf("Last run time for %s is %s (1 second ago)", p.name, p.lastRunTime.Format(time.RFC3339))
+		}
+		return fmt.Sprintf("Last run time for %s is (%d seconds ago)", p.name, secs)
+	}
+
+	// 2. 1 to 5 minutes: Minutes and seconds
+	if elapsed < 5*time.Minute {
+		mins := int(elapsed.Minutes())
+		secs := int(elapsed.Seconds()) % 60
+
+		minStr := "minute"
+		if mins > 1 {
+			minStr = "minutes"
+		}
+
+		if secs == 0 {
+			return fmt.Sprintf("Last run time for %s is %s (%d %s ago)", p.name, p.lastRunTime.Format(time.RFC3339), mins, minStr)
+		}
+
+		secStr := "second"
+		if secs > 1 {
+			secStr = "seconds"
+		}
+
+		return fmt.Sprintf("Last run time for %s is %s (%d %s %d %s ago)", p.name, p.lastRunTime.Format(time.RFC3339), mins, minStr, secs, secStr)
+	}
+
+	// 3. 5 minutes to 3 hours: Round to whole minutes
+	if elapsed < 3*time.Hour {
+		mins := int(math.Round(elapsed.Minutes()))
+		return fmt.Sprintf("Last run time for %s is %s (%d minutes ago)", p.name, p.lastRunTime.Format(time.RFC3339), mins)
+	}
+
+	// 4. 3 hours to 3 days: Round to whole hours
+	if elapsed < 72*time.Hour {
+		hours := int(math.Round(elapsed.Hours()))
+		if hours == 1 {
+			return fmt.Sprintf("Last run time for %s is %s (1 hour ago)", p.name, p.lastRunTime.Format(time.RFC3339))
+		}
+		return fmt.Sprintf("Last run time for %s is %s (%d hours ago)", p.name, p.lastRunTime.Format(time.RFC3339), hours)
+	}
+
+	// 5. Above 3 days: Round to whole days
+	days := int(math.Round(elapsed.Hours() / 24))
+	if days == 1 {
+		return fmt.Sprintf("Last run time for %s is %s (1 day ago)", p.name, p.lastRunTime.Format(time.RFC3339))
+	}
+	return fmt.Sprintf("Last run time for %s is %s (%d days ago)", p.name, p.lastRunTime.Format(time.RFC3339), days)
 }
 
 func (p *packageInfo) downloadPackage(a *AgentData) error {
@@ -172,24 +233,22 @@ func (p *packageInfo) downloadPackage(a *AgentData) error {
 	}
 
 	// 2. Open the stream
-	Debug("Opening the stream")
+	Trace("Opening the stream")
 	stream, err := a.client.DownloadPackage(context.Background(), req)
 	if err != nil {
-		Debug("failed to start download stream: ", err)
 		return fmt.Errorf("failed to start download stream: %w", err)
 	}
 
 	// 3. Create the destination file
-	Debug("Creating the destinationfile")
+	Trace("Creating the destinationfile")
 	outFile, err := os.Create(p.path)
 	if err != nil {
-		Debug("failed to create cache file: ", err)
 		return fmt.Errorf("failed to create cache file %s: %w", p.path, err)
 	}
 	defer outFile.Close()
 
 	// 4. Receive chunks in a loop
-	Debug("Receiving chunks in a loop")
+	Trace("Receiving chunks in a loop")
 	var bytesReceived int64
 	for {
 		chunk, err := stream.Recv()
@@ -199,27 +258,19 @@ func (p *packageInfo) downloadPackage(a *AgentData) error {
 			break
 		}
 		if err != nil {
-			Error("stream error while downloading", err)
 			return fmt.Errorf("stream error while downloading %s: %w", p.name, err)
 		}
-		Debug("no 'io.EOF' or stream errors")
-
-		// (Optional) Progress logging
-		// if chunk.TotalSize > 0 {
-		// 	asslog.Trace(fmt.Sprintf("Download started. Size: %d bytes", chunk.TotalSize))
-		// }
 
 		// Write bytes to disk
-		Debug("Writing bytes to disk")
+		Trace("Writing bytes to disk")
 		n, err := outFile.Write(chunk.Content)
 		if err != nil {
-			Debug("failed to write to file:", err)
 			return fmt.Errorf("failed to write to file: %w", err)
 		}
 		bytesReceived += int64(n)
 	}
 
-	Info(fmt.Sprintf("Successfully downloaded %s (%d bytes)", p.name, bytesReceived))
+	Trace(fmt.Sprintf("Successfully downloaded %s (%d bytes)", p.name, bytesReceived))
 	return nil
 }
 
@@ -291,24 +342,29 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 	Trace("Running script ", commandToRun, " as user: ", p.runAsUser)
 	output, err := cmd.CombinedOutput()
 	Debug("\n", string(output))
-	Trace()
+
 	if err != nil {
-		Trace()
 		a.failureReports[p.name] = string(output)
-		Trace()
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			Trace()
 			code := exitErr.ExitCode()
-			Trace()
 			return fmt.Errorf("Script failed with exit code: %v", code)
 		} else {
 			// The system couldn't even start the script
-			Trace()
 			return fmt.Errorf("Failed to start script: %v\n", err)
 		}
-	} else {
-		Trace()
-		Trace("Script ", commandToRun, " ran successfully!")
+	}
+	Trace("Script ", commandToRun, " ran successfully!")
+
+	// 3. Update the last run time on disk
+	if err := os.MkdirAll(p.cacheDir, 0755); err != nil {
+		Error("failed to create cache directory: %w", err)
+		return nil
+	}
+
+	lastRunPath := filepath.Join(p.cacheDir, "lastRunTime.txt")
+	epochStr := fmt.Sprintf("%d", time.Now().Unix())
+	if err := os.WriteFile(lastRunPath, []byte(epochStr), 0644); err != nil {
+		Error("failed to write lastRunTime.txt: %w", err)
 	}
 
 	return nil
