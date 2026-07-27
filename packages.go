@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -132,14 +133,14 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 }
 
 func (p *packageInfo) checkLastRunTime() {
-	lastRunPath := filepath.Join(p.cacheDir, "lastRunTime.txt")
+	lastRunPath := filepath.Join(p.cacheDir, p.action+"_lastRunTime.txt")
 
 	if !fileExists(lastRunPath) || appConfig.RunOnce {
 		p.lastRunTime = time.Time{}
 		return
 	}
 
-	content, err := os.ReadFile(filepath.Join(p.cacheDir, "lastRunTime.txt"))
+	content, err := os.ReadFile(lastRunPath)
 	if err != nil {
 		Error("error opening lastRunTime.txt: ", err)
 		p.lastRunTime = time.Time{}
@@ -147,11 +148,17 @@ func (p *packageInfo) checkLastRunTime() {
 	}
 
 	cleanContent := strings.TrimSpace(string(content))
-	p.lastRunTime, err = time.Parse(time.RFC3339, string(cleanContent))
+
+	// Parse the string as a base-10, 64-bit integer
+	epoch, err := strconv.ParseInt(cleanContent, 10, 64)
 	if err != nil {
-		Error("error parsing lastRunTime.txt: ", err)
+		Error("error parsing lastRunTime.txt as Epoch int: ", err)
 		p.lastRunTime = time.Time{}
+		return
 	}
+
+	// Convert Unix seconds to Go's time.Time
+	p.lastRunTime = time.Unix(epoch, 0)
 }
 
 // FormatLastRun Returns a human-readable relative time string.
@@ -311,7 +318,9 @@ func (p *packageInfo) extractPackage() error {
 		return fmt.Errorf("error extracting package %s: %w, output: %s", p.name, err, string(output))
 	}
 
-	Trace(string(output))
+	if string(output) != "" {
+		Trace(string(output))
+	}
 	p.extractDir = extractDir
 	return nil
 }
@@ -369,7 +378,7 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 		return nil
 	}
 
-	lastRunPath := filepath.Join(p.cacheDir, "lastRunTime.txt")
+	lastRunPath := filepath.Join(p.cacheDir, p.action+"_lastRunTime.txt")
 	epochStr := fmt.Sprintf("%d", time.Now().Unix())
 	if err := os.WriteFile(lastRunPath, []byte(epochStr), 0644); err != nil {
 		Error("failed to write lastRunTime.txt: %w", err)

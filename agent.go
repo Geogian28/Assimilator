@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,7 @@ var agentData *AgentData
 
 // Check the server for updates
 func (a *AgentData) assimilationCheck(ctx context.Context) {
+	Info("Starting assimilation check...")
 	// 1. Open the connection for the entire sync cycle here
 	address := a.appConfig.ServerIP + ":" + fmt.Sprint(a.appConfig.ServerPort)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -58,16 +60,19 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	listPackages(filteredNames, machineConfig)
 
 	// 5. Processes the packages
+	a.failureReports = make(map[string]string, len(machineConfig))
 	for _, packageName := range filteredNames {
-		err := filteredPackages[packageName].ProcessPackage(a)
+		p := filteredPackages[packageName]
+		err := p.ProcessPackage(a)
 		if err != nil {
-			Error("Error processing package: ", err)
+			a.failureReports[packageName] = fmt.Sprintf("error processing %s package's %s action: %s ", packageName, p.action, err)
+			Error("error processing package: ", err)
 		}
 	}
-	a.failureReports = make(map[string]string, len(machineConfig))
 
 	Info("Finished processing all packages.")
 	printReports(filteredNames, a.failureReports)
+	Info("Completed assimilation check.")
 }
 
 func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[string]*packageInfo) {
@@ -115,20 +120,21 @@ func printReports(namesSorted []string, failureReports map[string]string) {
 			successfulReports = append(successfulReports, packageName)
 		}
 	}
+	var builder strings.Builder
 	var report string
 	if len(successfulReports) > 0 {
-		report += fmt.Sprintln("# These packages succeeded:")
+		fmt.Fprintln(&builder, fmt.Sprintln("# These package actions succeeded:"))
 		for _, packageName := range successfulReports {
-			report += fmt.Sprintln("  - ", packageName)
+			fmt.Fprintln(&builder, "  - ", packageName)
 		}
 	} else {
-		report += fmt.Sprintln("# No packages succeeded...")
+		fmt.Fprintln(&builder, fmt.Sprintln("# No package actions succeeded..."))
 	}
 	if len(failedReports) >= 0 {
-		report += fmt.Sprintln("\n# These packages failed:")
+		fmt.Fprintln(&builder, fmt.Sprintln("\n# These package actions failed:"))
 		for _, packageName := range failedReports {
-			report += fmt.Sprintln("  - ", packageName)
-			report += fmt.Sprintln(failureReports[packageName])
+			fmt.Fprintln(&builder, fmt.Sprintln("  - ", packageName))
+			fmt.Fprintln(&builder, fmt.Sprintln(failureReports[packageName]))
 		}
 	}
 	Info("Results:\n", report, "\n")
@@ -144,16 +150,15 @@ func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
 	Debug("Listing packages applied to this machine:")
 	// for packageName, packageconfig := range packages {
 	for _, packageName := range namesSorted {
-		Debug(" - ", packageName)
+		Debug("- ", packageName)
 		for _, packageData := range packages[packageName].PackageSteps {
-			if len(packageData.Arguments) >= 0 {
-				Debug("   - ", packageData.Action, " as user ", packageData.Runasuser, " with arguments:")
+			if len(packageData.Arguments) > 0 {
+				Debug("  - ", packageData.Action, " as user ", packageData.Runasuser, " with arguments:")
 				for _, argument := range packageData.Arguments {
-					Debug("     - ", argument)
+					Debug("    - ", argument)
 				}
 				continue
 			}
-
 			Debug("   - ", packageData.Action, " as user ", packageData.Runasuser)
 		}
 	}
