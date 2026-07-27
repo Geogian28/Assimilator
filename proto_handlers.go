@@ -70,7 +70,7 @@ func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream p
 	// 	return status.Errorf(codes.NotFound, "package %s not found in category %s", req.Name, req.Category)
 	// }
 
-	pkgInfo, ok := packagesMap[req.Name]
+	pkgInfo, ok := s.packages[req.Name]
 	if !ok {
 		return status.Errorf(codes.NotFound, "package %s not found", req.Name)
 	}

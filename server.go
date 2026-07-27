@@ -30,6 +30,7 @@ type AssimilatorServer struct {
 	ServerVersion
 	PackageDir   string
 	desiredState *DesiredState
+	packages     map[string]*packageInfo
 }
 
 type ServerVersion struct {
@@ -266,14 +267,10 @@ func Server() {
 	}
 
 	// Make packages for machine and sync them with the desired state
-	makePackages()
-	syncChecksums(desiredState)
-
-	// Collect checksums (potentially unneeded)
-	// collectChecksums(repoDir)
-	// if err != nil {
-	// 	asslog.Unhandled("error collecting checksums: ", err)
-	// }
+	packages, err := makePackages()
+	if err != nil {
+		asslog.Unhandled("error making packages: ", err)
+	}
 
 	// Start the server
 	address := fmt.Sprintf("%s:%d", appConfig.ServerIP, appConfig.ServerPort)
@@ -290,6 +287,7 @@ func Server() {
 		},
 		PackageDir:   "/var/cache/assimilator/packages",
 		desiredState: desiredState,
+		packages:     packages,
 	})
 	Info("Server listening on at ", lis.Addr())
 

@@ -11,28 +11,37 @@ import (
 	asslog "github.com/geogian28/Assimilator/assimilator_logger"
 )
 
-type PackagesMap map[string]*packageInfo
+// type PackagesMap map[string]*packageInfo
 
-var packagesMap PackagesMap
+// var packagesMap PackagesMap
 
-func makePackages() {
+func makePackages() (map[string]*packageInfo, error) {
 	repoDir := appConfig.RepoDir
 	cacheDir := appConfig.CacheDir
 
 	err := os.MkdirAll(cacheDir, 0750)
 	if err != nil {
-		asslog.Unhandled("error creating ", cacheDir, ": ", err)
+		return nil, fmt.Errorf("error creating %s: %v", cacheDir, err)
 	}
 	Info("Making packages from repository: ", repoDir)
 
-	// Make the PackagesMap
-	packagesMap = make(PackagesMap)
+	packages, err := createPackageInfo(repoDir, cacheDir)
+	if err != nil {
+		return nil, fmt.Errorf("error making packages: %v", err)
+	}
 
 	// Make packages for machine
-	makePackagesFromPath(repoDir, cacheDir)
+	for _, p := range packages {
+		err := p.createTarballs()
+		if err != nil {
+			Error("error creating tarballs: ", err)
+		}
+	}
+
+	return packages, nil
 }
 
-func makePackagesFromPath(sourceDir string, cacheDir string) {
+func createPackageInfo(sourceDir string, cacheDir string) (map[string]*packageInfo, error) {
 	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -40,6 +49,8 @@ func makePackagesFromPath(sourceDir string, cacheDir string) {
 		}
 		asslog.Unhandled("error reading directory: ", err)
 	}
+
+	packages := make(map[string]*packageInfo)
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -47,47 +58,52 @@ func makePackagesFromPath(sourceDir string, cacheDir string) {
 
 		// 1. Setup the struct that's used many times throughout this process
 		sourceDir := filepath.Join(sourceDir, entry.Name())
-		pkgInfo := &packageInfo{
+		packages[entry.Name()] = &packageInfo{
 			sourceDir:        sourceDir,
 			cacheDir:         cacheDir,
 			packageName:      entry.Name(),
 			packageTempPath:  filepath.Join(cacheDir, entry.Name()+".tar.gz."+appConfig.Hostname),
 			packagePermPath:  filepath.Join(cacheDir, entry.Name()+".tar.gz"),
-			checksum:         "",
 			checksumTempPath: filepath.Join(cacheDir, entry.Name()+".tar.gz.sha256"+appConfig.Hostname),
 			checksumPermPath: filepath.Join(cacheDir, entry.Name()+".tar.gz.sha256"),
 			hostname:         appConfig.Hostname,
 		}
-
-		// 2. Create the cache directory
-		err := os.MkdirAll(pkgInfo.cacheDir, 0750)
-		if err != nil {
-			asslog.Unhandled("error creating ", pkgInfo.packageName, " directory: ", err)
-		}
-
-		// 3. Make the temporary package. This will be moved to the permanent location later.
-		err = makeTempPackage(pkgInfo)
-		if err != nil {
-			asslog.Unhandled("error making ", pkgInfo.packageName, " package: ", err)
-		}
-
-		// 4. Make the checksum from the created package.
-		err = makeTempChecksum(pkgInfo)
-		if err != nil {
-			asslog.Unhandled("failed to make ", pkgInfo.packageName, " package:", err)
-		}
-
-		// 5. Make the permanent package by moving the temporary package to the permanent location.
-		makeTempFilesPermanent(pkgInfo)
-
-		// 6. Add the package to the map so it can be found and referenced later
-		packagesMap[pkgInfo.packageName] = pkgInfo
 	}
+	return packages, nil
 }
 
-func makeTempPackage(pkg *packageInfo) error {
+func (p *packageInfo) createTarballs() error {
+
+	// 2. Create the cache directory
+	err := os.MkdirAll(p.cacheDir, 0750)
+	if err != nil {
+		return fmt.Errorf("error creating %s directory: %v", p.packageName, err)
+	}
+
+	// 3. Make the temporary package. This will be moved to the permanent location later.
+	err = p.makeTempPackage()
+	if err != nil {
+		return fmt.Errorf("error making %s package: %s", p.packageName, err)
+	}
+
+	// 4. Make the checksum from the created package.
+	err = p.makeTempChecksum()
+	if err != nil {
+		return fmt.Errorf("failed to make %s package: %s", p.packageName, err)
+	}
+
+	// 5. Make the permanent package by moving the temporary package to the permanent location.
+	err = p.makeTempFilesPermanent()
+	if err != nil {
+		return fmt.Errorf("failed to make %s package: %s", p.packageName, err)
+	}
+
+	return nil
+}
+
+func (p *packageInfo) makeTempPackage() error {
 	// create the output file (the ".tar.gz" file)
-	tarball, err := os.Create(pkg.packageTempPath)
+	tarball, err := os.Create(p.packageTempPath)
 	if err != nil {
 		return fmt.Errorf("error creating tarball: %s", err)
 	}
@@ -98,7 +114,7 @@ func makeTempPackage(pkg *packageInfo) error {
 	// 4. Create the tar writer
 	tw := tar.NewWriter(gzw)
 
-	filepath.Walk(pkg.sourceDir, func(file string, fi os.FileInfo, err error) error {
+	filepath.Walk(p.sourceDir, func(file string, fi os.FileInfo, err error) error {
 		Trace("filepath.Walk: currently looking at: ", file)
 		// return any error
 		if err != nil {
@@ -119,10 +135,10 @@ func makeTempPackage(pkg *packageInfo) error {
 		}
 
 		// update the name to correctly reflect the desired destination when untarring
-		header.Name, err = filepath.Rel(pkg.sourceDir, file)
+		header.Name, err = filepath.Rel(p.sourceDir, file)
 		if err != nil {
-			Error("unable to get relative path for header.Name: ", err)
-			return fmt.Errorf("unable to get relative path for header.Name: %s", err)
+			Error("unable to get relative path for header. Name: ", err)
+			return fmt.Errorf("unable to get relative path for header. Name: %s", err)
 		}
 
 		// write the header
@@ -154,71 +170,71 @@ func makeTempPackage(pkg *packageInfo) error {
 	tw.Close()
 	gzw.Close()
 	tarball.Close()
-	Trace("closed the tarball for ", pkg.packageName)
+	Trace("closed the tarball for ", p.packageName)
 	return nil
 }
 
-func makeTempChecksum(pkg *packageInfo) error {
+func (p *packageInfo) makeTempChecksum() error {
 	// Open the file
-	file, err := os.Open(pkg.packageTempPath)
+	file, err := os.Open(p.packageTempPath)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
 	// Calculate the SHA256 checksum
-	pkg.checksum, err = calculateChecksum(pkg.packageTempPath)
+	p.checksum, err = calculateChecksum(p.packageTempPath)
 	if err != nil {
 		return fmt.Errorf("failed to calculate checksum: %w", err)
 	}
 
 	// Get the filesize while we're in here
 	fileStat, _ := file.Stat()
-	pkg.size = fileStat.Size()
+	p.size = fileStat.Size()
 
-	_, err = os.Create(pkg.checksumTempPath)
-	os.WriteFile(pkg.checksumTempPath, []byte(pkg.checksum), 0644)
+	_, err = os.Create(p.checksumTempPath)
+	os.WriteFile(p.checksumTempPath, []byte(p.checksum), 0644)
 	return nil
 }
 
-func makeTempFilesPermanent(pkg *packageInfo) {
+func (p *packageInfo) makeTempFilesPermanent() error {
 	// Rename the tarball and checksum
-	err := os.Rename(pkg.packageTempPath, pkg.packagePermPath)
+	err := os.Rename(p.packageTempPath, p.packagePermPath)
 	if err != nil {
-		Error("error renaming the tarball: ", err)
+		return fmt.Errorf("error renaming the tarball: %s", err)
 	}
-	err = os.Rename(pkg.checksumTempPath, pkg.checksumPermPath)
+	err = os.Rename(p.checksumTempPath, p.checksumPermPath)
 	if err != nil {
-		Error("error renaming the checksum: ", err)
-		return
+		return fmt.Errorf("error renaming the checksum: %s", err)
 	}
 	Trace("renamed the tarball sucessfully")
-	Success("Package ", pkg.packageName, " was created successfully!")
+	Success("Package ", p.packageName, " was created successfully!")
+	return nil
 }
 
-func syncChecksums(desiredState *DesiredState) {
-	Info("Syncing calculated checksums to DesiredState...")
+// func syncChecksums(desiredState *DesiredState) {
+// 	Info("Syncing calculated checksums to DesiredState...")
 
-	// 1. Sync Machine Packages
-	for _, machineConfig := range desiredState.Machines {
-		Debug("machineConfig: ", machineConfig)
-		for pkgName, pkgConfig := range machineConfig.Packages {
-			Trace("syncing checksum for machineConfig.Packages[", pkgName, "]")
-			// Look up the package in our generated map
-			if info, ok := packagesMap[pkgName]; ok {
-				Debug("Package ", pkgName, " found in repo")
-				// Update the checksum in the config
-				if len(pkgConfig) == 0 {
-					Fatal(1, "Package ", pkgName, " not found in config")
-				}
-				pkgConfig[0].Checksum = info.checksum
-				// CRITICAL: Reassign the struct back to the map (Go map semantics)
-				machineConfig.Packages[pkgName] = pkgConfig
-			} else {
-				Error("Package ", pkgName, " not found in repo")
-				// Optional: Warn if a configured package wasn't found in the repo
-				// Warning("Configured package not found in repo: ", pkgName)
-			}
-		}
-	}
-}
+// 	// 1. Sync Machine Packages
+// 	for _, machineConfig := range desiredState.Machines {
+// 		Debug("machineConfig: ", machineConfig)
+// 		for pkgName, pkgConfig := range machineConfig.Packages {
+// 			Trace("syncing checksum for machineConfig.Packages[", pkgName, "]")
+// 			// Look up the package in our generated map
+// 			if info, ok := packagesMap[pkgName]; ok {
+// 				Debug("Package ", pkgName, " found in repo")
+// 				// Update the checksum in the config
+// 				if len(pkgConfig) == 0 {
+// 					Fatal(1, "Package ", pkgName, " not found in config")
+// 				}
+// 				pkgConfig[0].Checksum = info.checksum
+// 				// CRITICAL: Reassign the struct back to the map (Go map semantics)
+// 				machineConfig.Packages[pkgName] = pkgConfig
+// 			} else {
+// 				Error("Package ", pkgName, " not found in repo")
+// 				// Optional: Warn if a configured package wasn't found in the repo
+// 				// Warning("Configured package not found in repo: ", pkgName)
+// 			}
+// 		}
+// 	}
+// }
