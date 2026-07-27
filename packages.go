@@ -275,35 +275,43 @@ func (p *packageInfo) downloadPackage(a *AgentData) error {
 }
 
 func (p *packageInfo) extractPackage() error {
-	// 0. Create a predictable temp directory using pkgName
-	//    We use /tmp/assimilator/<user>/<pkgName> (e.g. /tmp/assimilator/zsh)
-	tempPath := filepath.Join(os.TempDir(), "assimilator")
-	if _, err := os.Stat(tempPath); os.IsNotExist(err) {
-		if err := os.MkdirAll(tempPath, 0776); err != nil {
-			return fmt.Errorf("failed to create temp dir: %w", err)
-		}
-		if err := os.Chmod(tempPath, 0776); err != nil {
-			return fmt.Errorf("failed to chmod temp dir: %w", err)
-		}
+	// 0. Shared base temp directory: /tmp/assimilator
+	baseTempPath := filepath.Join(os.TempDir(), "assimilator")
+	if err := os.MkdirAll(baseTempPath, 0777); err != nil {
+		return fmt.Errorf("failed to create base temp dir: %w", err)
 	}
 
-	extractDir := filepath.Join(os.TempDir(), "assimilator", appConfig.RunAsUser, p.name)
-	// 0. Clean up any previous run to ensure a fresh slate
-	os.RemoveAll(extractDir)
-	if err := os.MkdirAll(extractDir, 0754); err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
+	if err := os.Chmod(baseTempPath, 01777); err != nil {
+		return fmt.Errorf("failed to set sticky bit on base temp dir: %w", err)
 	}
 
-	// 1. Extract the tarball INTO that directory
-	//    -C tells tar to change directory before extracting
-	arguments := []string{"tar", "-xzf", p.path, "-C", extractDir}
-	cmd := exec.Command("tar", arguments...)
+	// 1. Target directory: /tmp/assimilator/<user>/<pkgName>
+	extractDir := filepath.Join(baseTempPath, appConfig.RunAsUser, p.name)
+
+	// Clean up any previous run to ensure a fresh slate
+	if err := os.RemoveAll(extractDir); err != nil {
+		return fmt.Errorf("failed to clean extract dir: %w", err)
+	}
+
+	// Create the user-specific package directory with strictly private 0700 permissions
+	if err := os.MkdirAll(extractDir, 0700); err != nil {
+		return fmt.Errorf("failed to create extract dir: %w", err)
+	}
+	// Enforce 0700 explicitly in case the process umask masked out permissions
+	if err := os.Chmod(extractDir, 0700); err != nil {
+		return fmt.Errorf("failed to enforce 0700 on extract dir: %w", err)
+	}
+
+	// 2. Extract the tarball INTO that directory
+	cmd := exec.Command("tar", "-xzf", p.path, "-C", extractDir)
 	cmd.Env = os.Environ()
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("error extracting package: %s", err)
+		return fmt.Errorf("error extracting package %s: %w, output: %s", p.name, err, string(output))
 	}
-	Trace(output)
+
+	Trace(string(output))
 	p.extractDir = extractDir
 	return nil
 }
