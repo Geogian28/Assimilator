@@ -78,20 +78,16 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 	p.checkLastRunTime()
 	Info(p.printTimeSinceLastRun())
 	// Check if no updates exist AND we are still within the cooldown window
-	Trace("#########   p.lastRunTime: ", p.lastRunTime)
+	Trace("p.lastRunTime: ", p.lastRunTime)
 	switch {
 	case p.updated:
 		Info("Updates exist for ", p.name, ". Running...")
-	case p.lastRunTime.IsZero():
-		Info("No last run time for ", p.name, ". Running...")
+		// case p.lastRunTime.IsZero():
+		// Info("No last run time for ", p.name, ". Running...")
 	case time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second:
 		Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
 		return nil
 	}
-	// if !p.updated && time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second {
-	// 	Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
-	// 	return nil
-	// }
 
 	if err := p.extractPackage(); err != nil {
 		return err
@@ -147,10 +143,15 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 }
 
 func (p *packageInfo) checkLastRunTime() {
+	if appConfig.RunOnce {
+		Trace("RunOnce set. Not checking last run time.")
+		return
+	}
 	lastRunPath := filepath.Join(p.cacheDir, p.action+"_"+p.runAsUser+"_lastRunTime.txt")
-	Error("lastRunPath: ", lastRunPath)
-	if !fileExists(lastRunPath) || appConfig.RunOnce {
+	Trace("lastRunPath: ", lastRunPath)
+	if !fileExists(lastRunPath) {
 		p.lastRunTime = time.Time{}
+		Debug("lastRunPath didnt exist")
 		return
 	}
 
@@ -162,9 +163,10 @@ func (p *packageInfo) checkLastRunTime() {
 	}
 
 	cleanContent := strings.TrimSpace(string(content))
-
+	Trace("cleanContent: ", cleanContent)
 	// Parse the string as a base-10, 64-bit integer
 	epoch, err := strconv.ParseInt(cleanContent, 10, 64)
+	Trace("epoch: ", epoch)
 	if err != nil {
 		Error("error parsing lastRunTime.txt as Epoch int: ", err)
 		p.lastRunTime = time.Time{}
@@ -173,6 +175,7 @@ func (p *packageInfo) checkLastRunTime() {
 
 	// Convert Unix seconds to Go's time.Time
 	p.lastRunTime = time.Unix(epoch, 0)
+	Trace("p.lastRunTime: ", p.lastRunTime)
 }
 
 // FormatLastRun Returns a human-readable relative time string.
@@ -392,7 +395,7 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 	}
 
 	lastRunPath := filepath.Join(p.cacheDir, p.action+"_"+p.runAsUser+"_lastRunTime.txt")
-	Error("lastRunPath: ", lastRunPath)
+	Trace("lastRunPath: ", lastRunPath)
 	epochStr := fmt.Sprintf("%d", time.Now().Unix())
 	if err := os.WriteFile(lastRunPath, []byte(epochStr), 0644); err != nil {
 		return fmt.Errorf("failed to write lastRunTime.txt: %w", err)

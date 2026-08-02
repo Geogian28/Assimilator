@@ -45,6 +45,7 @@ type AppConfig struct {
 	RunOnce               bool                  `toml:"-"`
 	PackageUpdateInterval int64                 `toml:"package_update_interval" env:"ASSIMILATOR_PACKAGE_UPDATE_INTERVAL"`
 	UpdateCheckInterval   int64                 `toml:"update_check_interval" env:"ASSIMILATOR_UPDATE_CHECK_INTERVAL"`
+	TestMode              bool
 }
 
 var appConfig = AppConfig{
@@ -116,6 +117,7 @@ type CliFlags struct {
 	RunOnce               bool
 	PackageUpdateInterval int64
 	UpdateCheckInterval   int64
+	TestMode              bool
 }
 
 // This new struct will create the [config] table
@@ -237,6 +239,7 @@ func ParseFlags() *CliFlags {
 	flag.BoolVar(&flags.RunOnce, "runonce", false, "Run assimilator once and exit")
 	flag.Int64Var(&flags.PackageUpdateInterval, "package_update_interval", 0, "Set how often the package should be reapplied even if there's been no changes from the server. This is the package update interval in seconds. Default is 0 (always update)")
 	flag.Int64Var(&flags.UpdateCheckInterval, "update_check_interval", 60, "How often the update check should be performed in seconds. Default is 60 (every minute)")
+	flag.BoolVar(&flags.TestMode, "test", false, "Test mode for development purposes")
 
 	flag.Parse() // Parse them once all are defined
 	return flags
@@ -315,6 +318,9 @@ func ConfigFromFlags(flags *CliFlags) {
 	}
 	if userSetFlags["package_update_interval"] {
 		appConfig.PackageUpdateInterval = int64(flags.PackageUpdateInterval)
+	}
+	if userSetFlags["test"] {
+		appConfig.TestMode = flags.TestMode
 	}
 
 }

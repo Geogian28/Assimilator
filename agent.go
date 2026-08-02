@@ -260,9 +260,11 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 	Trace("comparing ", configVersion, " to ", respVersion)
 	if err == nil && configVersion.LessThan(respVersion) {
 		Info("version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.version)
-		Info("Restarting to update...")
-		asslog.Close()
-		os.Exit(0)
+		if !appConfig.TestMode {
+			Info("Restarting to update...")
+			asslog.Close()
+			os.Exit(0)
+		}
 	}
 	Info("Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
 	return nil
