@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
-	"strings"
 	"syscall"
 	"time"
 
@@ -55,9 +54,13 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 		return
 	}
 
+	for packageName, packageConfig := range machineConfig {
+		Trace("Package: ", packageName, " checksum: ", packageConfig.Checksum)
+	}
+
 	// 4. Filter packages by user then sort them, and list them
 	filteredNames, filteredPackages := PackagesForUser(machineConfig)
-	listPackages(filteredNames, machineConfig)
+	// listPackages(filteredNames, machineConfig)
 
 	// 5. Processes the packages
 	a.failureReports = make(map[string]string, len(machineConfig))
@@ -70,8 +73,7 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 		}
 	}
 
-	Info("Finished processing all packages.")
-	printReports(filteredNames, a.failureReports)
+	// printReports(filteredNames, a.failureReports)
 	Info("Completed assimilation check.")
 }
 
@@ -101,43 +103,36 @@ func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[strin
 	return sortedNames, filteredPackages
 }
 
-func printReports(namesSorted []string, failureReports map[string]string) {
-
-	for name, report := range failureReports {
-		Info("Package: ", name)
-		Info(report)
-		Info()
-	}
-
-	successfulReports := []string{}
-	failedReports := []string{}
-	Trace("namesSorted length: ", len(namesSorted))
-	for _, packageName := range namesSorted {
-		Trace("packageName: ", packageName)
-		if _, ok := failureReports[packageName]; ok {
-			failedReports = append(failedReports, packageName)
-		} else {
-			successfulReports = append(successfulReports, packageName)
-		}
-	}
-	var builder strings.Builder
-	var report string
-	// if len(successfulReports) > 0 {
-	// 	fmt.Fprintln(&builder, fmt.Sprintln("# These package actions succeeded:"))
-	// 	for _, packageName := range successfulReports {
-	// 		fmt.Fprintln(&builder, "  - ", packageName)
-	// 	}
-	// } else {
-	// 	fmt.Fprintln(&builder, fmt.Sprintln("# No package actions succeeded..."))
-	// }
-	fmt.Fprintln(&builder, "\n# These package actions failed:")
-	for packageName, report := range failureReports {
-		fmt.Fprintln(&builder, "  - ", packageName)
-		fmt.Fprintln(&builder, report)
-	}
-	report = builder.String()
-	Info("Results:\n", report, "\n")
-}
+// func printReports(namesSorted []string, failureReports map[string]string) {
+// 	// successfulReports := []string{}
+// 	// failedReports := []string{}
+// 	Trace("namesSorted length: ", len(namesSorted))
+// 	// for _, packageName := range namesSorted {
+// 	// 	Trace("packageName: ", packageName)
+// 	// 	if _, ok := failureReports[packageName]; ok {
+// 	// 		failedReports = append(failedReports, packageName)
+// 	// 	} else {
+// 	// 		successfulReports = append(successfulReports, packageName)
+// 	// 	}
+// 	// }
+// 	var builder strings.Builder
+// 	var report string
+// 	// if len(successfulReports) > 0 {
+// 	// 	fmt.Fprintln(&builder, fmt.Sprintln("# These package actions succeeded:"))
+// 	// 	for _, packageName := range successfulReports {
+// 	// 		fmt.Fprintln(&builder, "  - ", packageName)
+// 	// 	}
+// 	// } else {
+// 	// 	fmt.Fprintln(&builder, fmt.Sprintln("# No package actions succeeded..."))
+// 	// }
+// 	fmt.Fprintln(&builder, "\n# These package actions failed:")
+// 	for packageName, report := range failureReports {
+// 		fmt.Fprintln(&builder, "  - ", packageName)
+// 		fmt.Fprintln(&builder, report)
+// 	}
+// 	report = builder.String()
+// 	Info("Results:\n", report, "\n")
+// }
 
 func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
 	length := 0
@@ -222,6 +217,11 @@ func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, chec
 		Error("Tormon ticket not found. Continuing anyways deployment of ", packageName)
 	}
 	packageCacheDir := filepath.Join(appConfig.CacheDir, packageName)
+	runAsUser := packageData.GetRunasuser()
+	if runAsUser == "_all" {
+		runAsUser = appConfig.RunAsUser
+	}
+
 	pkg := &packageInfo{
 		cacheDir:       packageCacheDir,
 		name:           packageName,
@@ -230,28 +230,26 @@ func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, chec
 		path:           filepath.Join(packageCacheDir, packageName+".tar.gz"),
 		arguments:      packageData.Arguments,
 		action:         packageData.GetAction(),
-		runAsUser:      packageData.GetRunasuser(),
+		runAsUser:      runAsUser,
 		updateInterval: appConfig.PackageUpdateInterval,
 	}
-	Trace("packageData.Arguments: ", packageData.Arguments) //packageData.Arguments =
-	Trace("pkg.arguments: ", pkg.arguments)
 	return pkg
 }
 
-func getMachineConfig(ctx context.Context, conn *grpc.ClientConn) (*pb.GetSpecificConfigResponse, error) {
-	client := pb.NewAssimilatorClient(conn)
-	agentData.client = client
-	req := &pb.GetSpecificConfigRequest{MachineName: agentData.appConfig.Hostname}
-	resp, err := client.GetSpecificConfig(ctx, req)
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			asslog.Trace("pingServer was canceled by shutdown signal.")
-			return nil, err
-		}
-		return nil, err
-	}
-	return resp, nil
-}
+// func getMachineConfig(ctx context.Context, conn *grpc.ClientConn) (*pb.GetSpecificConfigResponse, error) {
+// 	client := pb.NewAssimilatorClient(conn)
+// 	agentData.client = client
+// 	req := &pb.GetSpecificConfigRequest{MachineName: agentData.appConfig.Hostname}
+// 	resp, err := client.GetSpecificConfig(ctx, req)
+// 	if err != nil {
+// 		if errors.Is(err, context.Canceled) {
+// 			asslog.Trace("pingServer was canceled by shutdown signal.")
+// 			return nil, err
+// 		}
+// 		return nil, err
+// 	}
+// 	return resp, nil
+// }
 
 func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 	Trace("setting respVersion to ", resp.Version.Version)

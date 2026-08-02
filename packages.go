@@ -78,11 +78,20 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 	p.checkLastRunTime()
 	Info(p.printTimeSinceLastRun())
 	// Check if no updates exist AND we are still within the cooldown window
-	if !p.updated && time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second {
-
+	Trace("#########   p.lastRunTime: ", p.lastRunTime)
+	switch {
+	case p.updated:
+		Info("Updates exist for ", p.name, ". Running...")
+	case p.lastRunTime.IsZero():
+		Info("No last run time for ", p.name, ". Running...")
+	case time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second:
 		Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
 		return nil
 	}
+	// if !p.updated && time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second {
+	// 	Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
+	// 	return nil
+	// }
 
 	if err := p.extractPackage(); err != nil {
 		return err
@@ -111,13 +120,18 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 	if fileExists(p.path) {
 		var err error
 		p.checksum, err = calculateChecksum(p.path)
+
 		if err != nil {
 			return err
 		}
+
+		Trace("Local checksum: ", p.checksum, " server: ", p.serverChecksum)
 		if p.checksum == p.serverChecksum {
 			Debug("Package ", p.name, " checksums match.")
 			return nil
 		}
+	} else {
+		Debug("Package ", p.name, " does not exist.")
 	}
 
 	// 3. If we are here, we either don't have it or it's old. Download it
@@ -133,8 +147,8 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 }
 
 func (p *packageInfo) checkLastRunTime() {
-	lastRunPath := filepath.Join(p.cacheDir, p.action+"_lastRunTime.txt")
-
+	lastRunPath := filepath.Join(p.cacheDir, p.action+"_"+p.runAsUser+"_lastRunTime.txt")
+	Error("lastRunPath: ", lastRunPath)
 	if !fileExists(lastRunPath) || appConfig.RunOnce {
 		p.lastRunTime = time.Time{}
 		return
@@ -288,7 +302,7 @@ func (p *packageInfo) extractPackage() error {
 		return fmt.Errorf("failed to create base temp dir: %w", err)
 	}
 
-	if err := os.Chmod(baseTempPath, 01777); err != nil {
+	if err := os.Chmod(baseTempPath, 01777); err != nil && appConfig.CurrentUser == "root" {
 		return fmt.Errorf("failed to set sticky bit on base temp dir: %w", err)
 	}
 
@@ -364,26 +378,24 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			code := exitErr.ExitCode()
 			Info("\n", string(output))
-			Error(fmt.Errorf("Script failed with exit code: %v", code))
 			return fmt.Errorf("Script failed with exit code: %v. Output: %v", code, string(output))
 		} else {
 			// The system couldn't even start the script
 			return fmt.Errorf("Failed to start script: %v\n", err)
 		}
 	}
-	Debug("\n", string(output))
 	Trace("Script ", commandToRun, " ran successfully!")
 
 	// 3. Update the last run time on disk
 	if err := os.MkdirAll(p.cacheDir, 0755); err != nil {
-		Error("failed to create cache directory: %w", err)
 		return nil
 	}
 
-	lastRunPath := filepath.Join(p.cacheDir, p.action+"_lastRunTime.txt")
+	lastRunPath := filepath.Join(p.cacheDir, p.action+"_"+p.runAsUser+"_lastRunTime.txt")
+	Error("lastRunPath: ", lastRunPath)
 	epochStr := fmt.Sprintf("%d", time.Now().Unix())
 	if err := os.WriteFile(lastRunPath, []byte(epochStr), 0644); err != nil {
-		Error("failed to write lastRunTime.txt: %w", err)
+		return fmt.Errorf("failed to write lastRunTime.txt: %w", err)
 	}
 
 	return nil

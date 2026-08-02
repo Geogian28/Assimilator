@@ -47,7 +47,6 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 			Packages:        toProtoPackageConfigMap(&machine.Packages),
 			ConfigOverrides: toProtoAppConfig(machine.Global),
 			Version:         toProtoServerVersion(&s.ServerVersion),
-			// Users:   toProtoUserConfigMap(&s.desiredState.Users),
 		}, nil
 	}
 	Debug("Cannot find a machine with name: ", req.MachineName)

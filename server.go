@@ -272,6 +272,9 @@ func Server() {
 		asslog.Unhandled("error making packages: ", err)
 	}
 
+	// Sync checksums to be sent to the client
+	syncChecksums(desiredState, packages)
+
 	// Start the server
 	address := fmt.Sprintf("%s:%d", appConfig.ServerIP, appConfig.ServerPort)
 	lis, err := net.Listen("tcp", address)

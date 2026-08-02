@@ -212,29 +212,29 @@ func (p *packageInfo) makeTempFilesPermanent() error {
 	return nil
 }
 
-// func syncChecksums(desiredState *DesiredState) {
-// 	Info("Syncing calculated checksums to DesiredState...")
+func syncChecksums(desiredState *DesiredState, packagesMap map[string]*packageInfo) {
+	Info("Syncing calculated checksums to DesiredState...")
 
-// 	// 1. Sync Machine Packages
-// 	for _, machineConfig := range desiredState.Machines {
-// 		Debug("machineConfig: ", machineConfig)
-// 		for pkgName, pkgConfig := range machineConfig.Packages {
-// 			Trace("syncing checksum for machineConfig.Packages[", pkgName, "]")
-// 			// Look up the package in our generated map
-// 			if info, ok := packagesMap[pkgName]; ok {
-// 				Debug("Package ", pkgName, " found in repo")
-// 				// Update the checksum in the config
-// 				if len(pkgConfig) == 0 {
-// 					Fatal(1, "Package ", pkgName, " not found in config")
-// 				}
-// 				pkgConfig[0].Checksum = info.checksum
-// 				// CRITICAL: Reassign the struct back to the map (Go map semantics)
-// 				machineConfig.Packages[pkgName] = pkgConfig
-// 			} else {
-// 				Error("Package ", pkgName, " not found in repo")
-// 				// Optional: Warn if a configured package wasn't found in the repo
-// 				// Warning("Configured package not found in repo: ", pkgName)
-// 			}
-// 		}
-// 	}
-// }
+	// 1. Sync Machine Packages
+	for _, machineConfig := range desiredState.Machines {
+		Debug("machineConfig: ", machineConfig)
+		for pkgName, pkgConfig := range machineConfig.Packages {
+			Trace("syncing checksum for machineConfig.Packages[", pkgName, "]")
+			// Look up the package in our generated map
+			if info, ok := packagesMap[pkgName]; ok {
+				Debug("Package ", pkgName, " found in repo")
+				// Update the checksum in the config
+				if len(pkgConfig) == 0 {
+					Fatal(1, "Package ", pkgName, " not found in config")
+				}
+				pkgConfig[0].Checksum = info.checksum
+				// CRITICAL: Reassign the struct back to the map (Go map semantics)
+				machineConfig.Packages[pkgName] = pkgConfig
+			} else {
+				Error("Package ", pkgName, " not found in repo")
+				// Optional: Warn if a configured package wasn't found in the repo
+				// Warning("Configured package not found in repo: ", pkgName)
+			}
+		}
+	}
+}
