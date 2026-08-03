@@ -75,18 +75,20 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 	}
 	Trace("Successfully ensured ", p.name)
 
-	p.checkLastRunTime()
-	Info(p.printTimeSinceLastRun())
-	// Check if no updates exist AND we are still within the cooldown window
-	Trace("p.lastRunTime: ", p.lastRunTime)
-	switch {
-	case p.updated:
-		Info("Updates exist for ", p.name, ". Running...")
-		// case p.lastRunTime.IsZero():
-		// Info("No last run time for ", p.name, ". Running...")
-	case time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second:
-		Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
-		return nil
+	if !appConfig.RunOnce {
+		p.checkLastRunTime()
+		Info(p.printTimeSinceLastRun())
+		// Check if no updates exist AND we are still within the cooldown window
+		Trace("p.lastRunTime: ", p.lastRunTime)
+		switch {
+		case p.updated:
+			Info("Updates exist for ", p.name, ". Running...")
+			// case p.lastRunTime.IsZero():
+			// Info("No last run time for ", p.name, ". Running...")
+		case time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second:
+			Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
+			return nil
+		}
 	}
 
 	if err := p.extractPackage(); err != nil {
