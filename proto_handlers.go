@@ -41,7 +41,6 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 	if machine, okay := s.desiredState.Machines[req.MachineName]; okay {
 		Trace("Found a machine with name: ", req.MachineName)
 		Info("Returning response to ", req.MachineName, "'s agent.")
-		Trace("")
 		return &pb.GetSpecificConfigResponse{
 			AppliedProfiles: machine.AppliedProfiles,
 			Packages:        toProtoPackageConfigMap(&machine.Packages),
