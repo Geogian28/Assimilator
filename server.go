@@ -240,7 +240,7 @@ func isUpdateAvailable(repoDir string) (bool, error) {
 	}
 
 	// 6. Compare the hashes
-	Trace("Local repository HEAD hash: ", localHash)
+	Trace("Local repository HEAD hash:  ", localHash)
 	Trace("Remote repository HEAD hash: ", remoteHash)
 	if remoteHash != localHash {
 		Trace("Update available!")
