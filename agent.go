@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -271,31 +269,31 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 	return nil
 }
 
-func checkTormonStatus(packageName string) (string, int) {
-	Trace("appConfig.TormonAddress: ", appConfig.TormonAddress)
-	if appConfig.TormonAddress == "" {
-		return "notset", 0
-	}
-	client := &http.Client{Timeout: 5 * time.Second}
-	url := fmt.Sprintf("%s/api/status?hostname=%s&package_name=%s", appConfig.TormonAddress, appConfig.Hostname, packageName)
+// func checkTormonStatus(packageName string) (string, int) {
+// 	Trace("appConfig.TormonAddress: ", appConfig.TormonAddress)
+// 	if appConfig.TormonAddress == "" {
+// 		return "notset", 0
+// 	}
+// 	client := &http.Client{Timeout: 5 * time.Second}
+// 	url := fmt.Sprintf("%s/api/status?hostname=%s&package_name=%s", appConfig.TormonAddress, appConfig.Hostname, packageName)
 
-	resp, err := client.Get(url)
-	if err != nil {
-		return "none", 0
-	}
-	defer resp.Body.Close()
+// 	resp, err := client.Get(url)
+// 	if err != nil {
+// 		return "none", 0
+// 	}
+// 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "none", 0
-	}
+// 	if resp.StatusCode != http.StatusOK {
+// 		return "none", 0
+// 	}
 
-	var result TicketStatusResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "none", 0
-	}
-	Trace("packageName : ", packageName, ", ticketStatus: ", result.Status, ", ticketID: ", result.TicketID)
-	return result.Status, result.TicketID
-}
+// 	var result TicketStatusResponse
+// 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+// 		return "none", 0
+// 	}
+// 	Trace("packageName : ", packageName, ", ticketStatus: ", result.Status, ", ticketID: ", result.TicketID)
+// 	return result.Status, result.TicketID
+// }
 
 type TicketStatusResponse struct {
 	Status   string `json:"status"`

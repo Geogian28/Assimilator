@@ -423,6 +423,20 @@ func SetupAppConfig(flags *CliFlags) {
 		appConfig.CacheDir = userCacheDir()
 	}
 
+	if appConfig.Hostname == "" {
+		Info("Hostname is blank. Attempting to get hostname from os.Hostname().")
+		var err error
+		appConfig.Hostname, err = os.Hostname()
+		if err != nil {
+			Fatal(1, "Failed to get hostname from os.Hostname(): ", err)
+		}
+		if appConfig.Hostname == "" {
+			Fatal(1, "Got hostname successfully, but it was empty... ¯\\_(ツ)_/¯")
+		} else {
+			Info("Hostname set to: ", appConfig.Hostname)
+		}
+	}
+
 	if appConfig.CacheDir == "" {
 		appConfig.CacheDir = userCacheDir()
 	}
