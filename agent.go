@@ -202,7 +202,8 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*a
 }
 
 func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, checksum string) *packageInfo {
-	ticketStatus, ticketID := checkTormonStatus(packageName)
+	// ticketStatus, ticketID := checkTormonStatus(packageName)
+	ticketStatus, ticketID := "notset", 0
 	Trace("packageName : ", packageName, ", ticketStatus: ", ticketStatus, ", ticketID: ", ticketID)
 	switch ticketStatus {
 	case "notset":
@@ -271,6 +272,7 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 }
 
 func checkTormonStatus(packageName string) (string, int) {
+	Trace("appConfig.TormonAddress: ", appConfig.TormonAddress)
 	if appConfig.TormonAddress == "" {
 		return "notset", 0
 	}
