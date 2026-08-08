@@ -424,7 +424,7 @@ func SetupAppConfig(flags *CliFlags) {
 	}
 
 	if appConfig.Hostname == "" {
-		Info("Hostname is blank. Attempting to get hostname from os.Hostname().")
+		Trace("Hostname is blank. Attempting to get hostname from os.Hostname().")
 		var err error
 		appConfig.Hostname, err = os.Hostname()
 		if err != nil {
@@ -433,7 +433,7 @@ func SetupAppConfig(flags *CliFlags) {
 		if appConfig.Hostname == "" {
 			Fatal(1, "Got hostname successfully, but it was empty... ¯\\_(ツ)_/¯")
 		} else {
-			Info("Hostname set to: ", appConfig.Hostname)
+			Trace("Hostname finally set to: ", appConfig.Hostname)
 		}
 	}
 
