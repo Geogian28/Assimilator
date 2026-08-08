@@ -376,7 +376,7 @@ func SetupAppConfig(flags *CliFlags) {
 
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
-		Info(1, "Neither server nor agent flags provided. Assuming Agent")
+		Info("Neither server nor agent flags provided. Assuming Agent")
 		appConfig.IsAgent = true
 	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
