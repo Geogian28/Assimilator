@@ -16,16 +16,13 @@ import (
 // var packagesMap PackagesMap
 
 func makePackages() (map[string]*packageInfo, error) {
-	repoDir := appConfig.RepoDir
-	cacheDir := appConfig.CacheDir
-
-	err := os.MkdirAll(cacheDir, 0750)
+	err := os.MkdirAll(appConfig.CacheDir, 0750)
 	if err != nil {
-		return nil, fmt.Errorf("error creating %s: %v", cacheDir, err)
+		return nil, fmt.Errorf("error creating %s: %v", appConfig.CacheDir, err)
 	}
-	Info("Making packages from repository: ", repoDir)
+	Info("Making packages from repository: ", appConfig.RepoDir)
 
-	packages, err := createPackageInfo(repoDir, cacheDir)
+	packages, err := createPackageInfo(appConfig.RepoDir, appConfig.CacheDir)
 	if err != nil {
 		return nil, fmt.Errorf("error making packages: %v", err)
 	}
@@ -231,9 +228,7 @@ func syncChecksums(desiredState *DesiredState, packagesMap map[string]*packageIn
 				// CRITICAL: Reassign the struct back to the map (Go map semantics)
 				machineConfig.Packages[pkgName] = pkgConfig
 			} else {
-				Error("Package ", pkgName, " not found in repo")
-				// Optional: Warn if a configured package wasn't found in the repo
-				// Warning("Configured package not found in repo: ", pkgName)
+				Warning("Package ", pkgName, " not found in repo")
 			}
 		}
 	}

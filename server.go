@@ -170,7 +170,7 @@ func cloneOrPullRepo() (string, error) {
 		log.Fatalf("Failed to read directory: %v", err)
 	}
 
-	Info("Listing contents of '%s':\n", repoDir)
+	Info("Listing contents of: ", repoDir)
 	Info("---------------------------------")
 
 	// Loop through and print the names
@@ -181,7 +181,7 @@ func cloneOrPullRepo() (string, error) {
 			suffix = "/"
 		}
 
-		Info("%s%s\n", entry.Name(), suffix)
+		Info(entry.Name(), " ", suffix)
 	}
 
 	filePath := repoDir + "/config.yaml"
@@ -269,7 +269,7 @@ func Server() {
 	// Make packages for machine and sync them with the desired state
 	packages, err := makePackages()
 	if err != nil {
-		asslog.Unhandled("error making packages: ", err)
+		Unhandled("error making packages: ", err)
 	}
 
 	// Sync checksums to be sent to the client

@@ -52,6 +52,9 @@ var appConfig = AppConfig{
 	IsAgent:               true,
 	IsServer:              false,
 	VerbosityLevel:        3,
+	GithubToken:           "",
+	GithubRepo:            "",
+	GithubBranch:          "main",
 	LogTypes:              "console file",
 	LogFileLocation:       logFileLocation(),
 	ServerIP:              "0.0.0.0",
@@ -209,9 +212,16 @@ func ConfigFromFile() {
 func ConfigFromEnv() {
 	serverEnv := strings.ToLower(os.Getenv("ASSIMILATOR_IS_SERVER"))
 	agentEnv := strings.ToLower(os.Getenv("ASSIMILATOR_IS_AGENT"))
-	if agentEnv == "true" && serverEnv == "true" {
+	switch {
+	case agentEnv == "true" && serverEnv == "true":
 		Fatal(1, "Both 'server' and 'agent' enabled in environment variables. Cannot run as both agent and server.")
 		return
+	case agentEnv == "true":
+		appConfig.IsAgent = true
+		appConfig.IsServer = false
+	case serverEnv == "true":
+		appConfig.IsAgent = false
+		appConfig.IsServer = true
 	}
 	if err := env.Parse(&appConfig); err != nil {
 		Error("Failed to parse environment variables: ", err)
@@ -309,7 +319,7 @@ func ConfigFromFlags(flags *CliFlags) {
 		appConfig.TormonAddress = flags.TormonAddress
 	}
 	if userSetFlags["config_filename"] {
-		appConfig.CacheDir = flags.ConfigFilename
+		appConfig.ConfigFilename = flags.ConfigFilename
 	}
 	if userSetFlags["run_as_user"] {
 		appConfig.RunAsUser = flags.RunAsUser
@@ -327,25 +337,26 @@ func ConfigFromFlags(flags *CliFlags) {
 }
 
 func traceAppConfig() {
-	Trace("agent: ", appConfig.IsAgent)
-	Trace("server: ", appConfig.IsServer)
-	Trace("GithubUsername: ", appConfig.GithubUsername)
-	Trace("GithubToken: ", appConfig.GithubToken)
-	Trace("GithubRepo: ", appConfig.GithubRepo)
-	Trace("verbosity: ", appConfig.VerbosityLevel)
-	Trace("logTypes: ", appConfig.LogTypes)
-	Trace("logFileLocation: ", appConfig.LogFileLocation)
-	Trace("repoDir: ", appConfig.RepoDir)
-	Trace("ServerIP: ", appConfig.ServerIP)
-	Trace("ServerPort: ", appConfig.ServerPort)
-	Trace("Hostname: ", appConfig.Hostname)
-	Trace("CacheDir: ", appConfig.CacheDir)
-	Trace("TormonAdress: ", appConfig.TormonAddress)
-	Trace("ConfigFilename: ", appConfig.ConfigFilename)
-	Trace("RunAsUser: ", appConfig.RunAsUser)
-	Trace("RunOnce: ", appConfig.RunOnce)
-	Trace("PackageUpdateInterval: ", appConfig.PackageUpdateInterval)
-	Trace("UpdateCheckInterval: ", appConfig.UpdateCheckInterval)
+	Trace("Tracing AppConfig:")
+	Trace("- agent: ", appConfig.IsAgent)
+	Trace("- server: ", appConfig.IsServer)
+	Trace("- GithubUsername: ", appConfig.GithubUsername)
+	Trace("- GithubToken: ", appConfig.GithubToken)
+	Trace("- GithubRepo: ", appConfig.GithubRepo)
+	Trace("- verbosity: ", appConfig.VerbosityLevel)
+	Trace("- logTypes: ", appConfig.LogTypes)
+	Trace("- logFileLocation: ", appConfig.LogFileLocation)
+	Trace("- repoDir: ", appConfig.RepoDir)
+	Trace("- ServerIP: ", appConfig.ServerIP)
+	Trace("- ServerPort: ", appConfig.ServerPort)
+	Trace("- Hostname: ", appConfig.Hostname)
+	Trace("- CacheDir: ", appConfig.CacheDir)
+	Trace("- TormonAdress: ", appConfig.TormonAddress)
+	Trace("- ConfigFilename: ", appConfig.ConfigFilename)
+	Trace("- RunAsUser: ", appConfig.RunAsUser)
+	Trace("- RunOnce: ", appConfig.RunOnce)
+	Trace("- PackageUpdateInterval: ", appConfig.PackageUpdateInterval)
+	Trace("- UpdateCheckInterval: ", appConfig.UpdateCheckInterval)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
@@ -400,9 +411,6 @@ func SetupAppConfig(flags *CliFlags) {
 				Fatal(1, "Failed to get hostname from os.Hostname(): ", err)
 			}
 		}
-		if appConfig.CurrentUser != "root" {
-			appConfig.CacheDir = userCacheDir()
-		}
 
 	case appConfig.RepoDir == "":
 		Fatal(1, "Repository directory not provided.")
@@ -412,6 +420,9 @@ func SetupAppConfig(flags *CliFlags) {
 		appConfig.CacheDir = userCacheDir()
 	}
 
+	if appConfig.CacheDir == "" {
+		appConfig.CacheDir = userCacheDir()
+	}
 	if appConfig.GithubBranch == "" {
 		appConfig.GithubBranch = "main"
 	}
