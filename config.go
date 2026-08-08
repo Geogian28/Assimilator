@@ -337,26 +337,26 @@ func ConfigFromFlags(flags *CliFlags) {
 }
 
 func traceAppConfig() {
-	Trace("Tracing AppConfig:")
-	Trace("- agent: ", appConfig.IsAgent)
-	Trace("- server: ", appConfig.IsServer)
-	Trace("- GithubUsername: ", appConfig.GithubUsername)
-	Trace("- GithubToken: ", appConfig.GithubToken)
-	Trace("- GithubRepo: ", appConfig.GithubRepo)
-	Trace("- verbosity: ", appConfig.VerbosityLevel)
-	Trace("- logTypes: ", appConfig.LogTypes)
-	Trace("- logFileLocation: ", appConfig.LogFileLocation)
-	Trace("- repoDir: ", appConfig.RepoDir)
-	Trace("- ServerIP: ", appConfig.ServerIP)
-	Trace("- ServerPort: ", appConfig.ServerPort)
-	Trace("- Hostname: ", appConfig.Hostname)
-	Trace("- CacheDir: ", appConfig.CacheDir)
-	Trace("- TormonAdress: ", appConfig.TormonAddress)
-	Trace("- ConfigFilename: ", appConfig.ConfigFilename)
-	Trace("- RunAsUser: ", appConfig.RunAsUser)
-	Trace("- RunOnce: ", appConfig.RunOnce)
-	Trace("- PackageUpdateInterval: ", appConfig.PackageUpdateInterval)
-	Trace("- UpdateCheckInterval: ", appConfig.UpdateCheckInterval)
+	fmt.Println("Printing AppConfig:")
+	fmt.Println("- agent: ", appConfig.IsAgent)
+	fmt.Println("- server: ", appConfig.IsServer)
+	fmt.Println("- GithubUsername: ", appConfig.GithubUsername)
+	fmt.Println("- GithubToken: ", appConfig.GithubToken)
+	fmt.Println("- GithubRepo: ", appConfig.GithubRepo)
+	fmt.Println("- verbosity: ", appConfig.VerbosityLevel)
+	fmt.Println("- logTypes: ", appConfig.LogTypes)
+	fmt.Println("- logFileLocation: ", appConfig.LogFileLocation)
+	fmt.Println("- repoDir: ", appConfig.RepoDir)
+	fmt.Println("- ServerIP: ", appConfig.ServerIP)
+	fmt.Println("- ServerPort: ", appConfig.ServerPort)
+	fmt.Println("- Hostname: ", appConfig.Hostname)
+	fmt.Println("- CacheDir: ", appConfig.CacheDir)
+	fmt.Println("- TormonAdress: ", appConfig.TormonAddress)
+	fmt.Println("- ConfigFilename: ", appConfig.ConfigFilename)
+	fmt.Println("- RunAsUser: ", appConfig.RunAsUser)
+	fmt.Println("- RunOnce: ", appConfig.RunOnce)
+	fmt.Println("- PackageUpdateInterval: ", appConfig.PackageUpdateInterval)
+	fmt.Println("- UpdateCheckInterval: ", appConfig.UpdateCheckInterval)
 }
 
 // processFlagsAndArgs processes the command line flags and returns the
@@ -409,6 +409,9 @@ func SetupAppConfig(flags *CliFlags) {
 			appConfig.Hostname, err = os.Hostname()
 			if err != nil {
 				Fatal(1, "Failed to get hostname from os.Hostname(): ", err)
+			}
+			if appConfig.Hostname == "" {
+				Fatal(1, "Got hostname successfully, but it was empty... ¯\\_(ツ)_/¯")
 			}
 		}
 
