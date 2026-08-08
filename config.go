@@ -49,11 +49,8 @@ type AppConfig struct {
 }
 
 var appConfig = AppConfig{
-	// IsAgent:         true,
-	// IsServer:        false,
-	GithubUsername:        "",
-	GithubToken:           "",
-	GithubRepo:            "",
+	IsAgent:               true,
+	IsServer:              false,
 	VerbosityLevel:        3,
 	LogTypes:              "console file",
 	LogFileLocation:       logFileLocation(),
@@ -62,7 +59,6 @@ var appConfig = AppConfig{
 	CacheDir:              userCacheDir(),
 	CurrentUser:           runningUser(),
 	RunAsUser:             runningUser(),
-	RunOnce:               false,
 	PackageUpdateInterval: 600,
 	UpdateCheckInterval:   60,
 }
@@ -133,9 +129,6 @@ func fileExists(filename string) bool {
 	if errors.Is(err, os.ErrNotExist) {
 		return false
 	}
-	// For other errors (e.g., permission denied), the file
-	// might exist, but we can't access it.
-	// You may want to handle these cases differently based on your application needs.
 	return false
 }
 
@@ -151,12 +144,20 @@ func ConfigFromFile() {
 			asslog.Unhandled("Error creating assimilator directory: ", err)
 		}
 	}
-
 	// 2. Ensure file exists
 	if !fileExists("/etc/assimilator/config.toml") {
-		Debug("Config file does not exist. Making one.")
+		Info("Config file does not exist. Making one.")
 		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
-			Config: appConfig,
+			Config: AppConfig{
+				IsServer:              false,
+				IsAgent:               true,
+				VerbosityLevel:        3,
+				LogTypes:              "console file",
+				ServerIP:              "0.0.0.0",
+				ServerPort:            2390,
+				PackageUpdateInterval: 600,
+				UpdateCheckInterval:   60,
+			},
 		})
 		if err != nil {
 			Unhandled("Error marshalling default config: ", err)
@@ -220,25 +221,25 @@ func ConfigFromEnv() {
 func ParseFlags() *CliFlags {
 	flags := &CliFlags{}
 
-	flag.BoolVar(&flags.Agent, "agent", false, "Run as agent")
+	flag.BoolVar(&flags.Agent, "agent", true, "Run as agent")
 	flag.BoolVar(&flags.Server, "server", false, "Run as server")
 	flag.StringVar(&flags.GithubUsername, "Github_username", "", "GitHub username")
 	flag.StringVar(&flags.GithubToken, "Github_token", "", "GitHub access token")
 	flag.StringVar(&flags.GithubRepo, "Github_repo", "", "GitHub repository")
 	flag.StringVar(&flags.GithubBranch, "Github_branch", "main", "GitHub branch. Useful for dev environments. Defaults to 'main'")
-	flag.IntVar(&flags.Verbosity, "verbosity", 1, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
-	flag.StringVar(&flags.LogTypes, "log_types", "", "Set log output locations (console, file)")
+	flag.IntVar(&flags.Verbosity, "verbosity", 3, "Set verbosity level (0-Silent, 1=Info, 2=Debug, 3=Trace)")
+	flag.StringVar(&flags.LogTypes, "log_types", "console file", "Set log output locations (console, file)")
 	flag.StringVar(&flags.LogFileLocation, "log_file_location", logFileLocation(), "Set log file location. Root defaults to '/var/log/assimilator.log' and non-root defaults to '~/.local/state/assimilator.log'")
 	flag.StringVar(&flags.RepoDir, "repo_dir", "", "Set repository directory")
 	flag.StringVar(&flags.ServerIP, "server_ip", "0.0.0.0", "Set server IP")
 	flag.IntVar(&flags.ServerPort, "server_port", 2390, "Set server port")
-	flag.StringVar(&flags.Hostname, "Hostname", "", "Set Hostname of the agent...")
+	flag.StringVar(&flags.Hostname, "hostname", "", "Set Hostname of the agent. Useful if you want to get another machine config")
 	flag.BoolVar(&flags.ShowVersion, "version", false, "Show version information.")
 	flag.StringVar(&flags.TormonAddress, "tormon_address", "", "If set, sends failures to Tormon")
 	flag.StringVar(&flags.ConfigFilename, "config_filename", "", "Set the config filename. Defaults to config.yaml")
 	flag.BoolVar(&flags.RunOnce, "runonce", false, "Run assimilator once and exit")
-	flag.Int64Var(&flags.PackageUpdateInterval, "package_update_interval", 0, "Set how often the package should be reapplied even if there's been no changes from the server. This is the package update interval in seconds. Default is 0 (always update)")
-	flag.Int64Var(&flags.UpdateCheckInterval, "update_check_interval", 60, "How often the update check should be performed in seconds. Default is 60 (every minute)")
+	flag.Int64Var(&flags.PackageUpdateInterval, "package_update_interval", 600, "Set how often the package should be reapplied even if there's been no changes from the server. This is the package update interval in seconds. 0 means always update.")
+	flag.Int64Var(&flags.UpdateCheckInterval, "update_check_interval", 60, "How often the update check should be performed in seconds.")
 	flag.BoolVar(&flags.TestMode, "test", false, "Test mode for development purposes")
 
 	flag.Parse() // Parse them once all are defined
