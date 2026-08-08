@@ -437,6 +437,7 @@ func SetupAppConfig(flags *CliFlags) {
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 	asslog.SetLogFileLocation(appConfig.LogFileLocation)
+	traceAppConfig()
 }
 
 func logTypes(logTypesPtr string) map[string]bool {
