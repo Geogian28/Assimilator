@@ -69,7 +69,7 @@ func cloneRepo(repoDir string, auth *http.BasicAuth) error {
 func pullRepo(repoDir string, auth *http.BasicAuth) error {
 	// Opens a git repository from the given path. It detects if the repository is bare or a normal one.
 	// If the path doesn't contain a valid repository ErrRepositoryNotExists is returned
-	Trace("Opening the local repo directory")
+	Trace(1, "Opening the local repo directory")
 	r, err := git.PlainOpen(repoDir)
 	if err != nil {
 		if errors.Is(err, git.ErrRepositoryNotExists) {
@@ -82,11 +82,11 @@ func pullRepo(repoDir string, auth *http.BasicAuth) error {
 		}
 		asslog.Unhandled("error opening repo with go-git: " + err.Error())
 	}
-	Trace("Opened the local repo directory without errors.")
+	Trace(1, "Opened the local repo directory without errors.")
 
 	// Now that we have the repo opened, we can get the worktree
 	// A worktree is, in simple terms, the directory of actual, visible files and folders that you can see and edit on your computer.
-	Trace("Getting the local repo worktree")
+	Trace(1, "Getting the local repo worktree")
 	w, err := r.Worktree()
 	if err != nil {
 		if errors.Is(err, git.ErrIsBareRepository) {
@@ -97,10 +97,10 @@ func pullRepo(repoDir string, auth *http.BasicAuth) error {
 		}
 		asslog.Unhandled("error getting worktree with go-git: " + err.Error())
 	}
-	Trace("Opened the local repo directory without errors.")
+	Trace(1, "Opened the local repo directory without errors.")
 
 	// Pull changes
-	Debug("Pulling changes...")
+	Debug(1, "Pulling changes...")
 	err = w.Pull(&git.PullOptions{
 		RemoteName: "origin",
 		Auth:       auth,
@@ -108,7 +108,7 @@ func pullRepo(repoDir string, auth *http.BasicAuth) error {
 	})
 	if err != nil {
 		if errors.Is(err, git.NoErrAlreadyUpToDate) {
-			Debug("No changes made. Local repository already up to date.")
+			Debug(1, "No changes made. Local repository already up to date.")
 		} else if errors.Is(err, transport.ErrAuthenticationRequired) {
 			Fatal(1, "Unable to pull changes. Authentication required. Please check your repository name, username and PAT.")
 		} else if errors.Is(err, transport.ErrRepositoryNotFound) {
@@ -119,30 +119,30 @@ func pullRepo(repoDir string, auth *http.BasicAuth) error {
 			asslog.Unhandled("error pulling changes with go-git: " + err.Error())
 		}
 	} else {
-		Success("Changes pulled without errors.")
+		Success(1, "Changes pulled without errors.")
 	}
 	return nil
 }
 
 // Clone or pull the repository
 func cloneOrPullRepo() (string, error) {
-	Info("Cloning or pulling repository...")
+	Info(1, "Cloning or pulling repository...")
 	repoDir := appConfig.RepoDir
 	auth := &http.BasicAuth{ // Use BasicAuth for PAT
 		Username: appConfig.GithubUsername,
 		Password: appConfig.GithubToken,
 	}
-	Trace("appConfig.GithubUsername: ", appConfig.GithubUsername)
-	Trace("appConfig.GithubToken: ", appConfig.GithubToken)
+	Trace(1, "appConfig.GithubUsername: ", appConfig.GithubUsername)
+	Trace(1, "appConfig.GithubToken: ", appConfig.GithubToken)
 
 	// Create the repo temp directory
 	if _, err := os.Stat(repoDir); os.IsNotExist(err) {
-		Debug(`Directory "` + repoDir + `") does not exist. Creating it.`)
+		Debug(1, `Directory "`+repoDir+`") does not exist. Creating it.`)
 		repoDirErr := os.Mkdir(repoDir, 0755)
 		if repoDirErr != nil {
 			switch repoDirErr {
 			case os.ErrExist:
-				Debug(fmt.Sprintf("Repository directory '%s' already exists. Proceeding.", repoDir))
+				Debug(1, fmt.Sprintf("Repository directory '%s' already exists. Proceeding.", repoDir))
 			default:
 				asslog.Unhandled("Error making the /tmp/assimilator-repo temp directory: ", repoDirErr)
 			}
@@ -150,12 +150,12 @@ func cloneOrPullRepo() (string, error) {
 	}
 
 	// Clone or pull the repository
-	Info("Cloning or pulling repository to ", repoDir)
+	Info(1, "Cloning or pulling repository to ", repoDir)
 	err := cloneRepo(repoDir, auth)
 	if err != nil {
 		switch {
 		case errors.Is(err, git.ErrRepositoryAlreadyExists):
-			Debug("Repository already exists. Pulling...")
+			Debug(1, "Repository already exists. Pulling...")
 			pullRepo(repoDir, auth)
 			return repoDir, nil
 		case errors.Is(err, transport.ErrAuthenticationRequired):
@@ -170,8 +170,8 @@ func cloneOrPullRepo() (string, error) {
 		log.Fatalf("Failed to read directory: %v", err)
 	}
 
-	Info("Listing contents of: ", repoDir)
-	Info("---------------------------------")
+	Info(1, "Listing contents of: ", repoDir)
+	Info(1, "---------------------------------")
 
 	// Loop through and print the names
 	for _, entry := range entries {
@@ -181,26 +181,26 @@ func cloneOrPullRepo() (string, error) {
 			suffix = "/"
 		}
 
-		Info(entry.Name(), " ", suffix)
+		Info(1, entry.Name(), " ", suffix)
 	}
 
 	filePath := repoDir + "/config.yaml"
-	Info("Reading config file: ", filePath)
+	Info(1, "Reading config file: ", filePath)
 
 	// Read the entire file into memory
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		Error("Error reading file: %v", err)
+		Error(1, "Error reading file: %v", err)
 	}
 
 	// os.ReadFile returns []byte, so we convert it to a string to print it
-	Info(string(content))
+	Info(1, string(content))
 
 	return repoDir, nil
 }
 
 func isUpdateAvailable(repoDir string) (bool, error) {
-	Trace("Checking for updates...")
+	Trace(1, "Checking for updates...")
 	// 1. Open your local repo and get it's HEAD has to compare
 	r, err := git.PlainOpen(repoDir)
 	if err != nil {
@@ -240,10 +240,10 @@ func isUpdateAvailable(repoDir string) (bool, error) {
 	}
 
 	// 6. Compare the hashes
-	Trace("Local repository HEAD hash:  ", localHash)
-	Trace("Remote repository HEAD hash: ", remoteHash)
+	Trace(1, "Local repository HEAD hash:  ", localHash)
+	Trace(1, "Remote repository HEAD hash: ", remoteHash)
 	if remoteHash != localHash {
-		Trace("Update available!")
+		Trace(1, "Update available!")
 		return true, nil
 	}
 	return false, nil
@@ -254,10 +254,10 @@ func Server() {
 	// Clone or pull the remote repository to the local one
 	repoDir, err := cloneOrPullRepo()
 	if err != nil {
-		Trace("error cloning or pulling repository: ", err)
+		Trace(1, "error cloning or pulling repository: ", err)
 		Unhandled("error cloning or pulling repository: ", err)
 	} else {
-		Info("Repository cloned or pulled successfully")
+		Info(1, "Repository cloned or pulled successfully")
 	}
 
 	// Load the desired state
@@ -292,7 +292,7 @@ func Server() {
 		desiredState: desiredState,
 		packages:     packages,
 	})
-	Info("Server listening on at ", lis.Addr())
+	Info(1, "Server listening on at ", lis.Addr())
 
 	// Create a channel to receive OS signals
 	// This is used to gracefully shutdown the server in case of SIGTERM (ctrl+c)
@@ -319,7 +319,7 @@ func Server() {
 				updateAvailable, err := isUpdateAvailable(repoDir)
 
 				if err != nil {
-					Error("error checking for updates: ", err)
+					Error(1, "error checking for updates: ", err)
 					attempts++
 					if attempts >= 3 {
 						Fatal(1, "Update check failed 3 times. Shutting down...")
@@ -330,7 +330,7 @@ func Server() {
 				attempts = 0
 
 				if updateAvailable {
-					Info("Update available. Shutting down...")
+					Info(1, "Update available. Shutting down...")
 					sigChan <- os.Interrupt
 					return
 				}
@@ -341,10 +341,10 @@ func Server() {
 	}(ticker)
 	// Wait for a signal
 	<-sigChan
-	Info("Received interrup signal. Gracefully stopping gRPC server...")
+	Info(1, "Received interrup signal. Gracefully stopping gRPC server...")
 	close(done)
 	// Graceful shutdown for gRPC server
 	s.GracefulStop()
-	Info("gRPC server stopped.")
+	Info(1, "gRPC server stopped.")
 
 }

@@ -15,32 +15,32 @@ import (
 // GetAllConfigs implements AssimilatorService
 func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllConfigsRequest) (*pb.GetAllConfigsResponse, error) {
 	if s.desiredState == nil {
-		Warning("Agent attempted to get all configs, but Server has not loaded the configuration yet")
+		Warning(1, "Agent attempted to get all configs, but Server has not loaded the configuration yet")
 		return nil, fmt.Errorf("server has not loaded the configuration yet")
 	}
 	response := &pb.GetAllConfigsResponse{
 		Machines: toProtoMachineConfigMap(&s.desiredState.Machines),
 		// Users:    toProtoUserConfigMap(&s.desiredState.Users),
 	}
-	Info("Returning response to agent.")
+	Info(1, "Returning response to agent.")
 	return response, nil
 }
 
 // GetAllConfigs implements AssimilatorService
 func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSpecificConfigRequest) (*pb.GetSpecificConfigResponse, error) {
-	Trace("Agent attempting to get config for machine: ", req.MachineName)
+	Trace(1, "Agent attempting to get config for machine: ", req.MachineName)
 	if s.desiredState == nil {
-		Warning("Agent attempted to get a specific config, but Server has not loaded the configuration yet")
+		Warning(1, "Agent attempted to get a specific config, but Server has not loaded the configuration yet")
 		return nil, fmt.Errorf("server has not loaded the configuration yet")
 	}
 	if len(s.desiredState.Machines) == 0 {
-		Warning("Configs loaded, but there are no machines.")
+		Warning(1, "Configs loaded, but there are no machines.")
 		return nil, fmt.Errorf("configs loaded, but there are no machines")
 	}
-	// Trace("Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
+	// Trace(1, "Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
 	if machine, okay := s.desiredState.Machines[req.MachineName]; okay {
-		Trace("Found a machine with name: ", req.MachineName)
-		Info("Returning response to ", req.MachineName, "'s agent.")
+		Trace(1, "Found a machine with name: ", req.MachineName)
+		Info(1, "Returning response to ", req.MachineName, "'s agent.")
 		return &pb.GetSpecificConfigResponse{
 			AppliedProfiles: machine.AppliedProfiles,
 			Packages:        toProtoPackageConfigMap(&machine.Packages),
@@ -48,12 +48,12 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 			Version:         toProtoServerVersion(&s.ServerVersion),
 		}, nil
 	}
-	Debug("Cannot find a machine with name: ", req.MachineName)
+	Debug(1, "Cannot find a machine with name: ", req.MachineName)
 	return nil, status.Errorf(codes.NotFound, "cannot find a machine with name: %v", req.MachineName)
 }
 
 func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream pb.Assimilator_DownloadPackageServer) error {
-	Info("Client requested package: ", req.Name)
+	Info(1, "Client requested package: ", req.Name)
 	if s.PackageDir == "" {
 		return status.Error(codes.Internal, "Server repository directory is not configured")
 	}
@@ -76,7 +76,7 @@ func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream p
 	// 2. Open the file
 	file, err := os.Open(pkgInfo.packagePermPath)
 	if err != nil {
-		Error("Failed to open package file: ", err)
+		Error(1, "Failed to open package file: ", err)
 		return status.Errorf(codes.Internal, "failed to open package file")
 	}
 	defer file.Close()
@@ -116,6 +116,6 @@ func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream p
 		}
 	}
 
-	Info("Successfully sent package: ", req.Name)
+	Info(1, "Successfully sent package: ", req.Name)
 	return nil
 }

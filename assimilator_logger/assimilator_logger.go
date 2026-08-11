@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"time"
 )
 
 // ANSI escape codes for text formatting
@@ -23,20 +22,25 @@ const (
 	Reset     = "\033[0m" // Reset to default color
 )
 
-type LogLevel int
+// type LogLevel int
 
-var ProgramIsClosing bool = false
+// var ProgramIsClosing bool = false
 
-const (
-	LevelSilent    LogLevel = 0 // Nothing logged, only for setting minimum verbosity
-	LevelFatal     LogLevel = 1 // Fatal always shows (or causes exit)
-	LevelUnhandled LogLevel = 1 // Errors I've not yet experienced.
-	LevelError     LogLevel = 2 // Errors are critical, show at base level
-	LevelWarning   LogLevel = 3 // Warnings show at level 3 and above
-	LevelInfo      LogLevel = 4 // Default level for general messages
-	LevelSuccess   LogLevel = 4 // Success messages typically show at base level
-	LevelDebug     LogLevel = 5 // Debug messages show at level 5 and above
-	LevelTrace     LogLevel = 6 // Very verbose messages show at level 6 and above
+// const (
+// 	LevelSilent    LogLevel = 0 // Nothing logged, only for setting minimum verbosity
+// 	LevelFatal     LogLevel = 1 // Fatal always shows (or causes exit)
+// 	LevelUnhandled LogLevel = 1 // Errors I've not yet experienced.
+// 	LevelError     LogLevel = 2 // Errors are critical, show at base level
+// 	LevelWarning   LogLevel = 3 // Warnings show at level 3 and above
+// 	LevelInfo      LogLevel = 4 // Default level for general messages
+// 	LevelSuccess   LogLevel = 4 // Success messages typically show at base level
+// 	LevelDebug     LogLevel = 5 // Debug messages show at level 5 and above
+// 	LevelTrace     LogLevel = 6 // Very verbose messages show at level 6 and above
+// )
+
+var (
+	globalLogger *AssLogger
+	initOnce     sync.Once
 )
 
 var LogType = map[string]func(LogEntry){
@@ -50,39 +54,49 @@ var LogType = map[string]func(LogEntry){
 var logFile *os.File
 
 type LogEntry struct {
-	level       LogLevel
+	level       int
 	message     string
 	color       string
 	flatPrefix  string
 	emojiPrefix string
-	IsFatal     bool
-	ExitCode    int
 }
 
-// Global logger instance (initialized at package level)
-var globalLogger *AssLogger
+type AssLogger struct {
+	logFileLocation string
+	verbosityLevel  int // Local verbosity level for the logger instance
+	logTypes        map[string]bool
+}
 
-func StartLogger() {
-	globalLogger = NewAssLogger()
-	globalLogger.startWorker()
+func init() {
+	ensureInitialized()
+}
+
+func ensureInitialized() {
+	initOnce.Do(func() {
+		globalLogger = &AssLogger{
+			verbosityLevel:  1,
+			logTypes:        map[string]bool{"console": true},
+			logFileLocation: "",
+		}
+	})
 }
 
 // SetVerbosity sends a new verbosity level to the running logger.
 // This is the function you'll call after parsing flags.
 func SetVerbosity(level int) {
 	if globalLogger != nil {
-		globalLogger.verbosityUpdates <- level
+		globalLogger.verbosityLevel = level
 	}
 }
 
 func SetLogTypes(logTypes map[string]bool) {
 	if globalLogger != nil && logTypes != nil {
-		globalLogger.logTypesUpdates <- logTypes
+		globalLogger.logTypes = logTypes
 	}
 }
 
 func SetLogFileLocation(logFileLocation string) {
-	globalLogger.logFileUpdates <- logFileLocation
+	globalLogger.logFileLocation = logFileLocation
 }
 
 type LogWriter struct {
@@ -92,7 +106,7 @@ type LogWriter struct {
 // This is the "Write button" that go-git will press.
 func (l *LogWriter) Write(p []byte) (n int, err error) {
 	log := string(p[:])
-	Debug(log)
+	Debug(1, log)
 	return len(p), nil
 }
 
@@ -101,65 +115,53 @@ func NewLogWriter() *LogWriter {
 	return &LogWriter{}
 }
 
-type AssLogger struct {
-	msgBuffer        chan LogEntry
-	verbosityUpdates chan int // Channel to receive verbosity level updates
-	wg               sync.WaitGroup
-	closeSync        sync.Once
-	verbosityLevel   LogLevel // Local verbosity level for the logger instance
-	logTypesUpdates  chan map[string]bool
-	logTypes         map[string]bool
-	logFileUpdates   chan string
-	logFileLocation  string
-}
+// func NewAssLogger() *AssLogger {
+// 	return &AssLogger{
+// 		// msgBuffer:        make(chan LogEntry, 1000),
+// 		// verbosityUpdates: make(chan int, 1),
+// 		verbosityLevel: 1,
+// 		// logTypesUpdates:  make(chan map[string]bool, 1),
+// 		logTypes: map[string]bool{"console": true},
+// 		// logFileUpdates:   make(chan string, 1),
+// 		logFileLocation: "",
+// 	}
+// }
 
-func NewAssLogger() *AssLogger {
-	return &AssLogger{
-		msgBuffer:        make(chan LogEntry, 1000),
-		verbosityUpdates: make(chan int, 1),
-		verbosityLevel:   LevelInfo,
-		logTypesUpdates:  make(chan map[string]bool, 1),
-		logTypes:         map[string]bool{"console": true},
-		logFileUpdates:   make(chan string, 1),
-		logFileLocation:  "",
-	}
-}
+// func (l *AssLogger) startWorker() {
+// 	l.wg.Add(1)
 
-func (l *AssLogger) startWorker() {
-	l.wg.Add(1)
+// 	go func() {
+// 		defer l.wg.Done()
 
-	go func() {
-		defer l.wg.Done()
+// 		for {
+// 			select {
+// 			// Case 1: A new verbosity level is received.
+// 			case newLevel := <-l.verbosityUpdates:
+// 				// Clamp the value to the valid range of LogLevel
+// 				newLevel = max(newLevel, int(LevelSilent))
+// 				newLevel = min(newLevel, int(LevelTrace))
+// 				l.verbosityLevel = LogLevel(newLevel)
 
-		for {
-			select {
-			// Case 1: A new verbosity level is received.
-			case newLevel := <-l.verbosityUpdates:
-				// Clamp the value to the valid range of LogLevel
-				newLevel = max(newLevel, int(LevelSilent))
-				newLevel = min(newLevel, int(LevelTrace))
-				l.verbosityLevel = LogLevel(newLevel)
-
-			case newLogTypes := <-l.logTypesUpdates:
-				l.logTypes = newLogTypes
-			// Case 3: A new log entry is received.
-			case entry, ok := <-l.msgBuffer:
-				if !ok {
-					// The channel was closed. Exit the goroutine.
-					return
-				}
-				// Check if the entry's level is within the current verbosity threshold.
-				if entry.level <= l.verbosityLevel {
-					l.outputLog(entry)
-				}
-				if entry.IsFatal {
-					time.Sleep(200 * time.Millisecond)
-					os.Exit(entry.ExitCode)
-				}
-			}
-		}
-	}()
-}
+// 			case newLogTypes := <-l.logTypesUpdates:
+// 				l.logTypes = newLogTypes
+// 			// Case 3: A new log entry is received.
+// 			case entry, ok := <-l.msgBuffer:
+// 				if !ok {
+// 					// The channel was closed. Exit the goroutine.
+// 					return
+// 				}
+// 				// Check if the entry's level is within the current verbosity threshold.
+// 				if entry.level <= l.verbosityLevel {
+// 					l.outputLog(entry)
+// 				}
+// 				if entry.IsFatal {
+// 					time.Sleep(200 * time.Millisecond)
+// 					os.Exit(entry.ExitCode)
+// 				}
+// 			}
+// 		}
+// 	}()
+// }
 
 func Close(ExitCode ...int) {
 	globalLogger.Close()
@@ -198,13 +200,13 @@ func getCallerInfo(skip int) string {
 }
 
 func (l *AssLogger) Close() {
-	Info("Closing down now!")
-	ProgramIsClosing = true
+	Info(1, "Closing down now!")
+	// ProgramIsClosing = true
 
-	l.closeSync.Do(func() {
-		close(l.msgBuffer)
-	})
-	l.wg.Wait()
+	// l.closeSync.Do(func() {
+	// close(l.msgBuffer)
+	// })
+	// l.wg.Wait()
 }
 
 // Chooses outputs to multiple locations based on logTypes
@@ -233,12 +235,11 @@ func fileLog(entry LogEntry) {
 			fmt.Println("Failed to open log file:", err)
 		}
 
-	} else {
-		_, err := fmt.Fprintf(logFile, "%s%s\n", entry.flatPrefix, entry.message)
+	}
+	_, err := fmt.Fprintf(logFile, "%s%s\n", entry.flatPrefix, entry.message)
 
-		if err != nil {
-			fmt.Println("Failed to write log file:", err)
-		}
+	if err != nil {
+		fmt.Println("Failed to write log file:", err)
 	}
 }
 
@@ -254,163 +255,210 @@ func slackLog(entry LogEntry) {
 	fmt.Println("slackLog")
 }
 
-func (l *AssLogger) Debug(message string) {
-	if ProgramIsClosing {
+// func (l *AssLogger) Debug(logLevel int, message string) {
+// 	if logLevel > l.verbosityLevel {
+// 		return
+// 	}
+// 	globalLogger.outputLog(LogEntry{
+// 		level:       logLevel,
+// 		message:     message,
+// 		color:       Lblue,
+// 		flatPrefix:  "[Debug  ] ",
+// 		emojiPrefix: "[🪲 Debug ] ",
+// 	})
+// }
+
+//	func (l *AssLogger) Trace(logLevel int, message string) {
+//		if logLevel > l.verbosityLevel {
+//			return
+//		}
+//		globalLogger.outputLog(LogEntry{
+//			level:       logLevel,
+//			message:     message,
+//			color:       Lblack,
+//			flatPrefix:  "[Trace  ] ",
+//			emojiPrefix: "[🫆 Trace  ] ",
+//		})
+//	}
+// func (l *AssLogger) Info(logLevel int, message string) {
+// 	if logLevel > l.verbosityLevel {
+// 		return
+// 	}
+// 	globalLogger.outputLog(LogEntry{
+// 		level:       logLevel,
+// 		message:     message,
+// 		color:       White,
+// 		flatPrefix:  "[Info   ] ",
+// 		emojiPrefix: "[ℹ️ Info   ] ",
+// 	})
+// }
+
+// func (l *AssLogger) Success(logLevel int, message string) {
+// 	if logLevel > l.verbosityLevel {
+// 		return
+// 	}
+// 	globalLogger.outputLog(LogEntry{
+// 		level:       logLevel,
+// 		message:     message,
+// 		color:       Lgreen,
+// 		flatPrefix:  "[Success] ",
+// 		emojiPrefix: "[✅ Success] ",
+// 	})
+// }
+
+// func (l *AssLogger) Warning(logLevel int, message string) {
+// 	if logLevel > l.verbosityLevel {
+// 		return
+// 	}
+// 	globalLogger.outputLog(LogEntry{
+// 		level:       logLevel,
+// 		message:     message,
+// 		color:       Lred,
+// 		flatPrefix:  "[Warn   ] ",
+// 		emojiPrefix: "[❗ Warn   ] ",
+// 	})
+// }
+
+// func (l *AssLogger) Error(logLevel int, message string) {
+// 	if logLevel > l.verbosityLevel {
+// 		return
+// 	}
+// 	globalLogger.outputLog(LogEntry{
+// 		level:       logLevel,
+// 		message:     message,
+// 		color:       Lred,
+// 		flatPrefix:  "[Error  ] ",
+// 		emojiPrefix: "[❌ Error ] ",
+// 	})
+// }
+
+// func (l *AssLogger) Fatal(exitCode int, message string) {
+// 	globalLogger.outputLog(LogEntry{
+// 		level:       logLevel,
+// 		message:     message,
+// 		color:       Lred,
+// 		flatPrefix:  "[Fatal  ] ",
+// 		emojiPrefix: "[💀 Fatal  ] ",
+// 		IsFatal:     true,
+// 		ExitCode:    exitCode,
+// 	})
+// }
+
+// func (l *AssLogger) Unhandled(message string) {
+// l.outputLog(LogEntry{
+// 	level:       logLevel,
+// 	message:     message,
+// 	color:       Lred,
+// 	flatPrefix:  "[Unhandled error] ",
+// 	emojiPrefix: "[💥 Unhandled error] ",
+// 	IsFatal:     true,
+// 	ExitCode:    28,
+// })
+// }
+
+func Debug(logLevel int, messages ...any) {
+	if logLevel > globalLogger.verbosityLevel {
 		return
 	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelDebug,
-		message:     message,
+
+	globalLogger.outputLog(LogEntry{
+		level:       logLevel,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
 		color:       Lblue,
 		flatPrefix:  "[Debug  ] ",
-		emojiPrefix: "[🪲 Debug ] ",
-	}
+		emojiPrefix: "[🪲 Debug  ] ",
+	})
 }
 
-func (l *AssLogger) Trace(message string) {
-	if ProgramIsClosing {
+func Trace(logLevel int, messages ...any) {
+	if logLevel > globalLogger.verbosityLevel {
 		return
 	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelTrace,
-		message:     message,
+
+	globalLogger.outputLog(LogEntry{
+		level:       logLevel,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
 		color:       Lblack,
 		flatPrefix:  "[Trace  ] ",
 		emojiPrefix: "[🫆 Trace  ] ",
-	}
-}
-func (l *AssLogger) Info(message string) {
-	if ProgramIsClosing {
-		return
-	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelInfo,
-		message:     message,
-		color:       White,
-		flatPrefix:  "[Info   ] ",
-		emojiPrefix: "[ℹ️ Info   ] ",
-	}
+	})
 }
 
-func (l *AssLogger) Success(message string) {
-	if ProgramIsClosing {
+func Info(logLevel int, messages ...any) {
+	if logLevel > globalLogger.verbosityLevel {
 		return
 	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelSuccess,
-		message:     message,
+
+	globalLogger.outputLog(LogEntry{
+		level:       logLevel,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
+		color:       White,
+		flatPrefix:  "[Info   ] ",
+		emojiPrefix: "[ℹ️  Info   ] ",
+	})
+}
+
+func Success(logLevel int, messages ...any) {
+	if logLevel > globalLogger.verbosityLevel {
+		return
+	}
+
+	globalLogger.outputLog(LogEntry{
+		level:       logLevel,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
 		color:       Lgreen,
 		flatPrefix:  "[Success] ",
 		emojiPrefix: "[✅ Success] ",
-	}
+	})
 }
 
-func (l *AssLogger) Warning(message string) {
-	if ProgramIsClosing {
+func Warning(logLevel int, messages ...any) {
+	if logLevel > globalLogger.verbosityLevel {
 		return
 	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelWarning,
-		message:     message,
+
+	globalLogger.outputLog(LogEntry{
+		level:       logLevel,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
 		color:       Lred,
 		flatPrefix:  "[Warn   ] ",
 		emojiPrefix: "[❗ Warn   ] ",
-	}
+	})
 }
 
-func (l *AssLogger) Error(message string) {
-	if ProgramIsClosing {
+func Error(logLevel int, messages ...any) {
+	if logLevel > globalLogger.verbosityLevel {
 		return
 	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelError,
-		message:     message,
+
+	globalLogger.outputLog(LogEntry{
+		level:       logLevel,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
 		color:       Lred,
 		flatPrefix:  "[Error  ] ",
 		emojiPrefix: "[❌ Error ] ",
-	}
-}
-
-func (l *AssLogger) Fatal(exitCode int, message string) {
-	if ProgramIsClosing {
-		return
-	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelFatal,
-		message:     message,
-		color:       Lred,
-		flatPrefix:  "[Fatal  ] ",
-		emojiPrefix: "[💀 Fatal  ] ",
-		IsFatal:     true,
-		ExitCode:    exitCode,
-	}
-	l.wg.Wait()
-}
-
-func (l *AssLogger) Unhandled(message string) {
-	if ProgramIsClosing {
-		return
-	}
-	globalLogger.msgBuffer <- LogEntry{
-		level:       LevelUnhandled,
-		message:     message,
-		color:       Lred,
-		flatPrefix:  "[Unhandled error] ",
-		emojiPrefix: "[💥 Unhandled error] ",
-		IsFatal:     true,
-		ExitCode:    28,
-	}
-	l.wg.Wait()
-}
-
-// Convenience functions for direct use (e.g., utils.Info("msg"))
-// These essentially wrap the methods of the global logger instance.
-func Debug(messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Debug(message)
-}
-
-func Trace(messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Trace(message)
-}
-
-func Info(messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Info(message)
-}
-
-func Success(messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Success(message)
-}
-
-func Warning(messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Warning(message)
-}
-
-func Error(messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Error(message)
+	})
 }
 
 func Fatal(exitcode int, messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Fatal(exitcode, message)
-	time.Sleep(200 * time.Millisecond)
+	globalLogger.outputLog(LogEntry{
+		level:       1,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
+		color:       Lred,
+		flatPrefix:  "[Fatal  ] ",
+		emojiPrefix: "[💀 Fatal  ] ",
+	})
+	os.Exit(exitcode)
+
 }
 
 func Unhandled(messages ...any) {
-	message := fmt.Sprint(messages...)
-	message = getCallerInfo(2) + message
-	globalLogger.Unhandled(message)
-	time.Sleep(200 * time.Millisecond)
+	globalLogger.outputLog(LogEntry{
+		level:       1,
+		message:     getCallerInfo(2) + fmt.Sprint(messages...),
+		color:       Lred,
+		flatPrefix:  "[Unhandled error] ",
+		emojiPrefix: "[💥 Unhandled error] ",
+	})
+	os.Exit(28)
 }

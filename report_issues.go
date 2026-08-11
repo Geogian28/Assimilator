@@ -27,7 +27,7 @@ func reportToTormon(packageName, installStatus string, installLog string) {
 
 	payload, err := json.Marshal(report)
 	if err != nil {
-		Error("failed to marshal Tormon report: ", err)
+		Error(1, "failed to marshal Tormon report: ", err)
 		return
 	}
 
@@ -41,21 +41,21 @@ func reportToTormon(packageName, installStatus string, installLog string) {
 		url = url + "/api/report"
 	}
 
-	// Trace("Tormon URL: ", url)
+	// Trace(1, "Tormon URL: ", url)
 	// fmt.Println("appConfig.TormonAddress=", appConfig.TormonAddress)
 	// url := appConfig.TormonAddress + "/api/report"
-	// Trace("Tormon URL: ", url)
+	// Trace(1, "Tormon URL: ", url)
 
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
-		Error("failed to reach Tormon API: ", err)
+		Error(1, "failed to reach Tormon API: ", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
-		Debug("Reported %s failure to Tormon.\n", packageName)
+		Debug(1, "Reported %s failure to Tormon.\n", packageName)
 	} else {
-		Error("tormon returned unexpected status: ", resp.StatusCode)
+		Error(1, "tormon returned unexpected status: ", resp.StatusCode)
 	}
 }

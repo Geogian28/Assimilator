@@ -73,20 +73,20 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 	if err := p.ensurePackage(a); err != nil {
 		return err
 	}
-	Trace("Successfully ensured ", p.name)
+	Trace(1, "Successfully ensured ", p.name)
 
 	if !appConfig.RunOnce {
 		p.checkLastRunTime()
-		Info(p.printTimeSinceLastRun())
+		Info(1, p.printTimeSinceLastRun())
 		// Check if no updates exist AND we are still within the cooldown window
-		Trace("p.lastRunTime: ", p.lastRunTime)
+		Trace(1, "p.lastRunTime: ", p.lastRunTime)
 		switch {
 		case p.updated:
-			Info("Updates exist for ", p.name, ". Running...")
+			Info(1, "Updates exist for ", p.name, ". Running...")
 			// case p.lastRunTime.IsZero():
-			// Info("No last run time for ", p.name, ". Running...")
+			// Info(1, "No last run time for ", p.name, ". Running...")
 		case time.Since(p.lastRunTime) < time.Duration(p.updateInterval)*time.Second:
-			Info("No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
+			Info(1, "No updates for ", p.name, " and not enough time has passed since the last run. Skipping.")
 			return nil
 		}
 	}
@@ -94,18 +94,18 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 	if err := p.extractPackage(); err != nil {
 		return err
 	}
-	Trace("Successfully extracted ", p.name)
+	Trace(1, "Successfully extracted ", p.name)
 	if err := p.executePackageScript(a); err != nil {
 		return err
 	}
-	Trace("Successfully excuted script for", p.name)
+	Trace(1, "Successfully excuted script for", p.name)
 	return nil
 }
 
 func (p *packageInfo) ensurePackage(a *AgentData) error {
 	// 1. Check if the folder exists
 
-	Debug("Checking if package folder exists: ", p.cacheDir)
+	Debug(1, "Checking if package folder exists: ", p.cacheDir)
 	if !fileExists(p.cacheDir) {
 		err := os.MkdirAll(p.cacheDir, 0755)
 		if err != nil {
@@ -114,7 +114,7 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 	}
 
 	// 2. Check if we have the file and if it matches the server
-	Debug("Checking if package file exists: ", p.path)
+	Debug(1, "Checking if package file exists: ", p.path)
 	if fileExists(p.path) {
 		var err error
 		p.checksum, err = calculateChecksum(p.path)
@@ -123,61 +123,61 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 			return err
 		}
 
-		Trace("Local checksum: ", p.checksum, " server: ", p.serverChecksum)
+		Trace(1, "Local checksum: ", p.checksum, " server: ", p.serverChecksum)
 		if p.checksum == p.serverChecksum {
-			Debug("Package ", p.name, " checksums match.")
+			Debug(1, "Package ", p.name, " checksums match.")
 			return nil
 		}
 	} else {
-		Debug("Package ", p.name, " does not exist.")
+		Debug(1, "Package ", p.name, " does not exist.")
 	}
 
 	// 3. If we are here, we either don't have it or it's old. Download it
-	Debug("Downloading package: ", p.name)
+	Debug(1, "Downloading package: ", p.name)
 	err := p.downloadPackage(a)
 	if err != nil {
 		a.failureReports[p.name] = fmt.Sprintf("error downloading %s package: %s", p.name, err)
 		return fmt.Errorf("error downloading %s package: %s", p.name, err)
 	}
 	p.updated = true
-	Debug("Downloaded package ", p.name, " successfully.")
+	Debug(1, "Downloaded package ", p.name, " successfully.")
 	return nil
 }
 
 func (p *packageInfo) checkLastRunTime() {
 	if appConfig.RunOnce {
-		Trace("RunOnce set. Not checking last run time.")
+		Trace(1, "RunOnce set. Not checking last run time.")
 		return
 	}
 	lastRunPath := filepath.Join(p.cacheDir, p.action+"_"+p.runAsUser+"_lastRunTime.txt")
-	Trace("lastRunPath: ", lastRunPath)
+	Trace(1, "lastRunPath: ", lastRunPath)
 	if !fileExists(lastRunPath) {
 		p.lastRunTime = time.Time{}
-		Debug("lastRunPath didnt exist")
+		Debug(1, "lastRunPath didnt exist")
 		return
 	}
 
 	content, err := os.ReadFile(lastRunPath)
 	if err != nil {
-		Error("error opening lastRunTime.txt: ", err)
+		Error(1, "error opening lastRunTime.txt: ", err)
 		p.lastRunTime = time.Time{}
 		return
 	}
 
 	cleanContent := strings.TrimSpace(string(content))
-	Trace("cleanContent: ", cleanContent)
+	Trace(1, "cleanContent: ", cleanContent)
 	// Parse the string as a base-10, 64-bit integer
 	epoch, err := strconv.ParseInt(cleanContent, 10, 64)
-	Trace("epoch: ", epoch)
+	Trace(1, "epoch: ", epoch)
 	if err != nil {
-		Error("error parsing lastRunTime.txt as Epoch int: ", err)
+		Error(1, "error parsing lastRunTime.txt as Epoch int: ", err)
 		p.lastRunTime = time.Time{}
 		return
 	}
 
 	// Convert Unix seconds to Go's time.Time
 	p.lastRunTime = time.Unix(epoch, 0)
-	Trace("p.lastRunTime: ", p.lastRunTime)
+	Trace(1, "p.lastRunTime: ", p.lastRunTime)
 }
 
 // FormatLastRun Returns a human-readable relative time string.
@@ -259,14 +259,14 @@ func (p *packageInfo) downloadPackage(a *AgentData) error {
 	}
 
 	// 2. Open the stream
-	Trace("Opening the stream")
+	Trace(1, "Opening the stream")
 	stream, err := a.client.DownloadPackage(context.Background(), req)
 	if err != nil {
 		return fmt.Errorf("failed to start download stream: %w", err)
 	}
 
 	// 3. Create the destination file
-	Trace("Creating the destinationfile")
+	Trace(1, "Creating the destinationfile")
 	outFile, err := os.Create(p.path)
 	if err != nil {
 		return fmt.Errorf("failed to create cache file %s: %w", p.path, err)
@@ -274,12 +274,12 @@ func (p *packageInfo) downloadPackage(a *AgentData) error {
 	defer outFile.Close()
 
 	// 4. Receive chunks in a loop
-	Trace("Receiving chunks in a loop")
+	Trace(1, "Receiving chunks in a loop")
 	var bytesReceived int64
 	for {
 		chunk, err := stream.Recv()
 		if err == io.EOF {
-			Trace("Received EOF")
+			Trace(1, "Received EOF")
 			// End of stream means success
 			break
 		}
@@ -288,7 +288,7 @@ func (p *packageInfo) downloadPackage(a *AgentData) error {
 		}
 
 		// Write bytes to disk
-		Trace("Writing bytes to disk")
+		Trace(1, "Writing bytes to disk")
 		n, err := outFile.Write(chunk.Content)
 		if err != nil {
 			return fmt.Errorf("failed to write to file: %w", err)
@@ -296,7 +296,7 @@ func (p *packageInfo) downloadPackage(a *AgentData) error {
 		bytesReceived += int64(n)
 	}
 
-	Trace(fmt.Sprintf("Successfully downloaded %s (%d bytes)", p.name, bytesReceived))
+	Trace(1, fmt.Sprintf("Successfully downloaded %s (%d bytes)", p.name, bytesReceived))
 	return nil
 }
 
@@ -338,21 +338,21 @@ func (p *packageInfo) extractPackage() error {
 	}
 
 	if string(output) != "" {
-		Trace(string(output))
+		Trace(1, string(output))
 	}
 	p.extractDir = extractDir
 	return nil
 }
 
 func (p *packageInfo) executePackageScript(a *AgentData) error {
-	Trace("Executing install script for ", p.name)
+	Trace(1, "Executing install script for ", p.name)
 	// 1. Ensure the script is executable
 	if err := os.Chmod(filepath.Join(p.extractDir, fmt.Sprintf("%s.sh", p.action)), 0755); err != nil {
 		return fmt.Errorf("failed to make script executable: %w", err)
 	}
 	// 2. Run the install script
 	// Join the arguments array into a space-separated string (e.g. "--unattended --force")
-	Trace("Arguments: ", p.arguments)
+	Trace(1, "Arguments: ", p.arguments)
 	// If the package didnt specify a runAsUser, default to root, then look it up
 	if p.runAsUser == "" {
 		return fmt.Errorf("package %s did not specify a runAsUser. Exiting to expose error instead of applying bandaid", p.name)
@@ -375,21 +375,21 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 	)
 
-	Trace("Running script ", commandToRun, " as user: ", p.runAsUser)
+	Trace(1, "Running script ", commandToRun, " as user: ", p.runAsUser)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
 		a.failureReports[p.name] = string(output)
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			code := exitErr.ExitCode()
-			Info("\n", string(output))
+			Info(1, "\n", string(output))
 			return fmt.Errorf("Script failed with exit code: %v. Output: %v", code, string(output))
 		} else {
 			// The system couldn't even start the script
 			return fmt.Errorf("Failed to start script: %v\n", err)
 		}
 	}
-	Trace("Script ", commandToRun, " ran successfully!")
+	Trace(1, "Script ", commandToRun, " ran successfully!")
 
 	// 3. Update the last run time on disk
 	if err := os.MkdirAll(p.cacheDir, 0755); err != nil {
@@ -397,7 +397,7 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 	}
 
 	lastRunPath := filepath.Join(p.cacheDir, p.action+"_"+p.runAsUser+"_lastRunTime.txt")
-	Trace("lastRunPath: ", lastRunPath)
+	Trace(1, "lastRunPath: ", lastRunPath)
 	epochStr := fmt.Sprintf("%d", time.Now().Unix())
 	if err := os.WriteFile(lastRunPath, []byte(epochStr), 0644); err != nil {
 		return fmt.Errorf("failed to write lastRunTime.txt: %w", err)

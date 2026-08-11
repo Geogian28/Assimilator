@@ -141,7 +141,7 @@ func ConfigFromFile() {
 	if err != nil {
 		switch {
 		case errors.Is(err, os.ErrPermission):
-			Error("Cannot make /etc/assimilator directory. Try running as root.")
+			Error(1, "Cannot make /etc/assimilator directory. Try running as root.")
 			return
 		default:
 			asslog.Unhandled("Error creating assimilator directory: ", err)
@@ -149,7 +149,7 @@ func ConfigFromFile() {
 	}
 	// 2. Ensure file exists
 	if !fileExists("/etc/assimilator/config.toml") {
-		Info("Config file does not exist. Making one.")
+		Info(1, "Config file does not exist. Making one.")
 		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
 			Config: AppConfig{
 				IsServer:              false,
@@ -169,7 +169,7 @@ func ConfigFromFile() {
 		if err != nil {
 			switch {
 			case errors.Is(err, os.ErrPermission):
-				Error("Received permission denied while creating config file. Try running as root.")
+				Error(1, "Received permission denied while creating config file. Try running as root.")
 			default:
 				Unhandled("Error creating config file: ", err)
 			}
@@ -179,7 +179,7 @@ func ConfigFromFile() {
 	// Load configs from /etc/assimilator
 	configFile, err := os.ReadFile("/etc/assimilator/config.toml")
 	if err != nil {
-		Error("Failed to open config file: ", err)
+		Error(1, "Failed to open config file: ", err)
 		return
 	}
 
@@ -192,10 +192,10 @@ func ConfigFromFile() {
 	//    The unmarshaler acts as a "patch", only updating fields found in the text.
 	err = toml.Unmarshal(configFile, &wrapper)
 	if err != nil {
-		Error("Failed to unmarshal config file: ", err)
+		Error(1, "Failed to unmarshal config file: ", err)
 		return
 	}
-	Debug("Loaded config from file.")
+	Debug(1, "Loaded config from file.")
 	if wrapper.Config.IsServer && wrapper.Config.IsAgent {
 		Fatal(1, "Both 'server' and 'agent' enabled in config file. Cannot run as both agent and server.")
 		return
@@ -224,7 +224,7 @@ func ConfigFromEnv() {
 		appConfig.IsServer = true
 	}
 	if err := env.Parse(&appConfig); err != nil {
-		Error("Failed to parse environment variables: ", err)
+		Error(1, "Failed to parse environment variables: ", err)
 	}
 }
 
@@ -362,21 +362,21 @@ func traceAppConfig() {
 // processFlagsAndArgs processes the command line flags and returns the
 // corresponding FlagsAndArgs structure.
 func SetupAppConfig(flags *CliFlags) {
-	Trace("Loading config from file.")
+	Trace(1, "Loading config from file.")
 	ConfigFromFile()
 	traceAppConfig()
 
-	Trace("Loading config from environment.")
+	Trace(1, "Loading config from environment.")
 	ConfigFromEnv()
 	traceAppConfig()
 
-	Trace("Loading config from flags.")
+	Trace(1, "Loading config from flags.")
 	ConfigFromFlags(flags)
 	traceAppConfig()
 
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
-		Info("Neither server nor agent flags provided. Assuming Agent")
+		Info(1, "Neither server nor agent flags provided. Assuming Agent")
 		appConfig.IsAgent = true
 	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
@@ -424,7 +424,7 @@ func SetupAppConfig(flags *CliFlags) {
 	}
 
 	if appConfig.Hostname == "" {
-		Trace("Hostname is blank. Attempting to get hostname from os.Hostname().")
+		Trace(1, "Hostname is blank. Attempting to get hostname from os.Hostname().")
 		var err error
 		appConfig.Hostname, err = os.Hostname()
 		if err != nil {
@@ -433,7 +433,7 @@ func SetupAppConfig(flags *CliFlags) {
 		if appConfig.Hostname == "" {
 			Fatal(1, "Got hostname successfully, but it was empty... ¯\\_(ツ)_/¯")
 		} else {
-			Trace("Hostname finally set to: ", appConfig.Hostname)
+			Trace(1, "Hostname finally set to: ", appConfig.Hostname)
 		}
 	}
 
@@ -447,7 +447,7 @@ func SetupAppConfig(flags *CliFlags) {
 		appConfig.RunAsUser = appConfig.CurrentUser
 	}
 
-	Success("Configuration loaded successfully.")
+	Success(1, "Configuration loaded successfully.")
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 	asslog.SetLogFileLocation(appConfig.LogFileLocation)
@@ -484,7 +484,7 @@ func logTypes(logTypesPtr string) map[string]bool {
 func runningUser() string {
 	runningUser, err := user.Current()
 	if err != nil {
-		Error("Failed to get current user: ", err)
+		Error(1, "Failed to get current user: ", err)
 		os.Exit(1)
 	}
 	return runningUser.Username
@@ -493,7 +493,7 @@ func runningUser() string {
 func userCacheDir() string {
 	user, err := user.Current()
 	if err != nil {
-		Error("Failed to get current user: ", err)
+		Error(1, "Failed to get current user: ", err)
 		os.Exit(1)
 	}
 	if user.Username == "root" {
@@ -501,7 +501,7 @@ func userCacheDir() string {
 	}
 	baseCacheDir, err := os.UserCacheDir()
 	if err != nil {
-		Error("Failed to get user cache directory: ", err)
+		Error(1, "Failed to get user cache directory: ", err)
 		os.Exit(1)
 	}
 	return filepath.Join(baseCacheDir, "assimilator")
@@ -510,7 +510,7 @@ func userCacheDir() string {
 func logFileLocation() string {
 	user, err := user.Current()
 	if err != nil {
-		Error("Failed to get current user: ", err)
+		Error(1, "Failed to get current user: ", err)
 		os.Exit(1)
 	}
 	if user.Username == "root" {
@@ -519,7 +519,7 @@ func logFileLocation() string {
 
 	mkdir := exec.Command("mkdir", "-p", filepath.Join(user.HomeDir, ".local/state"))
 	if err := mkdir.Run(); err != nil {
-		Error("Failed to create log directory: ", err)
+		Error(1, "Failed to create log directory: ", err)
 		os.Exit(1)
 	}
 	return filepath.Join(user.HomeDir, ".local/state/assimilator.log")
@@ -527,7 +527,7 @@ func logFileLocation() string {
 
 // LoadDesiredState reads the YAML file from the given path and unmarshals it into the AppConfig struct.
 func LoadDesiredState(filePath string) (*DesiredState, error) {
-	Trace("Reading config file: ", filePath)
+	Trace(1, "Reading config file: ", filePath)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file '%s': %w", filePath, err)
@@ -548,7 +548,7 @@ func applyProfiles(desiredState *DesiredState) {
 	for profileName := range desiredState.Profiles {
 		ProfileNames = append(ProfileNames, profileName)
 	}
-	Debug("Available profiles: ", strings.Join(ProfileNames, ", "))
+	Debug(1, "Available profiles: ", strings.Join(ProfileNames, ", "))
 
 	for machineName, machineConfig := range desiredState.Machines {
 		mergedPackages := make(map[string][]PackageStep)
@@ -556,16 +556,16 @@ func applyProfiles(desiredState *DesiredState) {
 		for _, profileName := range machineConfig.AppliedProfiles {
 			profile, ok := desiredState.Profiles[profileName]
 			if !ok {
-				Error("Cannot apply profile: ", profileName, " to machine: ", machineName, ": profile not found: ")
+				Error(1, "Cannot apply profile: ", profileName, " to machine: ", machineName, ": profile not found: ")
 				continue
 			}
 
-			Trace(fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
+			Trace(1, fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
 			combinePackageSteps(mergedPackages, profile.Packages)
 			// maps.Copy(machineConfig.Packages, profile.Packages)
 		}
 
-		Trace(fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
+		Trace(1, fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
 		combinePackageSteps(mergedPackages, machineConfig.Packages)
 		verifyPackages(mergedPackages)
 

@@ -20,7 +20,7 @@ func makePackages() (map[string]*packageInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating %s: %v", appConfig.CacheDir, err)
 	}
-	Info("Making packages from repository: ", appConfig.RepoDir)
+	Info(1, "Making packages from repository: ", appConfig.RepoDir)
 
 	packages, err := createPackageInfo(appConfig.RepoDir, appConfig.CacheDir)
 	if err != nil {
@@ -31,7 +31,7 @@ func makePackages() (map[string]*packageInfo, error) {
 	for _, p := range packages {
 		err := p.createTarballs()
 		if err != nil {
-			Error("error creating tarballs: ", err)
+			Error(1, "error creating tarballs: ", err)
 		}
 	}
 
@@ -42,7 +42,7 @@ func createPackageInfo(sourceDir string, cacheDir string) (map[string]*packageIn
 	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			Error("Directory does not exist: ", sourceDir)
+			Error(1, "Directory does not exist: ", sourceDir)
 		}
 		asslog.Unhandled("error reading directory: ", err)
 	}
@@ -112,10 +112,10 @@ func (p *packageInfo) makeTempPackage() error {
 	tw := tar.NewWriter(gzw)
 
 	filepath.Walk(p.sourceDir, func(file string, fi os.FileInfo, err error) error {
-		Trace("filepath.Walk: currently looking at: ", file)
+		Trace(1, "filepath.Walk: currently looking at: ", file)
 		// return any error
 		if err != nil {
-			Error("unable to walk directory: ", err)
+			Error(1, "unable to walk directory: ", err)
 			return fmt.Errorf("unable to walk directory: %s", err)
 		}
 
@@ -127,33 +127,33 @@ func (p *packageInfo) makeTempPackage() error {
 		// create a new dir/file header
 		header, err := tar.FileInfoHeader(fi, fi.Name())
 		if err != nil {
-			Error("unable to create header: ", err)
+			Error(1, "unable to create header: ", err)
 			return fmt.Errorf("unable to create header: %s", err)
 		}
 
 		// update the name to correctly reflect the desired destination when untarring
 		header.Name, err = filepath.Rel(p.sourceDir, file)
 		if err != nil {
-			Error("unable to get relative path for header. Name: ", err)
+			Error(1, "unable to get relative path for header. Name: ", err)
 			return fmt.Errorf("unable to get relative path for header. Name: %s", err)
 		}
 
 		// write the header
 		if err := tw.WriteHeader(header); err != nil {
-			Error("unable to write header: ", err)
+			Error(1, "unable to write header: ", err)
 			return fmt.Errorf("unable to write header: %s", err)
 		}
 
 		// open files for taring
 		f, err := os.Open(file)
 		if err != nil {
-			Error("unable to open file: ", err)
+			Error(1, "unable to open file: ", err)
 			return fmt.Errorf("unable to open file: %s", err)
 		}
 
 		// copy file data into tar writer
 		if _, err := io.Copy(tw, f); err != nil {
-			Error("unable to copy file data: ", err)
+			Error(1, "unable to copy file data: ", err)
 			return fmt.Errorf("unable to copy file data: %s", err)
 		}
 
@@ -167,7 +167,7 @@ func (p *packageInfo) makeTempPackage() error {
 	tw.Close()
 	gzw.Close()
 	tarball.Close()
-	Trace("closed the tarball for ", p.packageName)
+	Trace(1, "closed the tarball for ", p.packageName)
 	return nil
 }
 
@@ -204,22 +204,22 @@ func (p *packageInfo) makeTempFilesPermanent() error {
 	if err != nil {
 		return fmt.Errorf("error renaming the checksum: %s", err)
 	}
-	Trace("renamed the tarball sucessfully")
-	Success("Package ", p.packageName, " was created successfully!")
+	Trace(1, "renamed the tarball sucessfully")
+	Success(1, "Package ", p.packageName, " was created successfully!")
 	return nil
 }
 
 func syncChecksums(desiredState *DesiredState, packagesMap map[string]*packageInfo) {
-	Info("Syncing calculated checksums to DesiredState...")
+	Info(1, "Syncing calculated checksums to DesiredState...")
 
 	// 1. Sync Machine Packages
 	for _, machineConfig := range desiredState.Machines {
-		Debug("machineConfig: ", machineConfig)
+		Debug(1, "machineConfig: ", machineConfig)
 		for pkgName, pkgConfig := range machineConfig.Packages {
-			Trace("syncing checksum for machineConfig.Packages[", pkgName, "]")
+			Trace(1, "syncing checksum for machineConfig.Packages[", pkgName, "]")
 			// Look up the package in our generated map
 			if info, ok := packagesMap[pkgName]; ok {
-				Debug("Package ", pkgName, " found in repo")
+				Debug(1, "Package ", pkgName, " found in repo")
 				// Update the checksum in the config
 				if len(pkgConfig) == 0 {
 					Fatal(1, "Package ", pkgName, " not found in config")
@@ -228,7 +228,7 @@ func syncChecksums(desiredState *DesiredState, packagesMap map[string]*packageIn
 				// CRITICAL: Reassign the struct back to the map (Go map semantics)
 				machineConfig.Packages[pkgName] = pkgConfig
 			} else {
-				Warning("Package ", pkgName, " not found in repo")
+				Warning(1, "Package ", pkgName, " not found in repo")
 			}
 		}
 	}

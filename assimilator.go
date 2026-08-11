@@ -30,8 +30,6 @@ var (
 //	- allow not needing to be run as root
 
 func main() {
-	asslog.StartLogger()
-	defer asslog.Close()
 
 	flags := ParseFlags()
 	if flags.ShowVersion {
@@ -44,15 +42,15 @@ func main() {
 	appConfig.version = appVersion
 	appConfig.commit = commit
 	appConfig.buildDate = buildDate
-	Trace("Version: ", appVersion)
-	Trace("Commit: ", commit)
-	Trace("Build Date: ", buildDate)
+	Trace(1, "Version: ", appVersion)
+	Trace(2, "Commit: ", commit)
+	Trace(2, "Build Date: ", buildDate)
 
 	if appConfig.IsServer {
-		Info("Running as server")
+		Info(1, "Running as server")
 		Server()
 	} else {
-		Info("Running as agent")
+		Info(1, "Running as agent")
 		commandRunner := LiveCommandRunner{}
 		Agent(&commandRunner)
 	}
