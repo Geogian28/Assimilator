@@ -20,7 +20,7 @@ func makePackages() (map[string]*packageInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating %s: %v", appConfig.CacheDir, err)
 	}
-	Info(1, "Making packages from repository: ", appConfig.RepoDir)
+	Info(2, "Making packages from repository: ", appConfig.RepoDir)
 
 	packages, err := createPackageInfo(appConfig.RepoDir, appConfig.CacheDir)
 	if err != nil {
@@ -112,7 +112,7 @@ func (p *packageInfo) makeTempPackage() error {
 	tw := tar.NewWriter(gzw)
 
 	filepath.Walk(p.sourceDir, func(file string, fi os.FileInfo, err error) error {
-		Trace(1, "filepath.Walk: currently looking at: ", file)
+		Trace(5, "filepath.Walk: currently looking at: ", file)
 		// return any error
 		if err != nil {
 			Error(1, "unable to walk directory: ", err)
@@ -167,7 +167,7 @@ func (p *packageInfo) makeTempPackage() error {
 	tw.Close()
 	gzw.Close()
 	tarball.Close()
-	Trace(1, "closed the tarball for ", p.packageName)
+	Trace(5, "closed the tarball for ", p.packageName)
 	return nil
 }
 
@@ -204,22 +204,22 @@ func (p *packageInfo) makeTempFilesPermanent() error {
 	if err != nil {
 		return fmt.Errorf("error renaming the checksum: %s", err)
 	}
-	Trace(1, "renamed the tarball sucessfully")
+	Trace(5, "renamed the tarball sucessfully")
 	Success(1, "Package ", p.packageName, " was created successfully!")
 	return nil
 }
 
 func syncChecksums(desiredState *DesiredState, packagesMap map[string]*packageInfo) {
-	Info(1, "Syncing calculated checksums to DesiredState...")
+	Info(2, "Syncing calculated checksums to DesiredState...")
 
 	// 1. Sync Machine Packages
 	for _, machineConfig := range desiredState.Machines {
-		Debug(1, "machineConfig: ", machineConfig)
+		Trace(4, "machineConfig: ", machineConfig)
 		for pkgName, pkgConfig := range machineConfig.Packages {
-			Trace(1, "syncing checksum for machineConfig.Packages[", pkgName, "]")
+			Trace(5, "syncing checksum for machineConfig.Packages[", pkgName, "]")
 			// Look up the package in our generated map
 			if info, ok := packagesMap[pkgName]; ok {
-				Debug(1, "Package ", pkgName, " found in repo")
+				Trace(4, "Package ", pkgName, " found in repo")
 				// Update the checksum in the config
 				if len(pkgConfig) == 0 {
 					Fatal(1, "Package ", pkgName, " not found in config")

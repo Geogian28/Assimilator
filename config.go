@@ -149,7 +149,7 @@ func ConfigFromFile() {
 	}
 	// 2. Ensure file exists
 	if !fileExists("/etc/assimilator/config.toml") {
-		Info(1, "Config file does not exist. Making one.")
+		Info(2, "Config file does not exist. Making one.")
 		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
 			Config: AppConfig{
 				IsServer:              false,
@@ -195,7 +195,7 @@ func ConfigFromFile() {
 		Error(1, "Failed to unmarshal config file: ", err)
 		return
 	}
-	Debug(1, "Loaded config from file.")
+	Trace(4, "Loaded config from file.")
 	if wrapper.Config.IsServer && wrapper.Config.IsAgent {
 		Fatal(1, "Both 'server' and 'agent' enabled in config file. Cannot run as both agent and server.")
 		return
@@ -362,21 +362,21 @@ func traceAppConfig() {
 // processFlagsAndArgs processes the command line flags and returns the
 // corresponding FlagsAndArgs structure.
 func SetupAppConfig(flags *CliFlags) {
-	Trace(1, "Loading config from file.")
+	Trace(5, "Loading config from file.")
 	ConfigFromFile()
 	traceAppConfig()
 
-	Trace(1, "Loading config from environment.")
+	Trace(5, "Loading config from environment.")
 	ConfigFromEnv()
 	traceAppConfig()
 
-	Trace(1, "Loading config from flags.")
+	Trace(5, "Loading config from flags.")
 	ConfigFromFlags(flags)
 	traceAppConfig()
 
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
-		Info(1, "Neither server nor agent flags provided. Assuming Agent")
+		Info(2, "Neither server nor agent flags provided. Assuming Agent")
 		appConfig.IsAgent = true
 	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")
@@ -424,7 +424,7 @@ func SetupAppConfig(flags *CliFlags) {
 	}
 
 	if appConfig.Hostname == "" {
-		Trace(1, "Hostname is blank. Attempting to get hostname from os.Hostname().")
+		Trace(5, "Hostname is blank. Attempting to get hostname from os.Hostname().")
 		var err error
 		appConfig.Hostname, err = os.Hostname()
 		if err != nil {
@@ -433,7 +433,7 @@ func SetupAppConfig(flags *CliFlags) {
 		if appConfig.Hostname == "" {
 			Fatal(1, "Got hostname successfully, but it was empty... ¯\\_(ツ)_/¯")
 		} else {
-			Trace(1, "Hostname finally set to: ", appConfig.Hostname)
+			Trace(5, "Hostname finally set to: ", appConfig.Hostname)
 		}
 	}
 
@@ -531,7 +531,7 @@ func logFileLocation() string {
 
 // LoadDesiredState reads the YAML file from the given path and unmarshals it into the AppConfig struct.
 func LoadDesiredState(filePath string) (*DesiredState, error) {
-	Trace(1, "Reading config file: ", filePath)
+	Trace(5, "Reading config file: ", filePath)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file '%s': %w", filePath, err)
@@ -552,7 +552,7 @@ func applyProfiles(desiredState *DesiredState) {
 	for profileName := range desiredState.Profiles {
 		ProfileNames = append(ProfileNames, profileName)
 	}
-	Debug(1, "Available profiles: ", strings.Join(ProfileNames, ", "))
+	Trace(4, "Available profiles: ", strings.Join(ProfileNames, ", "))
 
 	for machineName, machineConfig := range desiredState.Machines {
 		mergedPackages := make(map[string][]PackageStep)
@@ -564,12 +564,12 @@ func applyProfiles(desiredState *DesiredState) {
 				continue
 			}
 
-			Trace(1, fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
+			Trace(5, fmt.Sprintf(`Copying packages from profile "%s" to machine: %s`, profileName, machineName))
 			combinePackageSteps(mergedPackages, profile.Packages)
 			// maps.Copy(machineConfig.Packages, profile.Packages)
 		}
 
-		Trace(1, fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
+		Trace(5, fmt.Sprintf(`Applying specific overrides for machine: %s`, machineName))
 		combinePackageSteps(mergedPackages, machineConfig.Packages)
 		verifyPackages(mergedPackages)
 

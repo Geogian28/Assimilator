@@ -32,7 +32,7 @@ var agentData *AgentData
 
 // Check the server for updates
 func (a *AgentData) assimilationCheck(ctx context.Context) {
-	Info(1, "Starting assimilation check...")
+	Info(2, "Starting assimilation check...")
 	// 1. Open the connection for the entire sync cycle here
 	address := a.appConfig.ServerIP + ":" + fmt.Sprint(a.appConfig.ServerPort)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -53,7 +53,7 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	}
 
 	for packageName, packageConfig := range machineConfig {
-		Trace(1, "Package: ", packageName, " checksum: ", packageConfig.Checksum)
+		Trace(5, "Package: ", packageName, " checksum: ", packageConfig.Checksum)
 	}
 
 	// 4. Filter packages by user then sort them, and list them
@@ -72,7 +72,7 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	}
 
 	// printReports(filteredNames, a.failureReports)
-	Info(1, "Completed assimilation check.")
+	Info(2, "Completed assimilation check.")
 }
 
 func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[string]*packageInfo) {
@@ -81,7 +81,7 @@ func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[strin
 	for packageName, packageConfig := range packages {
 		for _, packageStep := range packageConfig.PackageSteps {
 			if packageStep.Runasuser == appConfig.RunAsUser || packageStep.Runasuser == "_all" {
-				Debug(1, packageName, "'s packageStep and appConfig 'RunAsUser' match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
+				Trace(4, packageName, "'s packageStep and appConfig 'RunAsUser' match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
 				sortedNames = append(sortedNames, packageName)
 				filteredPackages[packageName] = convertToPackageInfo(
 					packageName,
@@ -89,7 +89,7 @@ func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[strin
 					packageConfig.Checksum,
 				)
 			} else {
-				Trace(1, packageName, "'s packageStep and appConfig 'RunAsUser' dont match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
+				Trace(5, packageName, "'s packageStep and appConfig 'RunAsUser' dont match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
 			}
 		}
 	}
@@ -104,9 +104,9 @@ func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[strin
 // func printReports(namesSorted []string, failureReports map[string]string) {
 // 	// successfulReports := []string{}
 // 	// failedReports := []string{}
-// 	Trace(1, "namesSorted length: ", len(namesSorted))
+// 	Trace(5, "namesSorted length: ", len(namesSorted))
 // 	// for _, packageName := range namesSorted {
-// 	// 	Trace(1, "packageName: ", packageName)
+// 	// 	Trace(5, "packageName: ", packageName)
 // 	// 	if _, ok := failureReports[packageName]; ok {
 // 	// 		failedReports = append(failedReports, packageName)
 // 	// 	} else {
@@ -129,7 +129,7 @@ func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[strin
 // 		fmt.Fprintln(&builder, report)
 // 	}
 // 	report = builder.String()
-// 	Info(1, "Results:\n", report, "\n")
+// 	Info(2, "Results:\n", report, "\n")
 // }
 
 func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
@@ -138,27 +138,27 @@ func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
 		length += len(packageConfig.PackageSteps)
 	}
 
-	Debug(1, "There are ", length, " package configs across ,"+fmt.Sprint(len(packages))+" packages.")
-	Debug(1, "Listing packages applied to this machine:")
+	Trace(4, "There are ", length, " package configs across ,"+fmt.Sprint(len(packages))+" packages.")
+	Trace(4, "Listing packages applied to this machine:")
 	// for packageName, packageconfig := range packages {
 	for _, packageName := range namesSorted {
-		Debug(1, "- ", packageName)
+		Trace(4, "- ", packageName)
 		for _, packageData := range packages[packageName].PackageSteps {
 			if len(packageData.Arguments) > 0 {
-				Debug(1, "  - ", packageData.Action, " as user ", packageData.Runasuser, " with arguments:")
+				Trace(4, "  - ", packageData.Action, " as user ", packageData.Runasuser, " with arguments:")
 				for _, argument := range packageData.Arguments {
-					Debug(1, "    - ", argument)
+					Trace(4, "    - ", argument)
 				}
 				continue
 			}
-			Debug(1, "   - ", packageData.Action, " as user ", packageData.Runasuser)
+			Trace(4, "   - ", packageData.Action, " as user ", packageData.Runasuser)
 		}
 	}
 }
 
 // Get the machine config from the server
 func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*assctl.PackageConfig, error) {
-	Debug(1, "Attempting to fetch config from server...")
+	Trace(4, "Attempting to fetch config from server...")
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
@@ -166,7 +166,7 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*a
 	resp, err := a.client.GetSpecificConfig(ctx, req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			asslog.Trace(1, "pingServer was canceled by shutdown signal.")
+			asslog.Trace(5, "pingServer was canceled by shutdown signal.")
 			return nil, err
 		}
 		errorStatus, ok := status.FromError(err)
@@ -179,7 +179,7 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*a
 		case codes.NotFound:
 			Error(1, "assimilator server could not find this machine's config:\n      ", err.Error())
 		case codes.Canceled:
-			Trace(1, "assimilator server request was canceled:\n      ", err.Error())
+			Trace(5, "assimilator server request was canceled:\n      ", err.Error())
 		default:
 			Error(1, "assimilator server returned an unexpected error:\n      ", err.Error())
 		}
@@ -191,7 +191,7 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*a
 		return nil, err
 	}
 
-	Info(1, "Successfully got config for machine: ", a.appConfig.Hostname)
+	Info(2, "Successfully got config for machine: ", a.appConfig.Hostname)
 	if len(resp.GetPackages()) == 0 {
 		Error(1, "No packages to install. Double-check config.yaml for ", a.appConfig.Hostname)
 		return nil, err
@@ -202,15 +202,15 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*a
 func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, checksum string) *packageInfo {
 	// ticketStatus, ticketID := checkTormonStatus(packageName)
 	ticketStatus, ticketID := "notset", 0
-	Trace(1, "packageName : ", packageName, ", ticketStatus: ", ticketStatus, ", ticketID: ", ticketID)
+	Trace(5, "packageName : ", packageName, ", ticketStatus: ", ticketStatus, ", ticketID: ", ticketID)
 	switch ticketStatus {
 	case "notset":
 		break
 	case "open":
-		Info(1, fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon/%d\n", packageName, ticketID))
+		Info(2, fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon/%d\n", packageName, ticketID))
 		return nil
 	case "pending":
-		Info(1, "Tormon asked to retry deployment.")
+		Info(2, "Tormon asked to retry deployment.")
 		// pendingStatus = true
 	case "none":
 		Error(1, "Tormon ticket not found. Continuing anyways deployment of ", packageName)
@@ -242,7 +242,7 @@ func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, chec
 // 	resp, err := client.GetSpecificConfig(ctx, req)
 // 	if err != nil {
 // 		if errors.Is(err, context.Canceled) {
-// 			asslog.Trace(1, "pingServer was canceled by shutdown signal.")
+// 			asslog.Trace(5, "pingServer was canceled by shutdown signal.")
 // 			return nil, err
 // 		}
 // 		return nil, err
@@ -251,26 +251,26 @@ func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, chec
 // }
 
 func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
-	Trace(1, "setting respVersion to ", resp.Version.Version)
+	Trace(5, "setting respVersion to ", resp.Version.Version)
 	respVersion, err := version.NewVersion(resp.Version.Version)
-	Trace(1, "setting configVersion to ", agentData.appConfig.version)
+	Trace(5, "setting configVersion to ", agentData.appConfig.version)
 	configVersion, _ := version.NewVersion(agentData.appConfig.version)
 
-	Trace(1, "comparing ", configVersion, " to ", respVersion)
+	Trace(5, "comparing ", configVersion, " to ", respVersion)
 	if err == nil && configVersion.LessThan(respVersion) {
-		Info(1, "version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.version)
+		Info(2, "version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.version)
 		if !appConfig.TestMode {
-			Info(1, "Restarting to update...")
+			Info(2, "Restarting to update...")
 			asslog.Close()
 			os.Exit(0)
 		}
 	}
-	Info(1, "Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
+	Info(2, "Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
 	return nil
 }
 
 // func checkTormonStatus(packageName string) (string, int) {
-// 	Trace(1, "appConfig.TormonAddress: ", appConfig.TormonAddress)
+// 	Trace(5, "appConfig.TormonAddress: ", appConfig.TormonAddress)
 // 	if appConfig.TormonAddress == "" {
 // 		return "notset", 0
 // 	}
@@ -291,7 +291,7 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 // 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 // 		return "none", 0
 // 	}
-// 	Trace(1, "packageName : ", packageName, ", ticketStatus: ", result.Status, ", ticketID: ", result.TicketID)
+// 	Trace(5, "packageName : ", packageName, ", ticketStatus: ", result.Status, ", ticketID: ", result.TicketID)
 // 	return result.Status, result.TicketID
 // }
 
@@ -306,7 +306,7 @@ func Agent(commandRunner CommandRunner) {
 		commandRunner: commandRunner,
 	}
 
-	Info(1, "Agent starting up...")
+	Info(2, "Agent starting up...")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -321,24 +321,24 @@ func Agent(commandRunner CommandRunner) {
 	agentData.assimilationCheck(ctx)
 	// if (appConfig.RunAsUser != "" && appConfig.RunAsUser != "root") || appConfig.RunOnce {
 	if appConfig.RunOnce {
-		Info(1, "Everything is updated. Shutting down.")
+		Info(2, "Everything is updated. Shutting down.")
 		ctx.Done()
 		return
 	}
 
 	// Start a goutine to run that check again at the specified interval
 	go func(ctx context.Context) {
-		Debug(1, "Agent loop started.")
+		Trace(4, "Agent loop started.")
 		for {
 			select {
 			case <-done:
 				return
 			case <-ticker.C:
-				Trace(1, "tick! ", time.Now())
+				Trace(5, "tick! ", time.Now())
 				ticker.Stop()
 				agentData.assimilationCheck(ctx)
 				ticker = time.NewTicker(time.Duration(appConfig.UpdateCheckInterval) * time.Second)
-				Info(1, "Waiting ", time.Duration(appConfig.UpdateCheckInterval)*time.Second, " seconds before next check.")
+				Info(2, "Waiting ", time.Duration(appConfig.UpdateCheckInterval)*time.Second, " seconds before next check.")
 			}
 		}
 	}(ctx)
@@ -350,9 +350,9 @@ func Agent(commandRunner CommandRunner) {
 	<-shutdownSignal
 
 	// Signal received, now clean up.
-	Debug(1, "Shutdown signal received, telling agent loop to stop...")
+	Trace(4, "Shutdown signal received, telling agent loop to stop...")
 	ticker.Stop()
 	cancel()
 	done <- true
-	Debug(1, "Agent shutting down...")
+	Trace(4, "Agent shutting down...")
 }

@@ -54,7 +54,7 @@ func reportToTormon(packageName, installStatus string, installLog string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
-		Debug(1, "Reported %s failure to Tormon.\n", packageName)
+		Trace(4, "Reported %s failure to Tormon.\n", packageName)
 	} else {
 		Error(1, "tormon returned unexpected status: ", resp.StatusCode)
 	}

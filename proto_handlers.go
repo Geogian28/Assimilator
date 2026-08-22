@@ -22,13 +22,13 @@ func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllCon
 		Machines: toProtoMachineConfigMap(&s.desiredState.Machines),
 		// Users:    toProtoUserConfigMap(&s.desiredState.Users),
 	}
-	Info(1, "Returning response to agent.")
+	Info(2, "Returning response to agent.")
 	return response, nil
 }
 
 // GetAllConfigs implements AssimilatorService
 func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSpecificConfigRequest) (*pb.GetSpecificConfigResponse, error) {
-	Trace(1, "Agent attempting to get config for machine: ", req.MachineName)
+	Trace(5, "Agent attempting to get config for machine: ", req.MachineName)
 	if s.desiredState == nil {
 		Warning(1, "Agent attempted to get a specific config, but Server has not loaded the configuration yet")
 		return nil, fmt.Errorf("server has not loaded the configuration yet")
@@ -37,10 +37,10 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 		Warning(1, "Configs loaded, but there are no machines.")
 		return nil, fmt.Errorf("configs loaded, but there are no machines")
 	}
-	// Trace(1, "Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
+	// Trace(5, "Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
 	if machine, okay := s.desiredState.Machines[req.MachineName]; okay {
-		Trace(1, "Found a machine with name: ", req.MachineName)
-		Info(1, "Returning response to ", req.MachineName, "'s agent.")
+		Trace(5, "Found a machine with name: ", req.MachineName)
+		Info(2, "Returning response to ", req.MachineName, "'s agent.")
 		return &pb.GetSpecificConfigResponse{
 			AppliedProfiles: machine.AppliedProfiles,
 			Packages:        toProtoPackageConfigMap(&machine.Packages),
@@ -48,12 +48,12 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 			Version:         toProtoServerVersion(&s.ServerVersion),
 		}, nil
 	}
-	Debug(1, "Cannot find a machine with name: ", req.MachineName)
+	Trace(4, "Cannot find a machine with name: ", req.MachineName)
 	return nil, status.Errorf(codes.NotFound, "cannot find a machine with name: %v", req.MachineName)
 }
 
 func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream pb.Assimilator_DownloadPackageServer) error {
-	Info(1, "Client requested package: ", req.Name)
+	Info(2, "Client requested package: ", req.Name)
 	if s.PackageDir == "" {
 		return status.Error(codes.Internal, "Server repository directory is not configured")
 	}
@@ -116,6 +116,6 @@ func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream p
 		}
 	}
 
-	Info(1, "Successfully sent package: ", req.Name)
+	Info(2, "Successfully sent package: ", req.Name)
 	return nil
 }
