@@ -437,6 +437,10 @@ func SetupAppConfig(flags *CliFlags) {
 		}
 	}
 
+	if appConfig.LogFileLocation == "/var/log/assimilator/assimilator.log" && appConfig.RunAsUser == "root" {
+		appConfig.LogFileLocation = logFileLocation()
+	}
+
 	if appConfig.CacheDir == "" {
 		appConfig.CacheDir = userCacheDir()
 	}
