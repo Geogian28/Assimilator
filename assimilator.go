@@ -47,10 +47,10 @@ func main() {
 	Trace(2, "Build Date: ", buildDate)
 
 	if appConfig.IsServer {
-		Info(2, "Running as server")
+		Info(1, "Running as server")
 		Server()
 	} else {
-		Info(2, "Running as agent")
+		Info(1, "Running as agent")
 		commandRunner := LiveCommandRunner{}
 		Agent(&commandRunner)
 	}

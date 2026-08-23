@@ -32,7 +32,7 @@ var agentData *AgentData
 
 // Check the server for updates
 func (a *AgentData) assimilationCheck(ctx context.Context) {
-	Info(2, "Starting assimilation check...")
+	Info(1, "Starting assimilation check...")
 	// 1. Open the connection for the entire sync cycle here
 	address := a.appConfig.ServerIP + ":" + fmt.Sprint(a.appConfig.ServerPort)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -72,7 +72,7 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	}
 
 	// printReports(filteredNames, a.failureReports)
-	Info(2, "Completed assimilation check.")
+	Info(1, "Completed assimilation check.")
 }
 
 func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[string]*packageInfo) {
@@ -129,7 +129,7 @@ func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[strin
 // 		fmt.Fprintln(&builder, report)
 // 	}
 // 	report = builder.String()
-// 	Info(2, "Results:\n", report, "\n")
+// 	Info(1, "Results:\n", report, "\n")
 // }
 
 func listPackages(namesSorted []string, packages map[string]*pb.PackageConfig) {
@@ -191,7 +191,7 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*a
 		return nil, err
 	}
 
-	Info(2, "Successfully got config for machine: ", a.appConfig.Hostname)
+	Info(1, "Successfully got config for machine: ", a.appConfig.Hostname)
 	if len(resp.GetPackages()) == 0 {
 		Error(1, "No packages to install. Double-check config.yaml for ", a.appConfig.Hostname)
 		return nil, err
@@ -207,10 +207,10 @@ func convertToPackageInfo(packageName string, packageData *pb.PackageSteps, chec
 	case "notset":
 		break
 	case "open":
-		Info(2, fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon/%d\n", packageName, ticketID))
+		Info(1, fmt.Sprintf("skipping %s: open ticket exists in Tormon. Change status to 'pending' to retry.\n    Ticket: https://tormon/%d\n", packageName, ticketID))
 		return nil
 	case "pending":
-		Info(2, "Tormon asked to retry deployment.")
+		Info(1, "Tormon asked to retry deployment.")
 		// pendingStatus = true
 	case "none":
 		Error(1, "Tormon ticket not found. Continuing anyways deployment of ", packageName)
@@ -258,14 +258,14 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 
 	Trace(5, "comparing ", configVersion, " to ", respVersion)
 	if err == nil && configVersion.LessThan(respVersion) {
-		Info(2, "version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.version)
+		Info(1, "version mismatch. Server version: ", respVersion, " Local version: ", agentData.appConfig.version)
 		if !appConfig.TestMode {
-			Info(2, "Restarting to update...")
+			Info(1, "Restarting to update...")
 			asslog.Close()
 			os.Exit(0)
 		}
 	}
-	Info(2, "Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
+	Info(1, "Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
 	return nil
 }
 
@@ -306,7 +306,7 @@ func Agent(commandRunner CommandRunner) {
 		commandRunner: commandRunner,
 	}
 
-	Info(2, "Agent starting up...")
+	Info(1, "Agent starting up...")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -321,7 +321,7 @@ func Agent(commandRunner CommandRunner) {
 	agentData.assimilationCheck(ctx)
 	// if (appConfig.RunAsUser != "" && appConfig.RunAsUser != "root") || appConfig.RunOnce {
 	if appConfig.RunOnce {
-		Info(2, "Everything is updated. Shutting down.")
+		Info(1, "Everything is updated. Shutting down.")
 		ctx.Done()
 		return
 	}
@@ -338,7 +338,7 @@ func Agent(commandRunner CommandRunner) {
 				ticker.Stop()
 				agentData.assimilationCheck(ctx)
 				ticker = time.NewTicker(time.Duration(appConfig.UpdateCheckInterval) * time.Second)
-				Info(2, "Waiting ", time.Duration(appConfig.UpdateCheckInterval)*time.Second, " seconds before next check.")
+				Info(1, "Waiting ", time.Duration(appConfig.UpdateCheckInterval)*time.Second, " seconds before next check.")
 			}
 		}
 	}(ctx)

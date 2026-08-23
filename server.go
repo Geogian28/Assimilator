@@ -126,7 +126,7 @@ func pullRepo(repoDir string, auth *http.BasicAuth) error {
 
 // Clone or pull the repository
 func cloneOrPullRepo() (string, error) {
-	Info(2, "Cloning or pulling repository...")
+	Info(1, "Cloning or pulling repository...")
 	repoDir := appConfig.RepoDir
 	auth := &http.BasicAuth{ // Use BasicAuth for PAT
 		Username: appConfig.GithubUsername,
@@ -150,7 +150,7 @@ func cloneOrPullRepo() (string, error) {
 	}
 
 	// Clone or pull the repository
-	Info(2, "Cloning or pulling repository to ", repoDir)
+	Info(1, "Cloning or pulling repository to ", repoDir)
 	err := cloneRepo(repoDir, auth)
 	if err != nil {
 		switch {
@@ -170,8 +170,8 @@ func cloneOrPullRepo() (string, error) {
 		log.Fatalf("Failed to read directory: %v", err)
 	}
 
-	Info(2, "Listing contents of: ", repoDir)
-	Info(2, "---------------------------------")
+	Debug(2, "Listing contents of: ", repoDir)
+	Debug(2, "---------------------------------")
 
 	// Loop through and print the names
 	for _, entry := range entries {
@@ -181,11 +181,11 @@ func cloneOrPullRepo() (string, error) {
 			suffix = "/"
 		}
 
-		Info(2, entry.Name(), " ", suffix)
+		Info(1, entry.Name(), " ", suffix)
 	}
 
 	filePath := repoDir + "/config.yaml"
-	Info(2, "Reading config file: ", filePath)
+	Debug(2, "Reading config file: ", filePath)
 
 	// Read the entire file into memory
 	content, err := os.ReadFile(filePath)
@@ -194,13 +194,13 @@ func cloneOrPullRepo() (string, error) {
 	}
 
 	// os.ReadFile returns []byte, so we convert it to a string to print it
-	Info(2, string(content))
+	Info(1, string(content))
 
 	return repoDir, nil
 }
 
 func isUpdateAvailable(repoDir string) (bool, error) {
-	Trace(5, "Checking for updates...")
+	Info(1, "Checking for updates...")
 	// 1. Open your local repo and get it's HEAD has to compare
 	r, err := git.PlainOpen(repoDir)
 	if err != nil {
@@ -243,7 +243,7 @@ func isUpdateAvailable(repoDir string) (bool, error) {
 	Trace(5, "Local repository HEAD hash:  ", localHash)
 	Trace(5, "Remote repository HEAD hash: ", remoteHash)
 	if remoteHash != localHash {
-		Trace(5, "Update available!")
+		Trace(5, "Update available because local and remote hashes are different")
 		return true, nil
 	}
 	return false, nil
@@ -254,10 +254,9 @@ func Server() {
 	// Clone or pull the remote repository to the local one
 	repoDir, err := cloneOrPullRepo()
 	if err != nil {
-		Trace(5, "error cloning or pulling repository: ", err)
 		Unhandled("error cloning or pulling repository: ", err)
 	} else {
-		Info(2, "Repository cloned or pulled successfully")
+		Success(2, "Repository cloned or pulled successfully")
 	}
 
 	// Load the desired state
@@ -292,7 +291,7 @@ func Server() {
 		desiredState: desiredState,
 		packages:     packages,
 	})
-	Info(2, "Server listening on at ", lis.Addr())
+	Info(1, "Server listening on at ", lis.Addr())
 
 	// Create a channel to receive OS signals
 	// This is used to gracefully shutdown the server in case of SIGTERM (ctrl+c)
@@ -330,9 +329,11 @@ func Server() {
 				attempts = 0
 
 				if updateAvailable {
-					Info(2, "Update available. Shutting down...")
+					Info(1, "Update available. Shutting down...")
 					sigChan <- os.Interrupt
 					return
+				} else {
+					Info(1, "Checked for updates and found none.")
 				}
 
 			}
@@ -341,10 +342,10 @@ func Server() {
 	}(ticker)
 	// Wait for a signal
 	<-sigChan
-	Info(2, "Received interrup signal. Gracefully stopping gRPC server...")
+	Info(1, "Received interrup signal. Gracefully stopping gRPC server...")
 	close(done)
 	// Graceful shutdown for gRPC server
 	s.GracefulStop()
-	Info(2, "gRPC server stopped.")
+	Info(1, "gRPC server stopped.")
 
 }

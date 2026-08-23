@@ -149,7 +149,7 @@ func ConfigFromFile() {
 	}
 	// 2. Ensure file exists
 	if !fileExists("/etc/assimilator/config.toml") {
-		Info(2, "Config file does not exist. Making one.")
+		Info(1, "Config file does not exist. Making one.")
 		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
 			Config: AppConfig{
 				IsServer:              false,
@@ -376,7 +376,7 @@ func SetupAppConfig(flags *CliFlags) {
 
 	switch {
 	case !appConfig.IsServer && !appConfig.IsAgent:
-		Info(2, "Neither server nor agent flags provided. Assuming Agent")
+		Info(1, "Neither server nor agent flags provided. Assuming Agent")
 		appConfig.IsAgent = true
 	case appConfig.IsServer && appConfig.IsAgent:
 		Fatal(1, "Both server and agent flags provided. Cannot run as both.")

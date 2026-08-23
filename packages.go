@@ -98,7 +98,7 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 	if err := p.executePackageScript(a); err != nil {
 		return err
 	}
-	Trace(5, "Successfully excuted script for", p.name)
+	Success(1, "Successfully excuted ", p.name, "'s ", p.action, " script.")
 	return nil
 }
 

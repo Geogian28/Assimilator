@@ -20,7 +20,7 @@ func makePackages() (map[string]*packageInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating %s: %v", appConfig.CacheDir, err)
 	}
-	Info(2, "Making packages from repository: ", appConfig.RepoDir)
+	Info(1, "Making packages from repository: ", appConfig.RepoDir)
 
 	packages, err := createPackageInfo(appConfig.RepoDir, appConfig.CacheDir)
 	if err != nil {
@@ -210,7 +210,7 @@ func (p *packageInfo) makeTempFilesPermanent() error {
 }
 
 func syncChecksums(desiredState *DesiredState, packagesMap map[string]*packageInfo) {
-	Info(2, "Syncing calculated checksums to DesiredState...")
+	Info(1, "Syncing calculated checksums to DesiredState...")
 
 	// 1. Sync Machine Packages
 	for _, machineConfig := range desiredState.Machines {

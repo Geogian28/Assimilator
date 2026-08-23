@@ -22,13 +22,13 @@ func (s *AssimilatorServer) GetAllConfigs(ctx context.Context, req *pb.GetAllCon
 		Machines: toProtoMachineConfigMap(&s.desiredState.Machines),
 		// Users:    toProtoUserConfigMap(&s.desiredState.Users),
 	}
-	Info(2, "Returning response to agent.")
+	Info(1, "Returning response to agent.")
 	return response, nil
 }
 
 // GetAllConfigs implements AssimilatorService
 func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSpecificConfigRequest) (*pb.GetSpecificConfigResponse, error) {
-	Trace(5, "Agent attempting to get config for machine: ", req.MachineName)
+	Debug(3, "Agent attempting to get config for machine: ", req.MachineName)
 	if s.desiredState == nil {
 		Warning(1, "Agent attempted to get a specific config, but Server has not loaded the configuration yet")
 		return nil, fmt.Errorf("server has not loaded the configuration yet")
@@ -40,7 +40,7 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 	// Trace(5, "Printing DesiredState.Machines[req.MachineName]: \n%v\n", DesiredState.Machines[req.MachineName])
 	if machine, okay := s.desiredState.Machines[req.MachineName]; okay {
 		Trace(5, "Found a machine with name: ", req.MachineName)
-		Info(2, "Returning response to ", req.MachineName, "'s agent.")
+		Info(1, "Sending config to ", req.MachineName)
 		return &pb.GetSpecificConfigResponse{
 			AppliedProfiles: machine.AppliedProfiles,
 			Packages:        toProtoPackageConfigMap(&machine.Packages),
@@ -56,7 +56,7 @@ func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream p
 	if req.Requestor == "" {
 		return status.Error(codes.InvalidArgument, "requestor is empty")
 	}
-	Info(2, req.Requestor, " requested package: ", req.Name)
+	Info(1, req.Requestor, " requested package: ", req.Name)
 	if s.PackageDir == "" {
 		return status.Error(codes.Internal, "Server repository directory is not configured")
 	}
@@ -119,6 +119,6 @@ func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream p
 		}
 	}
 
-	Info(2, "Successfully sent package: ", req.Name)
+	Info(1, "Successfully sent package: ", req.Name)
 	return nil
 }
