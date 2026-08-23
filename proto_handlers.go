@@ -53,7 +53,10 @@ func (s *AssimilatorServer) GetSpecificConfig(ctx context.Context, req *pb.GetSp
 }
 
 func (s *AssimilatorServer) DownloadPackage(req *assctl.PackageRequest, stream pb.Assimilator_DownloadPackageServer) error {
-	Info(2, "Client requested package: ", req.Name)
+	if req.Requestor == "" {
+		return status.Error(codes.InvalidArgument, "requestor is empty")
+	}
+	Info(2, req.Requestor, " requested package: ", req.Name)
 	if s.PackageDir == "" {
 		return status.Error(codes.Internal, "Server repository directory is not configured")
 	}

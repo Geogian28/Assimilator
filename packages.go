@@ -255,7 +255,8 @@ func (p *packageInfo) printTimeSinceLastRun() string {
 func (p *packageInfo) downloadPackage(a *AgentData) error {
 	// 1. Initiate the request
 	req := &pb.PackageRequest{
-		Name: p.name,
+		Name:      p.name,
+		Requestor: a.appConfig.Hostname,
 	}
 
 	// 2. Open the stream

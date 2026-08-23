@@ -53,8 +53,11 @@ message GetSpecificConfigResponse {
 // ========================================================
 
 message PackageRequest {
+    // The name of the package
     string Name = 1;
-    // string Category = 2;
+
+    // The machine requesting the package
+    string Requestor = 2;
 }
 
 message PackageResponse {
