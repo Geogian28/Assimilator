@@ -19,33 +19,34 @@ import (
 )
 
 type AppConfig struct {
-	IsServer              bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
+	IsServer              bool                  `toml:"is_server,omitempty" env:"ASSIMILATOR_IS_SERVER"`
 	IsAgent               bool                  `toml:"is_agent" env:"ASSIMILATOR_IS_AGENT"`
-	GithubUsername        string                `toml:"Github_username" env:"ASSIMILATOR_GITHUB_USERNAME"`
-	GithubToken           string                `toml:"Github_token" env:"ASSIMILATOR_GITHUB_TOKEN"`
-	GithubRepo            string                `toml:"Github_repo" env:"ASSIMILATOR_GITHUB_REPO"`
-	GithubBranch          string                `toml:"Github_branch" env:"ASSIMILATOR_GITHUB_BRANCH"`
+	GithubUsername        string                `toml:"Github_username,omitempty" env:"ASSIMILATOR_GITHUB_USERNAME"`
+	GithubToken           string                `toml:"Github_token,omitempty" env:"ASSIMILATOR_GITHUB_TOKEN"`
+	GithubRepo            string                `toml:"Github_repo,omitempty" env:"ASSIMILATOR_GITHUB_REPO"`
+	GithubBranch          string                `toml:"Github_branch,omitempty" env:"ASSIMILATOR_GITHUB_BRANCH"`
 	VerbosityLevel        int                   `toml:"verbosity_level" env:"ASSIMILATOR_VERBOSITY_LEVEL"`
 	LogTypes              string                `toml:"log_types" env:"ASSIMILATOR_LOG_TYPES"`
-	LogFileLocation       string                `toml:"log_file_location" env:"ASSIMILATOR_LOG_FILE_LOCATION"`
-	RepoDir               string                `toml:"repo_dir" env:"ASSIMILATOR_REPO_DIR"`
+	LogFileLocation       string                `toml:"log_file_location,omitempty" env:"ASSIMILATOR_LOG_FILE_LOCATION"`
+	RepoDir               string                `toml:"repo_dir,omitempty" env:"ASSIMILATOR_REPO_DIR"`
 	ServerIP              string                `toml:"server_ip" env:"ASSIMILATOR_SERVER_IP"`
 	ServerPort            int                   `toml:"server_port" env:"ASSIMILATOR_SERVER_PORT"`
 	Hostname              string                `toml:"-" env:"ASSIMILATOR_HOSTNAME"`
 	packageMap            map[string]PackageMap `toml:"-" yaml:"package_map"`
-	CacheDir              string                //`toml:"cache_dir" env:"ASSIMILATOR_CACHE_DIR"`
+	CacheDir              string                `toml:"cache_dir,omitempty" env:"ASSIMILATOR_CACHE_DIR"`
 	version               string                `toml:"-"`
 	commit                string                `toml:"-"`
 	buildDate             string                `toml:"-"`
 	distro                string                `toml:"-"`
-	TormonAddress         string                `toml:"tormon_address" env:"ASSIMILATOR_TORMON_ADDRESS"`
+	TormonAddress         string                `toml:"tormon_address,omitempty" env:"ASSIMILATOR_TORMON_ADDRESS"`
 	ConfigFilename        string                `toml:"-" env:"ASSIMILATOR_CONFIG_FILENAME"`
 	RunAsUser             string                `toml:"-" env:"ASSIMILATOR_RUN_AS_USER"`
 	CurrentUser           string                `toml:"-"`
 	RunOnce               bool                  `toml:"-"`
 	PackageUpdateInterval int64                 `toml:"package_update_interval" env:"ASSIMILATOR_PACKAGE_UPDATE_INTERVAL"`
 	UpdateCheckInterval   int64                 `toml:"update_check_interval" env:"ASSIMILATOR_UPDATE_CHECK_INTERVAL"`
-	TestMode              bool
+	TestMode              bool                  `toml:"omitempty"`
+	UserHomeDir           string                `toml:"omitempty"`
 }
 
 var appConfig = AppConfig{
@@ -64,6 +65,7 @@ var appConfig = AppConfig{
 	RunAsUser:             runningUser(),
 	PackageUpdateInterval: 600,
 	UpdateCheckInterval:   60,
+	UserHomeDir:           runningUserHomeDir(),
 }
 
 type DesiredState struct {
@@ -137,24 +139,27 @@ func fileExists(filename string) bool {
 
 func ConfigFromFile() {
 	// 1. Ensure folder exists:
-	err := os.MkdirAll("/etc/assimilator", 0755)
+	configDir := filepath.Join(appConfig.UserHomeDir, ".config", "assimilator")
+	err := os.MkdirAll(configDir, 0755)
 	if err != nil {
 		switch {
 		case errors.Is(err, os.ErrPermission):
-			Error(1, "Cannot make /etc/assimilator directory. Try running as root.")
+			Error(1, "Cannot make ", configDir, " directory because of permission issues: ", err)
 			return
 		default:
-			asslog.Unhandled("Error creating assimilator directory: ", err)
+			asslog.Unhandled("Error creating ", configDir, " directory: ", err)
 		}
 	}
+
 	// 2. Ensure file exists
-	if !fileExists("/etc/assimilator/config.toml") {
+	configFile := filepath.Join(configDir, "config.toml")
+	if !fileExists(configFile) {
 		Info(1, "Config file does not exist. Making one.")
 		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
 			Config: AppConfig{
 				IsServer:              false,
 				IsAgent:               true,
-				VerbosityLevel:        3,
+				VerbosityLevel:        1,
 				LogTypes:              "console file",
 				ServerIP:              "0.0.0.0",
 				ServerPort:            2390,
@@ -165,19 +170,21 @@ func ConfigFromFile() {
 		if err != nil {
 			Unhandled("Error marshalling default config: ", err)
 		}
-		err = os.WriteFile("/etc/assimilator/config.toml", []byte(defaultConfig), 0644)
+
+		err = os.WriteFile(configFile, []byte(defaultConfig), 0644)
 		if err != nil {
 			switch {
 			case errors.Is(err, os.ErrPermission):
-				Error(1, "Received permission denied while creating config file. Try running as root.")
+				Error(1, "Received permission denied while creating config file: ", err)
 			default:
 				Unhandled("Error creating config file: ", err)
 			}
 		}
+
 	}
 
-	// Load configs from /etc/assimilator
-	configFile, err := os.ReadFile("/etc/assimilator/config.toml")
+	// Load configs from the config file
+	config, err := os.ReadFile(configFile)
 	if err != nil {
 		Error(1, "Failed to open config file: ", err)
 		return
@@ -190,7 +197,7 @@ func ConfigFromFile() {
 	}
 	// 2. Unmarshal the file INTO the existing data.
 	//    The unmarshaler acts as a "patch", only updating fields found in the text.
-	err = toml.Unmarshal(configFile, &wrapper)
+	err = toml.Unmarshal(config, &wrapper)
 	if err != nil {
 		Error(1, "Failed to unmarshal config file: ", err)
 		return
@@ -488,10 +495,17 @@ func logTypes(logTypesPtr string) map[string]bool {
 func runningUser() string {
 	runningUser, err := user.Current()
 	if err != nil {
-		Error(1, "Failed to get current user: ", err)
-		os.Exit(1)
+		Fatal(1, "Failed to get current user: ", err)
 	}
 	return runningUser.Username
+}
+
+func runningUserHomeDir() string {
+	runningUser, err := user.Current()
+	if err != nil {
+		Fatal(1, "Failed to get current user: ", err)
+	}
+	return runningUser.HomeDir
 }
 
 func userCacheDir() string {
