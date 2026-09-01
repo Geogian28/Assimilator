@@ -43,14 +43,14 @@ func main() {
 	appConfig.commit = commit
 	appConfig.buildDate = buildDate
 	Trace(5, "Version: ", appVersion)
-	Trace(2, "Commit: ", commit)
-	Trace(2, "Build Date: ", buildDate)
+	Trace(5, "Commit: ", commit)
+	Trace(5, "Build Date: ", buildDate)
 
 	if appConfig.IsServer {
-		Info(1, "Running as server")
+		Info(2, "Running as server")
 		Server()
 	} else {
-		Info(1, "Running as agent")
+		Info(2, "Running as agent")
 		commandRunner := LiveCommandRunner{}
 		Agent(&commandRunner)
 	}

@@ -200,7 +200,7 @@ func cloneOrPullRepo() (string, error) {
 }
 
 func isUpdateAvailable(repoDir string) (bool, error) {
-	Info(1, "Checking for updates...")
+	Info(2, "Checking for updates...")
 	// 1. Open your local repo and get it's HEAD has to compare
 	r, err := git.PlainOpen(repoDir)
 	if err != nil {

@@ -32,7 +32,7 @@ var agentData *AgentData
 
 // Check the server for updates
 func (a *AgentData) assimilationCheck(ctx context.Context) {
-	Info(1, "Starting assimilation check...")
+	Info(2, "Starting assimilation check...")
 	// 1. Open the connection for the entire sync cycle here
 	address := a.appConfig.ServerIP + ":" + fmt.Sprint(a.appConfig.ServerPort)
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -72,7 +72,7 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	}
 
 	// printReports(filteredNames, a.failureReports)
-	Info(1, "Completed assimilation check.")
+	Info(3, "Completed assimilation check.")
 }
 
 func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[string]*packageInfo) {
@@ -191,7 +191,7 @@ func (a *AgentData) getPackageInfoFromServer(ctx context.Context) (map[string]*a
 		return nil, err
 	}
 
-	Info(1, "Successfully got config for machine: ", a.appConfig.Hostname)
+	Success(2, "Successfully got config for machine: ", a.appConfig.Hostname)
 	if len(resp.GetPackages()) == 0 {
 		Error(1, "No packages to install. Double-check config.yaml for ", a.appConfig.Hostname)
 		return nil, err
@@ -265,7 +265,7 @@ func checkForVersionMismatch(resp *pb.GetSpecificConfigResponse) error {
 			os.Exit(0)
 		}
 	}
-	Info(1, "Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
+	Debug(3, "Agent version (", agentData.appConfig.version, ") matches server version (", resp.Version.Version, ").")
 	return nil
 }
 

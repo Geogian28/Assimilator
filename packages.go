@@ -105,16 +105,17 @@ func (p *packageInfo) ProcessPackage(a *AgentData) error {
 func (p *packageInfo) ensurePackage(a *AgentData) error {
 	// 1. Check if the folder exists
 
-	Trace(4, "Checking if package folder exists: ", p.cacheDir)
+	Trace(5, "Checking if package folder exists: ", p.cacheDir)
 	if !fileExists(p.cacheDir) {
 		err := os.MkdirAll(p.cacheDir, 0755)
 		if err != nil {
 			return fmt.Errorf("failed to create cache folder: %w", err)
 		}
 	}
+	Trace(4, "Package folder exists: ", p.cacheDir)
 
 	// 2. Check if we have the file and if it matches the server
-	Trace(4, "Checking if package file exists: ", p.path)
+	Trace(5, "Checking if package file exists: ", p.path)
 	if fileExists(p.path) {
 		var err error
 		p.checksum, err = calculateChecksum(p.path)
@@ -131,6 +132,7 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 	} else {
 		Trace(4, "Package ", p.name, " does not exist.")
 	}
+	Trace(4, "Package file exists: ", p.cacheDir)
 
 	// 3. If we are here, we either don't have it or it's old. Download it
 	Trace(4, "Downloading package: ", p.name)
@@ -146,7 +148,7 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 
 func (p *packageInfo) checkLastRunTime() {
 	if appConfig.RunOnce {
-		Trace(5, "RunOnce set. Not checking last run time.")
+		Debug(3, "RunOnce set. Not checking last run time.")
 		return
 	}
 	lastRunPath := filepath.Join(p.cacheDir, p.action+"_"+p.runAsUser+"_lastRunTime.txt")
@@ -204,7 +206,7 @@ func (p *packageInfo) printTimeSinceLastRun() string {
 		if secs == 1 {
 			return fmt.Sprintf("Last run time for %s is %s (1 second ago)", p.name, p.lastRunTime.Format(time.RFC3339))
 		}
-		return fmt.Sprintf("Last run time for %s is (%d seconds ago)", p.name, secs)
+		return fmt.Sprintf("Last run time for %s is %s (%d seconds ago)", p.name, p.lastRunTime.Format(time.RFC3339), secs)
 	}
 
 	// 2. 1 to 5 minutes: Minutes and seconds
