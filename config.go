@@ -46,7 +46,7 @@ type AppConfig struct {
 	PackageUpdateInterval int64                 `toml:"package_update_interval" env:"ASSIMILATOR_PACKAGE_UPDATE_INTERVAL"`
 	UpdateCheckInterval   int64                 `toml:"update_check_interval" env:"ASSIMILATOR_UPDATE_CHECK_INTERVAL"`
 	TestMode              bool                  `toml:"test_mode,omitempty"`
-	UserHomeDir           string                `toml:"test_mode,omitempty"`
+	ConfigDir             string                `toml:"test_mode,omitempty"`
 }
 
 var appConfig = AppConfig{
@@ -65,7 +65,7 @@ var appConfig = AppConfig{
 	RunAsUser:             runningUser(),
 	PackageUpdateInterval: 600,
 	UpdateCheckInterval:   60,
-	UserHomeDir:           runningUserHomeDir(),
+	ConfigDir:             runningConfigDir(),
 }
 
 type DesiredState struct {
@@ -139,20 +139,19 @@ func fileExists(filename string) bool {
 
 func ConfigFromFile() {
 	// 1. Ensure folder exists:
-	configDir := filepath.Join(appConfig.UserHomeDir, ".config", "assimilator")
-	err := os.MkdirAll(configDir, 0755)
+	err := os.MkdirAll(appConfig.ConfigDir, 0755)
 	if err != nil {
 		switch {
 		case errors.Is(err, os.ErrPermission):
-			Error(1, "Cannot make ", configDir, " directory because of permission issues: ", err)
+			Error(1, "Cannot make ", appConfig.ConfigDir, " directory because of permission issues: ", err)
 			return
 		default:
-			asslog.Unhandled("Error creating ", configDir, " directory: ", err)
+			asslog.Unhandled("Error creating ", appConfig.ConfigDir, " directory: ", err)
 		}
 	}
 
 	// 2. Ensure file exists
-	configFile := filepath.Join(configDir, "config.toml")
+	configFile := filepath.Join(appConfig.ConfigDir, "config.toml")
 	if !fileExists(configFile) {
 		Info(1, "Config file does not exist. Making one.")
 		defaultConfig, err := toml.Marshal(TomlConfigWrapper{
@@ -500,12 +499,15 @@ func runningUser() string {
 	return runningUser.Username
 }
 
-func runningUserHomeDir() string {
+func runningConfigDir() string {
 	runningUser, err := user.Current()
 	if err != nil {
 		Fatal(1, "Failed to get current user: ", err)
 	}
-	return runningUser.HomeDir
+	if runningUser.Username == "root" {
+		return "/etc/assimilator"
+	}
+	return filepath.Join(runningUser.HomeDir, ".config", "assimilator")
 }
 
 func userCacheDir() string {
