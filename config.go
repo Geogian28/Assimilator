@@ -19,7 +19,7 @@ import (
 )
 
 type AppConfig struct {
-	IsServer              bool                  `toml:"is_server,omitempty" env:"ASSIMILATOR_IS_SERVER"`
+	IsServer              bool                  `toml:"is_server" env:"ASSIMILATOR_IS_SERVER"`
 	IsAgent               bool                  `toml:"is_agent" env:"ASSIMILATOR_IS_AGENT"`
 	GithubUsername        string                `toml:"Github_username,omitempty" env:"ASSIMILATOR_GITHUB_USERNAME"`
 	GithubToken           string                `toml:"Github_token,omitempty" env:"ASSIMILATOR_GITHUB_TOKEN"`
@@ -45,8 +45,8 @@ type AppConfig struct {
 	RunOnce               bool                  `toml:"-"`
 	PackageUpdateInterval int64                 `toml:"package_update_interval" env:"ASSIMILATOR_PACKAGE_UPDATE_INTERVAL"`
 	UpdateCheckInterval   int64                 `toml:"update_check_interval" env:"ASSIMILATOR_UPDATE_CHECK_INTERVAL"`
-	TestMode              bool                  `toml:"omitempty"`
-	UserHomeDir           string                `toml:"omitempty"`
+	TestMode              bool                  `toml:"test_mode,omitempty"`
+	UserHomeDir           string                `toml:"test_mode,omitempty"`
 }
 
 var appConfig = AppConfig{
