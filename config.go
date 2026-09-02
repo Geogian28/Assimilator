@@ -458,11 +458,11 @@ func SetupAppConfig(flags *CliFlags) {
 		appConfig.RunAsUser = appConfig.CurrentUser
 	}
 
-	Success(1, "Configuration loaded successfully.")
 	asslog.SetVerbosity(appConfig.VerbosityLevel)
 	asslog.SetLogTypes(logTypes(appConfig.LogTypes))
 	asslog.SetLogFileLocation(appConfig.LogFileLocation)
 	traceAppConfig()
+	Trace(4, "AppConfig setup complete")
 }
 
 func logTypes(logTypesPtr string) map[string]bool {

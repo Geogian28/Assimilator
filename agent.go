@@ -306,7 +306,7 @@ func Agent(commandRunner CommandRunner) {
 		commandRunner: commandRunner,
 	}
 
-	Info(1, "Agent starting up...")
+	Info(2, "Agent starting up...")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
