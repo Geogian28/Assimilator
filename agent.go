@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,10 +26,21 @@ type AgentData struct {
 	appConfig      *AppConfig
 	client         pb.AssimilatorClient
 	commandRunner  CommandRunner
-	failureReports map[string]string
+	failureReports map[TaskKey]string
 }
 
 var agentData *AgentData
+
+type TaskKey struct {
+	Package string
+	Action  string
+}
+
+// PackageTasks groups a package with its filtered, deduplicated actions
+type PackageTasks struct {
+	Name    string
+	Actions []*packageInfo
+}
 
 // Check the server for updates
 func (a *AgentData) assimilationCheck(ctx context.Context) {
@@ -57,17 +69,22 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	}
 
 	// 4. Filter packages by user then sort them, and list them
-	filteredNames, filteredPackages := PackagesForUser(machineConfig)
-	// listPackages(filteredNames, machineConfig)
+	tasks := PackagesForUser(machineConfig)
 
 	// 5. Processes the packages
-	a.failureReports = make(map[string]string, len(machineConfig))
-	for _, packageName := range filteredNames {
-		p := filteredPackages[packageName]
-		err := p.ProcessPackage(a)
-		if err != nil {
-			a.failureReports[p.action+" "+packageName] = fmt.Sprintf("error processing %s package's %s action: %s ", packageName, p.action, err)
-			Error(1, "error processing package: ", err)
+	// a.failureReports = make(map[string]string, len(machineConfig))
+	a.failureReports = make(map[TaskKey]string)
+
+	for _, pkg := range tasks {
+		for _, action := range pkg.Actions {
+			if err := action.ProcessPackage(a); err != nil {
+				key := TaskKey{
+					Package: pkg.Name,
+					Action:  action.action,
+				}
+				a.failureReports[key] = fmt.Sprintf("error processing %s action: %s", action.action, err)
+				Error(1, "error processing package: ", err)
+			}
 		}
 	}
 
@@ -75,30 +92,48 @@ func (a *AgentData) assimilationCheck(ctx context.Context) {
 	Info(3, "Completed assimilation check.")
 }
 
-func PackagesForUser(packages map[string]*pb.PackageConfig) ([]string, map[string]*packageInfo) {
-	sortedNames := make([]string, 0, len(packages))
-	filteredPackages := make(map[string]*packageInfo, len(packages))
+func PackagesForUser(packages map[string]*pb.PackageConfig) []PackageTasks {
+	userPackages := make([]PackageTasks, 0, len(packages))
+	// filteredPackages := make(map[string][]*packageInfo, len(packages))
 	for packageName, packageConfig := range packages {
+		var validActions []*packageInfo
+		seenActions := make(map[string]struct{})
 		for _, packageStep := range packageConfig.PackageSteps {
-			if packageStep.Runasuser == appConfig.RunAsUser || packageStep.Runasuser == "_all" {
-				Trace(4, packageName, "'s packageStep and appConfig 'RunAsUser' match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
-				sortedNames = append(sortedNames, packageName)
-				filteredPackages[packageName] = convertToPackageInfo(
-					packageName,
-					packageStep,
-					packageConfig.Checksum,
-				)
-			} else {
+			if packageStep.Runasuser != appConfig.RunAsUser && packageStep.Runasuser != "_all" {
 				Trace(5, packageName, "'s packageStep and appConfig 'RunAsUser' dont match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
+				continue
 			}
+
+			if _, exists := seenActions[packageStep.Action]; exists {
+				continue
+			}
+			seenActions[packageStep.Action] = struct{}{}
+
+			validActions = append(validActions, convertToPackageInfo(
+				packageName,
+				packageStep,
+				packageConfig.Checksum,
+			))
+			Trace(4, packageName, "'s ", packageStep.Action, "'s packageStep and appConfig 'RunAsUser' match: ", packageStep.Runasuser, " & ", appConfig.RunAsUser)
+		}
+		if len(validActions) > 0 {
+			userPackages = append(userPackages, PackageTasks{
+				Name:    packageName,
+				Actions: validActions,
+			})
 		}
 	}
-	slices.Sort(sortedNames)
-	if sortedNames == nil {
+
+	// Sort the slice of structs alphabetically by the package Name
+	slices.SortFunc(userPackages, func(a, b PackageTasks) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	if len(userPackages) == 0 {
 		Error(1, "No packages found for user: ", appConfig.RunAsUser)
 		os.Exit(1)
 	}
-	return sortedNames, filteredPackages
+	return userPackages
 }
 
 // func printReports(namesSorted []string, failureReports map[string]string) {

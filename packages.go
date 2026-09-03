@@ -138,7 +138,11 @@ func (p *packageInfo) ensurePackage(a *AgentData) error {
 	Trace(4, "Downloading package: ", p.name)
 	err := p.downloadPackage(a)
 	if err != nil {
-		a.failureReports[p.name] = fmt.Sprintf("error downloading %s package: %s", p.name, err)
+		key := TaskKey{
+			Package: p.name,
+			Action:  p.action,
+		}
+		a.failureReports[key] = fmt.Sprintf("error downloading %s package: %s", p.name, err)
 		return fmt.Errorf("error downloading %s package: %s", p.name, err)
 	}
 	p.updated = true
@@ -382,7 +386,11 @@ func (p *packageInfo) executePackageScript(a *AgentData) error {
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		a.failureReports[p.name] = string(output)
+		key := TaskKey{
+			Package: p.name,
+			Action:  p.action,
+		}
+		a.failureReports[key] = string(output)
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			code := exitErr.ExitCode()
 			Info(2, "\n", string(output))
